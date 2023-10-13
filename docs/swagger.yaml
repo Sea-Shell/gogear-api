@@ -1,0 +1,522 @@
+basePath: /
+definitions:
+  models.Error:
+    properties:
+      error:
+        type: string
+    type: object
+  models.FullGear:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      category_top_category_id:
+        type: string
+      gear_category_id:
+        type: integer
+      gear_height:
+        type: integer
+      gear_id:
+        type: integer
+      gear_length:
+        type: integer
+      gear_manufacture_id:
+        type: integer
+      gear_name:
+        type: string
+      gear_status:
+        type: boolean
+      gear_top_category_id:
+        type: integer
+      gear_weight:
+        type: integer
+      gear_width:
+        type: integer
+      manufacture_id:
+        type: integer
+      manufacture_name:
+        type: string
+      top_category_id:
+        type: integer
+      top_category_name:
+        type: string
+    type: object
+  models.Gear:
+    properties:
+      gear_category_id:
+        type: integer
+      gear_height:
+        type: integer
+      gear_id:
+        type: integer
+      gear_length:
+        type: integer
+      gear_manufacture_id:
+        type: integer
+      gear_name:
+        type: string
+      gear_status:
+        type: boolean
+      gear_top_category_id:
+        type: integer
+      gear_weight:
+        type: integer
+      gear_width:
+        type: integer
+    type: object
+  models.GearListItem:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      category_top_category_id:
+        type: string
+      gear_category_id:
+        type: integer
+      gear_id:
+        type: integer
+      gear_manufacture_id:
+        type: integer
+      gear_name:
+        type: string
+      gear_top_category_id:
+        type: integer
+      manufacture_id:
+        type: integer
+      manufacture_name:
+        type: string
+      top_category_id:
+        type: integer
+      top_category_name:
+        type: string
+    type: object
+  models.GearNoId:
+    properties:
+      gear_category_id:
+        type: integer
+      gear_height:
+        type: integer
+      gear_length:
+        type: integer
+      gear_manufacture_id:
+        type: integer
+      gear_name:
+        type: string
+      gear_status:
+        type: boolean
+      gear_top_category_id:
+        type: integer
+      gear_weight:
+        type: integer
+      gear_width:
+        type: integer
+    type: object
+  models.Manufacture:
+    properties:
+      manufacture_id:
+        type: integer
+      manufacture_name:
+        type: string
+    type: object
+  models.ResponsePayload:
+    properties:
+      current_page:
+        type: integer
+      item_limit:
+        type: integer
+      items: {}
+      next_page:
+        type: string
+      prev_page:
+        type: string
+      total_item_count:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  models.Status:
+    properties:
+      status:
+        type: string
+    type: object
+  models.User:
+    properties:
+      user_email:
+        type: string
+      user_id:
+        type: integer
+      user_name:
+        type: string
+      user_username:
+        type: string
+    type: object
+  models.UserWithPass:
+    properties:
+      user_email:
+        type: string
+      user_id:
+        type: integer
+      user_name:
+        type: string
+      user_password:
+        type: string
+      user_username:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact:
+    email: support@seashell.no
+    name: API Support
+  description: This is the API of GoGear
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: GoGear API
+  version: "1.0"
+paths:
+  /gear/{gear}:
+    get:
+      consumes:
+      - application/json
+      description: Get gear spessific to ID
+      parameters:
+      - description: Unique ID of Gear you want to get
+        in: path
+        name: gear
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.FullGear'
+      summary: Get gear with ID
+      tags:
+      - Gear
+  /gear/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert new gear with corresponding values
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearNoId'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Insert new gear
+      tags:
+      - Gear
+  /gear/list:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of gear items
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Gear category
+        in: query
+        name: category
+        type: string
+      - description: Top gear category
+        in: query
+        name: topCategory
+        type: string
+      - description: Gear manufacturer
+        in: query
+        name: manufacturer
+        type: string
+      - collectionFormat: multi
+        description: string collection
+        in: query
+        items:
+          type: string
+        name: collection
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.GearListItem'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List gear
+      tags:
+      - Gear
+  /gear/update:
+    post:
+      consumes:
+      - application/json
+      description: Update gear identified by ID
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Gear'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Update gear with ID
+      tags:
+      - Gear
+  /manufacture/{manufacture}:
+    get:
+      consumes:
+      - application/json
+      description: Get manufacture spessific to ID
+      parameters:
+      - description: Unique ID of Gear you want to get
+        in: path
+        name: manufacture
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.Manufacture'
+      summary: Get manufacture by ID
+      tags:
+      - Manufacture
+  /manufacture/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert new manufacture with corresponding values
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Manufacture'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Insert new manufacture
+      tags:
+      - Manufacture
+  /manufacture/list:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of manufacturers
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: search by manufacturename (this is case insensitive and wildcard)
+        in: query
+        name: manufacture
+        type: string
+      - description: search by manufactures full name (this is case insensitive and
+          wildcard)
+        in: query
+        name: manufacturename
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.Manufacture'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List manufacture
+      tags:
+      - Manufacture
+  /manufacture/update:
+    post:
+      consumes:
+      - application/json
+      description: Update manufacture identified by ID
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Manufacture'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Update manufacture with ID
+      tags:
+      - Manufacture
+  /user/{user}:
+    get:
+      consumes:
+      - application/json
+      description: Get user spessific to ID
+      parameters:
+      - description: Unique ID of Gear you want to get
+        in: path
+        name: user
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.User'
+      summary: Get user with ID
+      tags:
+      - User
+  /user/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert new user with corresponding values
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserWithPass'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Insert new user
+      tags:
+      - User
+  /user/list:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of user items
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: search by username (this is case insensitive and wildcard)
+        in: query
+        name: user
+        type: string
+      - description: search by users full name (this is case insensitive and wildcard)
+        in: query
+        name: username
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.User'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List user
+      tags:
+      - User
+  /user/update:
+    post:
+      consumes:
+      - application/json
+      description: Update user identified by ID
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Update user with ID
+      tags:
+      - User
+swagger: "2.0"
