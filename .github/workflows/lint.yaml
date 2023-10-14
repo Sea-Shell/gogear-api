@@ -4,9 +4,9 @@ on:
     branches:
       - main
 
-name: Commit lint
+name: Linting
 jobs:
-  lint:
+  commit-lint:
     uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@v2.1.0
     with:
       release-enabled: false
