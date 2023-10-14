@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 2
 
       - name: Setup GoLang
         uses: actions/setup-go@v4
@@ -38,11 +40,15 @@ jobs:
         run: 
           swag init --generatedTime
 
-      - name: Push updated swagger docs
-        uses: stefanzweifel/git-auto-commit-action@v5.0.0
+      - name: Get last commit message
+        id: last-commit-message
+        run: |
+          echo "msg=$(git log -n 1 --pretty=format:%B)" >> $GITHUB_OUTPUT
+      
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: update swagger definitions"
-          file_pattern: 'docs/docs.go docs/swagger.yaml docs/swagger.json'
-          skip_checkout: true
-          skip_dirty_check: true
+          file_pattern: 'docs/docs.go docs/swagger.json docs/swagger.yaml'
+          commit_message: ${{ steps.last-commit-message.outputs.msg }}
+          commit_options: '--amend --no-edit'
+          push_options: '--force'
           skip_fetch: true
