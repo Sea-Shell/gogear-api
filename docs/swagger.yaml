@@ -65,6 +65,15 @@ definitions:
       gear_width:
         type: integer
     type: object
+  models.GearCategory:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      category_top_category_id:
+        type: integer
+    type: object
   models.GearListItem:
     properties:
       category_id:
@@ -112,6 +121,24 @@ definitions:
         type: integer
       gear_width:
         type: integer
+    type: object
+  models.GearTopCategory:
+    properties:
+      top_category_id:
+        type: integer
+      top_category_name:
+        type: string
+    type: object
+  models.Health:
+    properties:
+      documentation:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      updated:
+        type: string
     type: object
   models.Manufacture:
     properties:
@@ -177,6 +204,108 @@ info:
   title: GoGear API
   version: "1.0"
 paths:
+  /category/{category}:
+    get:
+      consumes:
+      - application/json
+      description: Get category spessific to ID
+      parameters:
+      - description: Unique ID of category you want to get
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.GearCategory'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Get category with ID
+      tags:
+      - Category
+  /category/list:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of category items
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - collectionFormat: multi
+        description: Top category
+        in: query
+        items:
+          type: integer
+        name: category
+        type: array
+      - collectionFormat: multi
+        description: Top gear category
+        in: query
+        items:
+          type: integer
+        name: topCategory
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.GearCategory'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List categories
+      tags:
+      - Category
+  /category/update:
+    post:
+      consumes:
+      - application/json
+      description: Update category identified by ID
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update category with ID
+      tags:
+      - Category
   /gear/{gear}:
     get:
       consumes:
@@ -298,6 +427,21 @@ paths:
       summary: Update gear with ID
       tags:
       - Gear
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get health status of application
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.Health'
+      summary: Get application health
+      tags:
+      - Health
   /manufacture/{manufacture}:
     get:
       consumes:
@@ -409,6 +553,127 @@ paths:
       summary: Update manufacture with ID
       tags:
       - Manufacture
+  /topCategory/{topCategory}:
+    get:
+      consumes:
+      - application/json
+      description: Get top category spessific to ID
+      parameters:
+      - description: Unique ID of top category you want to get
+        in: path
+        name: topCategoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.GearTopCategory'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Get top category with ID
+      tags:
+      - Top category
+  /topCategory/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert new category with corresponding values
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Insert new category
+      tags:
+      - Category
+  /topCategory/list:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of top category items
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - collectionFormat: multi
+        description: top categories
+        in: query
+        items:
+          type: integer
+        name: topCategory
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.GearTopCategory'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List top categories
+      tags:
+      - Top category
+  /topCategory/update:
+    post:
+      consumes:
+      - application/json
+      description: Update top category identified by ID
+      parameters:
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearTopCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update top category with ID
+      tags:
+      - Top category
   /user/{user}:
     get:
       consumes:
