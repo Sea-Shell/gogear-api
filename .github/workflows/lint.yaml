@@ -35,4 +35,4 @@ jobs:
       - name: Lint
         shell: bash
         run:
-          revive -config revive.yaml
+          revive -config revive.toml
