@@ -19,6 +19,15 @@ import (
 	zap "go.uber.org/zap"
 )
 
+//	@Summary		Get top category with ID
+//	@Description	Get top category spessific to ID
+//	@Tags			Top category
+//	@Accept			json
+//	@Produce		json
+//	@Param			topCategoryId	path		int						true	"Unique ID of top category you want to get"
+//	@Success		200				{object}	models.GearTopCategory	"desc"
+//	@Failure		default			{object}	models.Error
+//	@Router			/topCategory/{topCategory} [get]
 func GetTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -48,6 +57,15 @@ func GetTopCategory(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
+//	@Summary		Get category with ID
+//	@Description	Get category spessific to ID
+//	@Tags			Category
+//	@Accept			json 
+//	@Produce		json
+//	@Param			categoryId		path		int					true	"Unique ID of category you want to get"
+//	@Success		200				{object}	models.GearCategory	"desc"
+//	@Failure		default			{object}	models.Error
+//	@Router			/category/{category} [get]
 func GetCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -77,6 +95,17 @@ func GetCategory(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
+//	@Summary		List top categories
+//	@Description	Get a list of top category items
+//	@Tags			Top category
+//	@Accept			json
+//	@Produce		json
+//	@Param			page			query		int			false	"Page number"				default(1)
+//	@Param			limit			query		int			false	"Number of items per page"	default(30)
+//	@Param			topCategory		query		[]int		false	"top categories" 			collectionFormat(multi)
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearTopCategory}
+//	@Failure		default			{object}	models.Error
+//	@Router			/topCategory/list [get]
 func ListTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -235,6 +264,18 @@ func ListTopCategory(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
+//	@Summary		List categories
+//	@Description	Get a list of category items
+//	@Tags			Category
+//	@Accept			json
+//	@Produce		json
+//	@Param			page			query		int			false	"Page number"				default(1)
+//	@Param			limit			query		int			false	"Number of items per page"	default(30)
+//	@Param			category		query		[]int		false	"Top category" 				collectionFormat(multi)
+//	@Param			topCategory		query		[]int		false	"Top gear category" 		collectionFormat(multi)
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearCategory}
+//	@Failure		default			{object}	models.Error
+//	@Router			/category/list [get]
 func ListCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -401,6 +442,15 @@ func ListCategory(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
+//	@Summary		Update top category with ID
+//	@Description	Update top category identified by ID
+//	@Tags			Top category
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.GearTopCategory		true	"query params"
+//	@Success		200				{object}	models.Status		"status: success when all goes well"
+//	@Failure		default			{object}	models.Error
+//	@Router			/topCategory/update [post]
 func UpdateTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -424,6 +474,15 @@ func UpdateTopCategory(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+//	@Summary		Update category with ID
+//	@Description	Update category identified by ID
+//	@Tags			Category
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.GearCategory			true	"query params"
+//	@Success		200				{object}	models.Status		"status: success when all goes well"
+//	@Failure		default			{object}	models.Error
+//	@Router			/category/update [post]
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -447,6 +506,15 @@ func UpdateCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+//	@Summary		Insert new top category
+//	@Description	Insert new top category with corresponding values
+//	@Tags			Top category
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.GearTopCategory	true	"query params"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default			{object}	models.Error
+//	@Router			/topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -470,6 +538,15 @@ func InsertTopCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+//	@Summary		Insert new category
+//	@Description	Insert new category with corresponding values
+//	@Tags			Category
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.GearCategory	true	"query params"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default			{object}	models.Error
+//	@Router			/topCategory/insert [put]
 func InsertCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
