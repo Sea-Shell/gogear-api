@@ -67,18 +67,18 @@ const (
 	configFile = "config.yaml"
 )
 
-// @title           GoGear API
-// @version         1.0
-// @description     This is the API of GoGear
+//	@title			GoGear API
+//	@version		1.0
+//	@description	This is the API of GoGear
 
-// @contact.name   API Support
-// @contact.email  support@seashell.no
+//	@contact.name	API Support
+//	@contact.email	support@seashell.no
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8081
-// @BasePath  /
+// @host		localhost:8081
+// @BasePath	/
 func main() {
 	configFile := flag.String("config", configFile, "Config file")
 

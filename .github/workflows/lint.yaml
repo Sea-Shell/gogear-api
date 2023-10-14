@@ -1,0 +1,13 @@
+---
+on:
+  pull_request:
+    branches:
+      - main
+
+name: Commit lint
+jobs:
+  lint:
+    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@v2.1.0
+    with:
+      release-enabled: false
+      lint-enabled: true
