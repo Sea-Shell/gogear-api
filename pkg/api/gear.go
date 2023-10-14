@@ -19,20 +19,20 @@ import (
 	zap "go.uber.org/zap"
 )
 
-// @Summary List gear
-// @Description Get a list of gear items
-// @Tags Gear
-// @Accept  json
-// @Produce  json
-// @Param page query int false "Page number" default(1)
-// @Param limit query int false "Number of items per page" default(30)
-// @Param category query string false "Gear category"
-// @Param topCategory query string false "Top gear category"
-// @Param manufacturer query string false "Gear manufacturer"
-// @Param   collection  query     []string   false  "string collection"  collectionFormat(multi)
-// @Success 200 {object} models.ResponsePayload{items=[]models.GearListItem}
-// @Failure default {object} models.Error
-// @Router /gear/list [get]
+//	@Summary		List gear
+//	@Description	Get a list of gear items
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			page			query		int			false	"Page number"				default(1)
+//	@Param			limit			query		int			false	"Number of items per page"	default(30)
+//	@Param			category		query		string		false	"Gear category"
+//	@Param			topCategory		query		string		false	"Top gear category"
+//	@Param			manufacturer	query		string		false	"Gear manufacturer"
+//	@Param			collection		query		[]string	false	"string collection"	collectionFormat(multi)
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearListItem}
+//	@Failure		default			{object}	models.Error
+//	@Router			/gear/list [get]
 func ListGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -207,14 +207,14 @@ func ListGear(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
-// @Summary Get gear with ID
-// @Description Get gear spessific to ID
-// @Tags Gear
-// @Accept json 
-// @Produce json
-// @Param gear path int true "Unique ID of Gear you want to get"
-// @Success 200 {object} models.FullGear "desc"
-// @Router /gear/{gear} [get]
+//	@Summary		Get gear with ID
+//	@Description	Get gear spessific to ID
+//	@Tags			Gear
+//	@Accept			json 
+//	@Produce		json
+//	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
+//	@Success		200		{object}	models.FullGear	"desc"
+//	@Router			/gear/{gear} [get]
 func GetGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -244,14 +244,14 @@ func GetGear(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
-// @Summary Insert new gear
-// @Description Insert new gear with corresponding values
-// @Tags Gear
-// @Accept  json
-// @Produce  json
-// @Param request body models.GearNoId true "query params" test
-// @Success 200 {object} models.Status "status: success when all goes well"
-// @Router /gear/insert [put]
+//	@Summary		Insert new gear
+//	@Description	Insert new gear with corresponding values
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.GearNoId	true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Router			/gear/insert [put]
 func InsertGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -275,14 +275,14 @@ func InsertGear(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary Update gear with ID
-// @Description Update gear identified by ID
-// @Tags Gear
-// @Accept  json
-// @Produce  json
-// @Param request body models.Gear true "query params" test
-// @Success 200 {object} models.Status "status: success when all goes well"
-// @Router /gear/update [post]
+//	@Summary		Update gear with ID
+//	@Description	Update gear identified by ID
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.Gear		true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Router			/gear/update [post]
 func UpdateGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 

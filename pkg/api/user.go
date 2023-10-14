@@ -20,18 +20,18 @@ import (
 	zap "go.uber.org/zap"
 )
 
-// @Summary List user
-// @Description Get a list of user items
-// @Tags User
-// @Accept  json
-// @Produce  json
-// @Param page query int false "Page number" default(1)
-// @Param limit query int false "Number of items per page" default(30)
-// @Param user query string false "search by username (this is case insensitive and wildcard)"
-// @Param username query string false "search by users full name (this is case insensitive and wildcard)"
-// @Success 200 {object} models.ResponsePayload{items=[]models.User}
-// @Failure default {object} models.Error
-// @Router /user/list [get]
+//	@Summary		List user
+//	@Description	Get a list of user items
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number"				default(1)
+//	@Param			limit		query		int		false	"Number of items per page"	default(30)
+//	@Param			user		query		string	false	"search by username (this is case insensitive and wildcard)"
+//	@Param			username	query		string	false	"search by users full name (this is case insensitive and wildcard)"
+//	@Success		200			{object}	models.ResponsePayload{items=[]models.User}
+//	@Failure		default		{object}	models.Error
+//	@Router			/user/list [get]
 func ListUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -206,14 +206,14 @@ func ListUser(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
-// @Summary Get user with ID
-// @Description Get user spessific to ID
-// @Tags User
-// @Accept json 
-// @Produce json
-// @Param user path int true "Unique ID of Gear you want to get"
-// @Success 200 {object} models.User "desc"
-// @Router /user/{user} [get]
+//	@Summary		Get user with ID
+//	@Description	Get user spessific to ID
+//	@Tags			User
+//	@Accept			json 
+//	@Produce		json
+//	@Param			user	path		int			true	"Unique ID of Gear you want to get"
+//	@Success		200		{object}	models.User	"desc"
+//	@Router			/user/{user} [get]
 func GetUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -340,14 +340,14 @@ func SetUserPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary Insert new user
-// @Description Insert new user with corresponding values
-// @Tags User
-// @Accept  json
-// @Produce  json
-// @Param request body models.UserWithPass true "query params" test
-// @Success 200 {object} models.Status "status: success when all goes well"
-// @Router /user/insert [put]
+//	@Summary		Insert new user
+//	@Description	Insert new user with corresponding values
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.UserWithPass	true	"query params"	test
+//	@Success		200		{object}	models.Status		"status: success when all goes well"
+//	@Router			/user/insert [put]
 func InsertUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -371,14 +371,14 @@ func InsertUser(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary Update user with ID
-// @Description Update user identified by ID
-// @Tags User
-// @Accept  json
-// @Produce  json
-// @Param request body models.User true "query params" test
-// @Success 200 {object} models.Status "status: success when all goes well"
-// @Router /user/update [post]
+//	@Summary		Update user with ID
+//	@Description	Update user identified by ID
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.User		true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Router			/user/update [post]
 func UpdateUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
