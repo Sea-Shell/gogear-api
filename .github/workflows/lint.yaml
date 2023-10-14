@@ -4,6 +4,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 name: Linting
 jobs:
   commit-lint:
@@ -11,3 +14,24 @@ jobs:
     with:
       release-enabled: false
       lint-enabled: true
+  golang-lint:
+    name: Golang linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.6.0
+
+      - name: Setup golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+
+      - name: Setup revive
+        shell: bash
+        run:
+          go install github.com/mgechev/revive@latest
+      
+      - name: Lint
+        shell: bash
+        run:
+          revive -config revive.yaml
