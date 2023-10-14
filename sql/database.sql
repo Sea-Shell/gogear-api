@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS gear_top_category (
     topCategoryName TEXT NOT NULL
 );
 
-
 CREATE TABLE IF NOT EXISTS gear_category (
     categoryId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     categoryTopCategoryId INTEGER NOT NULL,
