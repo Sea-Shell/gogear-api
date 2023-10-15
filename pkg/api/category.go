@@ -27,7 +27,7 @@ import (
 //	@Param			topCategoryId	path		int						true	"Unique ID of top category you want to get"
 //	@Success		200				{object}	models.GearTopCategory	"desc"
 //	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/{topCategory} [get]
+//	@Router			/topCategory/{topCategory}/get [get]
 func GetTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -65,7 +65,7 @@ func GetTopCategory(c *gin.Context) {
 //	@Param			categoryId		path		int					true	"Unique ID of category you want to get"
 //	@Success		200				{object}	models.GearCategory	"desc"
 //	@Failure		default			{object}	models.Error
-//	@Router			/category/{category} [get]
+//	@Router			/category/{category}/get [get]
 func GetCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -447,10 +447,11 @@ func ListCategory(c *gin.Context) {
 //	@Tags			Top category
 //	@Accept			json
 //	@Produce		json
+//	@Param			topCategoryId		path		int					true	"Unique ID of top category you want to update"
 //	@Param			request	body		models.GearTopCategory		true	"query params"
 //	@Success		200				{object}	models.Status		"status: success when all goes well"
 //	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/update [post]
+//	@Router			/topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -479,10 +480,11 @@ func UpdateTopCategory(c *gin.Context) {
 //	@Tags			Category
 //	@Accept			json
 //	@Produce		json
+//	@Param			categoryId		path		int					true	"Unique ID of category you want to update"
 //	@Param			request	body		models.GearCategory			true	"query params"
 //	@Success		200				{object}	models.Status		"status: success when all goes well"
 //	@Failure		default			{object}	models.Error
-//	@Router			/category/update [post]
+//	@Router			/category/{category}/update [post]
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

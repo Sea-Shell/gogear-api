@@ -24,9 +24,10 @@ import (
 //	@Tags			Manufacture
 //	@Accept			json
 //	@Produce		json
-//	@Param			manufacture	path		int					true	"Unique ID of Gear you want to get"
+//	@Param			manufacture	path		int					true	"Unique ID of manufacture you want to get"
 //	@Success		200			{object}	models.Manufacture	"desc"
-//	@Router			/manufacture/{manufacture} [get]
+//	@Failure		default		{object}	models.Error
+//	@Router			/manufacture/{manufacture}/get [get]
 func GetManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -245,9 +246,11 @@ func ListManufacture(c *gin.Context) {
 //	@Tags			Manufacture
 //	@Accept			json
 //	@Produce		json
+//	@Param			manufacture	path		int				true	"Unique ID of manufacture you want to update"
 //	@Param			request	body		models.Manufacture	true	"query params"	test
 //	@Success		200		{object}	models.Status		"status: success when all goes well"
-//	@Router			/manufacture/update [post]
+//	@Failure		default		{object}	models.Error
+//	@Router			/manufacture/{manufacture}/update [post]
 func UpdateManufacture(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -278,6 +281,7 @@ func UpdateManufacture(c *gin.Context) {
 //	@Produce		json
 //	@Param			request	body		models.Manufacture	true	"query params"	test
 //	@Success		200		{object}	models.Status		"status: success when all goes well"
+//	@Failure		default		{object}	models.Error
 //	@Router			/manufacture/insert [put]
 func InsertManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

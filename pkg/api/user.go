@@ -31,7 +31,7 @@ import (
 //	@Param			username	query		string	false	"search by users full name (this is case insensitive and wildcard)"
 //	@Success		200			{object}	models.ResponsePayload{items=[]models.User}
 //	@Failure		default		{object}	models.Error
-//	@Router			/user/list [get]
+//	@Router			/users/list [get]
 func ListUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -211,9 +211,10 @@ func ListUser(c *gin.Context) {
 //	@Tags			User
 //	@Accept			json 
 //	@Produce		json
-//	@Param			user	path		int			true	"Unique ID of Gear you want to get"
+//	@Param			user	path		int			true	"Unique ID of user you want to get"
 //	@Success		200		{object}	models.User	"desc"
-//	@Router			/user/{user} [get]
+//	@Failure		default		{object}	models.Error
+//	@Router			/users/{user}/get [get]
 func GetUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -242,52 +243,6 @@ func GetUser(c *gin.Context) {
 	log.Infof("Successfully fetched %s with ID %s", function, urlParameter)
 	c.IndentedJSON(http.StatusOK, results)
 }
-
-
-func GetUserGear(c *gin.Context) {
-	user := c.Param("user")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	var param_user models.User
-	//var fields []string = utils.GetDBFieldNames(reflect.TypeOf(param_user))
-
-	row, err := db.Query("SELECT * FROM user_gear_registrations WHERE userName == ? LIMIT 1", user)
-
-	if err != nil {
-		log.Errorf("Query error: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-	defer row.Close()
-
-	var count int = 0
-
-	for row.Next() {
-		count++
-		err := row.Scan(&param_user)
-		if err != nil {
-			log.Errorf("Scan error: %#v", err)
-			c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			return
-		}
-	}
-
-	if err := row.Err(); err != nil {
-		log.Errorf("Row error: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-	}
-
-	if count == 0 {
-		log.Errorf("user_name: %v not found", user)
-		c.IndentedJSON(http.StatusNotFound, map[string]string{"user_name": user, "error": "No results"})
-	} else {
-		log.Infof("successfully fetched user with id: %s, userName: %s", param_user.UserId, param_user.UserUsername)
-		c.IndentedJSON(http.StatusOK, param_user)
-	}
-}
-
 
 func SetUserPassword(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -347,7 +302,8 @@ func SetUserPassword(c *gin.Context) {
 //	@Produce		json
 //	@Param			request	body		models.UserWithPass	true	"query params"	test
 //	@Success		200		{object}	models.Status		"status: success when all goes well"
-//	@Router			/user/insert [put]
+//	@Failure		default		{object}	models.Error
+//	@Router			/users/insert [put]
 func InsertUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -376,9 +332,11 @@ func InsertUser(c *gin.Context) {
 //	@Tags			User
 //	@Accept			json
 //	@Produce		json
+//	@Param			user	path		int				true	"Unique ID of user you want to update"
 //	@Param			request	body		models.User		true	"query params"	test
 //	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Router			/user/update [post]
+//	@Failure		default		{object}	models.Error
+//	@Router			/users/{user}/update [post]
 func UpdateUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
