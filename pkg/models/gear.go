@@ -47,7 +47,7 @@ type FullGear struct {
 	
 	CategoryId            int64  `json:"category_id" db:"gear_category.categoryId"`
 	CategoryName          string `json:"category_name" db:"gear_category.categoryName"`
-	CategoryTopCategoryId string `json:"category_top_category_id" db:"gear_category.categoryTopCategoryId"`
+	CategoryTopCategoryId int64 `json:"category_top_category_id" db:"gear_category.categoryTopCategoryId"`
 }
 
 type GearListItem struct {
@@ -62,7 +62,7 @@ type GearListItem struct {
 	TopCategoryName       string `json:"top_category_name" db:"gear_top_category.topCategoryName"`
 	CategoryId            int64  `json:"category_id" db:"gear_category.categoryId"`
 	CategoryName          string `json:"category_name" db:"gear_category.categoryName"`
-	CategoryTopCategoryId string `json:"category_top_category_id" db:"gear_category.categoryTopCategoryId"`
+	CategoryTopCategoryId int64 `json:"category_top_category_id" db:"gear_category.categoryTopCategoryId"`
 }
 
 type Measurement struct {

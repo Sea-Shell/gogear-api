@@ -79,7 +79,7 @@ const (
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
 // @host		localhost:8081
-// @BasePath	/
+// @BasePath	/api/v1
 func main() {
 	configFile := flag.String("config", configFile, "Config file")
 
@@ -115,45 +115,60 @@ func main() {
 	router.Use(databaseMiddleware(db))
 	router.Use(configMiddleware(&config.General))
 
-	// Groups
-	userGroup := router.Group("/user")
-	gearGroup := router.Group("/gear")
-	topCategoryGroup := router.Group("/topCategory")
-	categoryGroup := router.Group("/category")
-	manufactureGroup := router.Group("/manufacture")
+	// API v1
+	v1 := router.Group("/api/v1")
 
-	router.GET("/health", endpoints.ReturnHealth)
-
-	router.GET("/userGear/:user", endpoints.GetUserGear)
+	// API Groups
+	userGroup 			:= v1.Group("/users")
+	gearGroup 			:= v1.Group("/gear")
+	topCategoryGroup 	:= v1.Group("/topCategory")
+	categoryGroup 		:= v1.Group("/category")
+	manufactureGroup 	:= v1.Group("/manufacture")
+	userGearGroup 		:= v1.Group("/usergear")
 
 	// The routes
-	userGroup.GET("/:user", endpoints.GetUser)
+	v1.GET("/health", endpoints.ReturnHealth)
+
+	// User endpoints
 	userGroup.GET("/list", endpoints.ListUser)
-	userGroup.POST("/update", endpoints.UpdateUser)
+	userGroup.GET("/:user/get", endpoints.GetUser)
+	userGroup.POST("/:user/update", endpoints.UpdateUser)
 	userGroup.PUT("/insert", endpoints.InsertUser)
 	userGroup.POST("/setpassword", endpoints.SetUserPassword)
-
-	gearGroup.GET("/:gear", endpoints.GetGear)
+	
+	// Gear endpoints
 	gearGroup.GET("/list", endpoints.ListGear)
+	gearGroup.GET("/:gear/get", endpoints.GetGear)
+	gearGroup.POST("/:gear/update", endpoints.UpdateGear)
 	gearGroup.PUT("/insert", endpoints.InsertGear)
-	gearGroup.POST("/update", endpoints.UpdateGear)
 
-	topCategoryGroup.GET("/:topCategory", endpoints.GetTopCategory)
+	// User Gear endpoints
+	userGearGroup.GET("/:user/list", endpoints.ListUserGear)
+	userGearGroup.GET("/registration/:usergear/get", endpoints.GetUserGear)
+	userGearGroup.POST("/registration/:usergear/update", endpoints.UpdateUserGear)
+	userGearGroup.PUT("/insert", endpoints.InsertUserGear)
+	
+	// Top Category endpoints
 	topCategoryGroup.GET("/list", endpoints.ListTopCategory)
-	topCategoryGroup.POST("/update", endpoints.UpdateTopCategory)
+	topCategoryGroup.GET("/:topCategory/get", endpoints.GetTopCategory)
+	topCategoryGroup.POST("/:topCategory/update", endpoints.UpdateTopCategory)
 	topCategoryGroup.PUT("/insert", endpoints.InsertTopCategory)
 
-	categoryGroup.GET("/:category", endpoints.GetCategory)
+	// Category endpoints
 	categoryGroup.GET("/list", endpoints.ListCategory)
-	categoryGroup.POST("/update", endpoints.UpdateCategory)
+	categoryGroup.GET("/:category/get", endpoints.GetCategory)
+	categoryGroup.POST("/:category/update", endpoints.UpdateCategory)
 	categoryGroup.PUT("/insert", endpoints.InsertCategory)
 
-	manufactureGroup.GET("/:manufacture", endpoints.GetManufacture)
+	// Manufacture endpoints
 	manufactureGroup.GET("/list", endpoints.ListManufacture)
+	manufactureGroup.GET("/:manufacture/get", endpoints.GetManufacture)
+	manufactureGroup.POST("/:manufacture/update", endpoints.UpdateManufacture)
 	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
-	manufactureGroup.POST("/update", endpoints.UpdateManufacture)
 
+	// Swagger API documentation
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	router.Run("0.0.0.0:" + listenPort)
+	// Listen to all addresses and port defined
+	router.Run("0.0.0.0:" + config.General.ListenPort)
 }

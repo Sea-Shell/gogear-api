@@ -1,4 +1,4 @@
-basePath: /
+basePath: /api/v1
 definitions:
   models.Error:
     properties:
@@ -12,7 +12,7 @@ definitions:
       category_name:
         type: string
       category_top_category_id:
-        type: string
+        type: integer
       gear_category_id:
         type: integer
       gear_height:
@@ -81,7 +81,7 @@ definitions:
       category_name:
         type: string
       category_top_category_id:
-        type: string
+        type: integer
       gear_category_id:
         type: integer
       gear_id:
@@ -179,6 +179,65 @@ definitions:
       user_username:
         type: string
     type: object
+  models.UserGear:
+    properties:
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      category_top_category_id:
+        type: integer
+      gear_category_id:
+        type: integer
+      gear_height:
+        type: integer
+      gear_id:
+        type: integer
+      gear_length:
+        type: integer
+      gear_manufacture_id:
+        type: integer
+      gear_name:
+        type: string
+      gear_status:
+        type: boolean
+      gear_top_category_id:
+        type: integer
+      gear_weight:
+        type: integer
+      gear_width:
+        type: integer
+      manufacture_id:
+        type: integer
+      manufacture_name:
+        type: string
+      top_category_id:
+        type: integer
+      top_category_name:
+        type: string
+      usergear_gear_id:
+        type: integer
+      usergear_registration_id:
+        type: integer
+      usergear_user_id:
+        type: integer
+    type: object
+  models.UserGearLink:
+    properties:
+      usergear_gear_id:
+        type: integer
+      usergear_registration_id:
+        type: integer
+      usergear_user_id:
+        type: integer
+    type: object
+  models.UserGearLinkNoId:
+    properties:
+      usergear_gear_id:
+        type: integer
+      usergear_user_id:
+        type: integer
+    type: object
   models.UserWithPass:
     properties:
       user_email:
@@ -204,7 +263,7 @@ info:
   title: GoGear API
   version: "1.0"
 paths:
-  /category/{category}:
+  /category/{category}/get:
     get:
       consumes:
       - application/json
@@ -227,6 +286,37 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Get category with ID
+      tags:
+      - Category
+  /category/{category}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update category identified by ID
+      parameters:
+      - description: Unique ID of category you want to update
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update category with ID
       tags:
       - Category
   /category/list:
@@ -280,33 +370,7 @@ paths:
       summary: List categories
       tags:
       - Category
-  /category/update:
-    post:
-      consumes:
-      - application/json
-      description: Update category identified by ID
-      parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearCategory'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'status: success when all goes well'
-          schema:
-            $ref: '#/definitions/models.Status'
-        default:
-          description: ""
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Update category with ID
-      tags:
-      - Category
-  /gear/{gear}:
+  /gear/{gear}/get:
     get:
       consumes:
       - application/json
@@ -324,7 +388,42 @@ paths:
           description: desc
           schema:
             $ref: '#/definitions/models.FullGear'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Get gear with ID
+      tags:
+      - Gear
+  /gear/{gear}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update gear identified by ID
+      parameters:
+      - description: Unique ID of Gear you want to get
+        in: path
+        name: gear
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Gear'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update gear with ID
       tags:
       - Gear
   /gear/insert:
@@ -346,6 +445,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Insert new gear
       tags:
       - Gear
@@ -405,28 +508,6 @@ paths:
       summary: List gear
       tags:
       - Gear
-  /gear/update:
-    post:
-      consumes:
-      - application/json
-      description: Update gear identified by ID
-      parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.Gear'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'status: success when all goes well'
-          schema:
-            $ref: '#/definitions/models.Status'
-      summary: Update gear with ID
-      tags:
-      - Gear
   /health:
     get:
       consumes:
@@ -442,13 +523,13 @@ paths:
       summary: Get application health
       tags:
       - Health
-  /manufacture/{manufacture}:
+  /manufacture/{manufacture}/get:
     get:
       consumes:
       - application/json
       description: Get manufacture spessific to ID
       parameters:
-      - description: Unique ID of Gear you want to get
+      - description: Unique ID of manufacture you want to get
         in: path
         name: manufacture
         required: true
@@ -460,7 +541,42 @@ paths:
           description: desc
           schema:
             $ref: '#/definitions/models.Manufacture'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Get manufacture by ID
+      tags:
+      - Manufacture
+  /manufacture/{manufacture}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update manufacture identified by ID
+      parameters:
+      - description: Unique ID of manufacture you want to update
+        in: path
+        name: manufacture
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Manufacture'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update manufacture with ID
       tags:
       - Manufacture
   /manufacture/insert:
@@ -482,6 +598,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Insert new manufacture
       tags:
       - Manufacture
@@ -531,29 +651,7 @@ paths:
       summary: List manufacture
       tags:
       - Manufacture
-  /manufacture/update:
-    post:
-      consumes:
-      - application/json
-      description: Update manufacture identified by ID
-      parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.Manufacture'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'status: success when all goes well'
-          schema:
-            $ref: '#/definitions/models.Status'
-      summary: Update manufacture with ID
-      tags:
-      - Manufacture
-  /topCategory/{topCategory}:
+  /topCategory/{topCategory}/get:
     get:
       consumes:
       - application/json
@@ -576,6 +674,37 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Get top category with ID
+      tags:
+      - Top category
+  /topCategory/{topCategory}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update top category identified by ID
+      parameters:
+      - description: Unique ID of top category you want to update
+        in: path
+        name: topCategoryId
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearTopCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update top category with ID
       tags:
       - Top category
   /topCategory/insert:
@@ -648,18 +777,81 @@ paths:
       summary: List top categories
       tags:
       - Top category
-  /topCategory/update:
-    post:
+  /usergear/{user}/list:
+    get:
       consumes:
       - application/json
-      description: Update top category identified by ID
+      description: Get a list a users gear
+      parameters:
+      - description: Unique ID of user you want to get the Gear of
+        in: path
+        name: user
+        required: true
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 30
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - collectionFormat: multi
+        description: top categories
+        in: query
+        items:
+          type: integer
+        name: topCategory
+        type: array
+      - collectionFormat: multi
+        description: sub categories
+        in: query
+        items:
+          type: integer
+        name: category
+        type: array
+      - collectionFormat: multi
+        description: manufacturers
+        in: query
+        items:
+          type: integer
+        name: manufacture
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.ResponsePayload'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/models.UserGear'
+                  type: array
+              type: object
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List users gear
+      tags:
+      - User gear
+  /usergear/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert user registered gear with corresponding values
       parameters:
       - description: query params
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.GearTopCategory'
+          $ref: '#/definitions/models.UserGearLinkNoId'
       produces:
       - application/json
       responses:
@@ -667,20 +859,64 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
-        default:
-          description: ""
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Update top category with ID
+      summary: Insert user registered gear
       tags:
-      - Top category
-  /user/{user}:
+      - User gear
+  /usergear/registration/{usergear}/get:
+    get:
+      consumes:
+      - application/json
+      description: Get user registeredgear spessific to ID
+      parameters:
+      - description: Unique ID of user registered gear you want to get
+        in: path
+        name: usergear
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.UserGear'
+      summary: Get user registered gear with ID
+      tags:
+      - User gear
+  /usergear/registration/{usergear}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update user registered gear identified by ID
+      parameters:
+      - description: Unique ID of user registered gear you want to get
+        in: path
+        name: usergear
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserGearLink'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+      summary: Update user registered gear with ID
+      tags:
+      - User gear
+  /users/{user}/get:
     get:
       consumes:
       - application/json
       description: Get user spessific to ID
       parameters:
-      - description: Unique ID of Gear you want to get
+      - description: Unique ID of user you want to get
         in: path
         name: user
         required: true
@@ -692,10 +928,45 @@ paths:
           description: desc
           schema:
             $ref: '#/definitions/models.User'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Get user with ID
       tags:
       - User
-  /user/insert:
+  /users/{user}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update user identified by ID
+      parameters:
+      - description: Unique ID of user you want to update
+        in: path
+        name: user
+        required: true
+        type: integer
+      - description: query params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Update user with ID
+      tags:
+      - User
+  /users/insert:
     put:
       consumes:
       - application/json
@@ -714,10 +985,14 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
       summary: Insert new user
       tags:
       - User
-  /user/list:
+  /users/list:
     get:
       consumes:
       - application/json
@@ -760,28 +1035,6 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: List user
-      tags:
-      - User
-  /user/update:
-    post:
-      consumes:
-      - application/json
-      description: Update user identified by ID
-      parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.User'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 'status: success when all goes well'
-          schema:
-            $ref: '#/definitions/models.Status'
-      summary: Update user with ID
       tags:
       - User
 swagger: "2.0"

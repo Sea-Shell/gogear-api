@@ -19,37 +19,42 @@ import (
 	zap "go.uber.org/zap"
 )
 
-//	@Summary		List gear
-//	@Description	Get a list of gear items
-//	@Tags			Gear
+//	@Summary		List users gear
+//	@Description	Get a list a users gear
+//	@Tags			User gear
 //	@Accept			json
 //	@Produce		json
+//	@Param			user			path		int			true	"Unique ID of user you want to get the Gear of"
 //	@Param			page			query		int			false	"Page number"				default(1)
 //	@Param			limit			query		int			false	"Number of items per page"	default(30)
-//	@Param			category		query		string		false	"Gear category"
-//	@Param			topCategory		query		string		false	"Top gear category"
-//	@Param			manufacturer	query		string		false	"Gear manufacturer"
-//	@Param			collection		query		[]string	false	"string collection"	collectionFormat(multi)
-//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearListItem}
-//	@Failure		default		{object}	models.Error
-//	@Router			/gear/list [get]
-func ListGear(c *gin.Context) {
+//	@Param			topCategory		query		[]int		false	"top categories" 			collectionFormat(multi)
+//	@Param			category		query		[]int		false	"sub categories" 			collectionFormat(multi)
+//	@Param			manufacture		query		[]int		false	"manufacturers" 			collectionFormat(multi)
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.UserGear}
+//	@Failure		default			{object}	models.Error
+//	@Router			/usergear/{user}/list [get]
+func ListUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
 	currentQueryParameters := c.Request.URL.Query()
 
 	page := c.Query("page")
 	limit := c.Query("limit")
-	category := c.Query("category")
-	topCategory := c.Query("topCategory")
-	manufacturer := c.Query("manufacturer")
-	
+	userId := c.Param("user")
+	topCategories := c.QueryArray("topCategory")
+	categories := c.QueryArray("category")
+	manufacturers := c.QueryArray("manufacture")
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
-	//cache := c.MustGet("cache").(*cache.BigCache)
 	db := c.MustGet("db").(*sql.DB)
 
 	log.Debugf("Request parameters: %#v", c.Request.URL.Query())
+
+	if userId == "" {
+		log.Errorf("Error userId was not supplied")
+		c.IndentedJSON(http.StatusNoContent, models.Error{Error: "userId supplied was not valid"})
+		return
+	}
 
 	if limit == "" {
 		limit = "30"
@@ -57,6 +62,13 @@ func ListGear(c *gin.Context) {
 	
 	if page == "" || page == "0" {
 		page = "1"
+	}
+
+	userId_int, err := strconv.Atoi(userId)
+	if err != nil {
+		log.Errorf("Error setting userId to int: %#v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
 	}
 
 	page_int, err := strconv.Atoi(page)
@@ -86,17 +98,37 @@ func ListGear(c *gin.Context) {
 	}
 
 	conditions := []string{}
-	if topCategory != "" {
-		topcat := fmt.Sprintf("gear.gearTopCategoryId = %s", topCategory)
+
+	if userId != "" {
+		userIdQ := fmt.Sprintf("user_gear_registrations.userId = %d", userId_int)
+		conditions = append(conditions, userIdQ)
+	}
+
+	for _, topCategory := range topCategories {
+		topCategory_int, err := strconv.Atoi(topCategory)
+		if err != nil {
+			continue
+		}
+		topcat := fmt.Sprintf("gear.gearTopCategoryId = %d", topCategory_int)
 		conditions = append(conditions, topcat)
 	}
-	if category != "" {
-		cat := fmt.Sprintf("gear.gearCategoryId = %s", category)
+
+	for _, category := range categories {
+		category_int, err := strconv.Atoi(category)
+		if err != nil {
+			continue
+		}
+		cat := fmt.Sprintf("gear.gearCategoryId = %d", category_int)
 		conditions = append(conditions, cat)
 	}
-	if manufacturer != "" {
-		cat := fmt.Sprintf("gear.GearManufactureId = %s", manufacturer)
-		conditions = append(conditions, cat)
+
+	for _, manufacture := range manufacturers {
+		manufacture_int, err := strconv.Atoi(manufacture)
+		if err != nil {
+			continue
+		}
+		manufac := fmt.Sprintf("gear.gearManufactureId = %d", manufacture_int)
+		conditions = append(conditions, manufac)
 	}
 
 	whereClause := ""
@@ -104,8 +136,16 @@ func ListGear(c *gin.Context) {
 		whereClause = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	baseCountQuery := "SELECT COUNT(*) FROM gear"
-	countQuery := baseCountQuery + whereClause
+	var extra []string
+	extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
+	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.gearId = users.userId")
+	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
+	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
+	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	extraSQl := strings.Join(extra, " ")
+
+	baseCountQuery := "SELECT COUNT(*) FROM user_gear_registrations"
+	countQuery := baseCountQuery + extraSQl + whereClause
 
 	var totalCount int
 	err = db.QueryRow(countQuery).Scan(&totalCount)
@@ -124,18 +164,14 @@ func ListGear(c *gin.Context) {
 		return
 	}
 
-	var param_gear models.GearListItem
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_gear))
+	var param_topCategory models.UserGear
+	fields := utils.GetDBFieldNames(reflect.TypeOf(param_topCategory))
 
-	baseQuery := fmt.Sprintf(`SELECT %s FROM gear
-		LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId
-		LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId
-		LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`, 
-		strings.Join(fields, ", "))
+	baseQuery := fmt.Sprintf(`SELECT %s FROM user_gear_registrations`, strings.Join(fields, ", "))
 
 	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
 
-	query := baseQuery + whereClause + queryLimit
+	query := baseQuery + extraSQl + whereClause + queryLimit
 
 	log.Debugf("Query: %s", query)
 
@@ -146,14 +182,14 @@ func ListGear(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_gear)
+	dest, err := utils.GetScanFields(param_topCategory)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var gearList []models.GearListItem
+	var gearTopCategoryList []models.UserGear
 
 	for rows.Next() {
 		err = rows.Scan(dest...)
@@ -168,11 +204,11 @@ func ListGear(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_gear).NumField(); i++ {
-			reflect.ValueOf(&param_gear).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(param_topCategory).NumField(); i++ {
+			reflect.ValueOf(&param_topCategory).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		gearList = append(gearList, param_gear)
+		gearTopCategoryList = append(gearTopCategoryList, param_topCategory)
 	}
 
 	payload := models.ResponsePayload{
@@ -180,7 +216,7 @@ func ListGear(c *gin.Context) {
 		CurrentPage:    page_int,
 		ItemLimit:      limit_int,
 		TotalPages:     totalPages,
-		Items:          gearList,
+		Items:          gearTopCategoryList,
 	}
 
 	if page_int < totalPages {
@@ -203,25 +239,23 @@ func ListGear(c *gin.Context) {
 		*payload.PrevPage = prevPage.String()
 	}
 
-	log.Infof("successfully fetched gear with id: %s, gearName: %s", param_gear.GearId, param_gear.GearName)
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
-//	@Summary		Get gear with ID
-//	@Description	Get gear spessific to ID
-//	@Tags			Gear
+//	@Summary		Get user registered gear with ID
+//	@Description	Get user registeredgear spessific to ID
+//	@Tags			User gear
 //	@Accept			json 
 //	@Produce		json
-//	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
-//	@Success		200		{object}	models.FullGear	"desc"
-//	@Failure		default		{object}	models.Error
-//	@Router			/gear/{gear}/get [get]
-func GetGear(c *gin.Context) {
+//	@Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
+//	@Success		200		{object}	models.UserGear	"desc"
+//	@Router			/usergear/registration/{usergear}/get [get]
+func GetUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	function := "gear"
+	function := "user"
 
 	urlParameter, err := strconv.Atoi(c.Param(function))
 	if err != nil {
@@ -229,12 +263,14 @@ func GetGear(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 	}
 	
-	var extraSQl []string
-	extraSQl = append(extraSQl, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
-	extraSQl = append(extraSQl, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
-	extraSQl = append(extraSQl, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	var extra []string
+	extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
+	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.gearId = users.userId")
+	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
+	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
+	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
 	
-	results, err := utils.GenericGet[models.FullGear]("gear", urlParameter, extraSQl, db)
+	results, err := utils.GenericGet[models.UserGear]("user_gear_registrations", urlParameter, extra, db)
 	if err != nil {
 		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -245,16 +281,15 @@ func GetGear(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
-//	@Summary		Insert new gear
-//	@Description	Insert new gear with corresponding values
-//	@Tags			Gear
+//	@Summary		Insert user registered gear
+//	@Description	Insert user registered gear with corresponding values
+//	@Tags			User gear
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		models.GearNoId	true	"query params"	test
+//	@Param			request	body		models.UserGearLinkNoId	true	"query params"	test
 //	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/gear/insert [put]
-func InsertGear(c *gin.Context) {
+//	@Router			/usergear/insert [put]
+func InsertUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
@@ -267,7 +302,7 @@ func InsertGear(c *gin.Context) {
 		return
 	}
 
-	err = utils.GenericInsert[models.Gear]("gear", data, db)
+	err = utils.GenericInsert[models.UserGearLink]("user_gear_registrations", data, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		log.Error(err.Error())
@@ -277,17 +312,16 @@ func InsertGear(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Update gear with ID
-//	@Description	Update gear identified by ID
-//	@Tags			Gear
+//	@Summary		Update user registered gear with ID
+//	@Description	Update user registered gear identified by ID
+//	@Tags			User gear
 //	@Accept			json
 //	@Produce		json
-//	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
-//	@Param			request	body		models.Gear		true	"query params"	test
+//	@Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
+//	@Param			request	body		models.UserGearLink		true	"query params"	test
 //	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/gear/{gear}/update [post]
-func UpdateGear(c *gin.Context) {
+//	@Router			/usergear/registration/{usergear}/update [post]
+func UpdateUserGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
     log := c.MustGet("logger").(*zap.SugaredLogger)
@@ -300,7 +334,7 @@ func UpdateGear(c *gin.Context) {
         return
     }
 
-    err = utils.GenericUpdate[models.Gear]("gear", data, db)
+    err = utils.GenericUpdate[models.UserGearLink]("user_gear_registrations", data, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
         log.Error(err.Error())

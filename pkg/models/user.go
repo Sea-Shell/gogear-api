@@ -16,10 +16,10 @@ type User struct {
 	UserEmail string         `json:"user_email" db:"userEmail"`
 }
 
-type UserGear struct {
-	GearId int64  `json:"gear_id" db:"gearId"`
-	UserId int64  `json:"user_id" db:"userId"`
-}
+// type UserGear struct {
+// 	GearId int64  `json:"gear_id" db:"gearId"`
+// 	UserId int64  `json:"user_id" db:"userId"`
+// }
 
 type UserInventory struct {
 	GearId     int64  `json:"gear_id" db:"gear_id"`

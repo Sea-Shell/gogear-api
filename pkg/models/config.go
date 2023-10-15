@@ -23,5 +23,6 @@ type Database struct {
 }
 
 type General struct {
-	LogLevel string `yaml:"log-level" json:"log-level"`
+	ListenPort 	string 	`yaml:"listen-port" json:"listen_port"`
+	LogLevel 	string 	`yaml:"log-level" json:"log-level"`
 }
