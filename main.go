@@ -109,6 +109,9 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(func (c *gin.Context){
+		c.Header("Access-Control-Allow-Origin", "*")
+	})
 
 	router.Use(setLogger(log))
 
