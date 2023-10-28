@@ -215,6 +215,12 @@ definitions:
         type: integer
       top_category_name:
         type: string
+      user_id:
+        type: integer
+      user_name:
+        type: string
+      user_username:
+        type: string
       usergear_gear_id:
         type: integer
       usergear_registration_id:
@@ -263,6 +269,33 @@ info:
   title: GoGear API
   version: "1.0"
 paths:
+  /category/{category}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete category with corresponding ID value
+      parameters:
+      - description: Unique ID of category you want to update
+        in: path
+        name: category
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete category with ID
+      tags:
+      - Category
   /category/{category}/get:
     get:
       consumes:
@@ -299,7 +332,7 @@ paths:
         name: categoryId
         required: true
         type: integer
-      - description: query params
+      - description: Request body
         in: body
         name: request
         required: true
@@ -317,6 +350,32 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
       summary: Update category with ID
+      tags:
+      - Category
+  /category/insert:
+    put:
+      consumes:
+      - application/json
+      description: Insert new category with corresponding values
+      parameters:
+      - description: Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GearCategory'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Insert new category
       tags:
       - Category
   /category/list:
@@ -370,6 +429,33 @@ paths:
       summary: List categories
       tags:
       - Category
+  /gear/{gear}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete gear with corresponding ID value
+      parameters:
+      - description: Unique ID of gear you want to delete
+        in: path
+        name: gear
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete gear with ID
+      tags:
+      - Gear
   /gear/{gear}/get:
     get:
       consumes:
@@ -523,6 +609,33 @@ paths:
       summary: Get application health
       tags:
       - Health
+  /manufacture/{manufacture}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete manufacture with corresponding ID value
+      parameters:
+      - description: Unique ID of manufacture you want to update
+        in: path
+        name: manufacture
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete manufacture with ID
+      tags:
+      - Manufacture
   /manufacture/{manufacture}/get:
     get:
       consumes:
@@ -651,6 +764,33 @@ paths:
       summary: List manufacture
       tags:
       - Manufacture
+  /topCategory/{topCategory}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete topCategory with corresponding ID value
+      parameters:
+      - description: Unique ID of topCategory you want to update
+        in: path
+        name: topCategory
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete topCategory with ID
+      tags:
+      - Top Category
   /topCategory/{topCategory}/get:
     get:
       consumes:
@@ -675,7 +815,7 @@ paths:
             $ref: '#/definitions/models.Error'
       summary: Get top category with ID
       tags:
-      - Top category
+      - Top Category
   /topCategory/{topCategory}/update:
     post:
       consumes:
@@ -687,7 +827,7 @@ paths:
         name: topCategoryId
         required: true
         type: integer
-      - description: query params
+      - description: Request body
         in: body
         name: request
         required: true
@@ -706,19 +846,19 @@ paths:
             $ref: '#/definitions/models.Error'
       summary: Update top category with ID
       tags:
-      - Top category
+      - Top Category
   /topCategory/insert:
     put:
       consumes:
       - application/json
-      description: Insert new category with corresponding values
+      description: Insert new top category with corresponding values
       parameters:
-      - description: query params
+      - description: Request body
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.GearCategory'
+          $ref: '#/definitions/models.GearTopCategory'
       produces:
       - application/json
       responses:
@@ -730,9 +870,9 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
-      summary: Insert new category
+      summary: Insert new top category
       tags:
-      - Category
+      - Top Category
   /topCategory/list:
     get:
       consumes:
@@ -776,7 +916,7 @@ paths:
             $ref: '#/definitions/models.Error'
       summary: List top categories
       tags:
-      - Top category
+      - Top Category
   /usergear/{user}/list:
     get:
       consumes:
@@ -862,6 +1002,33 @@ paths:
       summary: Insert user registered gear
       tags:
       - User gear
+  /usergear/registration/{usergear}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete userGear with corresponding ID value
+      parameters:
+      - description: Unique ID of userGear you want to update
+        in: path
+        name: userGear
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete userGear with ID
+      tags:
+      - User gear
   /usergear/registration/{usergear}/get:
     get:
       consumes:
@@ -910,6 +1077,33 @@ paths:
       summary: Update user registered gear with ID
       tags:
       - User gear
+  /users/{user}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user with corresponding ID value
+      parameters:
+      - description: Unique ID of user you want to update
+        in: path
+        name: user
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete user with ID
+      tags:
+      - User
   /users/{user}/get:
     get:
       consumes:
@@ -1037,4 +1231,11 @@ paths:
       summary: List user
       tags:
       - User
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
