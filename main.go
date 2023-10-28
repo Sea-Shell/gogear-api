@@ -68,16 +68,20 @@ const (
 	configFile = "config.yaml"
 )
 
-//	@title			GoGear API
-//	@version		1.0
-//	@description	This is the API of GoGear
-
-//	@contact.name	API Support
-//	@contact.email	support@seashell.no
-
-//	@license.name	Apache 2.0
-//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
-
+// @title			GoGear API
+// @version		1.0
+// @description	This is the API of GoGear
+// @contact.name	API Support
+// @contact.email	support@seashell.no
+// @license.name	Apache 2.0
+// @license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+//
+// @securityDefinitions.basic BasicAuth
+//
 // @host		localhost:8081
 // @BasePath	/api/v1
 func main() {
@@ -109,7 +113,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(func (c *gin.Context){
+	router.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 	})
 
@@ -122,12 +126,12 @@ func main() {
 	v1 := router.Group("/api/v1")
 
 	// API Groups
-	userGroup 			:= v1.Group("/users")
-	gearGroup 			:= v1.Group("/gear")
-	topCategoryGroup 	:= v1.Group("/topCategory")
-	categoryGroup 		:= v1.Group("/category")
-	manufactureGroup 	:= v1.Group("/manufacture")
-	userGearGroup 		:= v1.Group("/usergear")
+	userGroup := v1.Group("/users")
+	gearGroup := v1.Group("/gear")
+	topCategoryGroup := v1.Group("/topCategory")
+	categoryGroup := v1.Group("/category")
+	manufactureGroup := v1.Group("/manufacture")
+	userGearGroup := v1.Group("/usergear")
 
 	// The routes
 	v1.GET("/health", endpoints.ReturnHealth)
@@ -136,37 +140,43 @@ func main() {
 	userGroup.GET("/list", endpoints.ListUser)
 	userGroup.GET("/:user/get", endpoints.GetUser)
 	userGroup.POST("/:user/update", endpoints.UpdateUser)
+	userGroup.DELETE("/:user/delete", endpoints.DeleteUser)
 	userGroup.PUT("/insert", endpoints.InsertUser)
 	userGroup.POST("/setpassword", endpoints.SetUserPassword)
-	
+
 	// Gear endpoints
 	gearGroup.GET("/list", endpoints.ListGear)
 	gearGroup.GET("/:gear/get", endpoints.GetGear)
 	gearGroup.POST("/:gear/update", endpoints.UpdateGear)
+	gearGroup.DELETE("/:gear/delete", endpoints.DeleteGear)
 	gearGroup.PUT("/insert", endpoints.InsertGear)
 
 	// User Gear endpoints
 	userGearGroup.GET("/:user/list", endpoints.ListUserGear)
 	userGearGroup.GET("/registration/:usergear/get", endpoints.GetUserGear)
 	userGearGroup.POST("/registration/:usergear/update", endpoints.UpdateUserGear)
+	userGearGroup.DELETE("/registration/:usergear/delete", endpoints.DeleteUserGearRegistration)
 	userGearGroup.PUT("/insert", endpoints.InsertUserGear)
-	
+
 	// Top Category endpoints
 	topCategoryGroup.GET("/list", endpoints.ListTopCategory)
 	topCategoryGroup.GET("/:topCategory/get", endpoints.GetTopCategory)
 	topCategoryGroup.POST("/:topCategory/update", endpoints.UpdateTopCategory)
+	topCategoryGroup.DELETE("/:topCategory/delete", endpoints.DeleteTopCategory)
 	topCategoryGroup.PUT("/insert", endpoints.InsertTopCategory)
 
 	// Category endpoints
 	categoryGroup.GET("/list", endpoints.ListCategory)
 	categoryGroup.GET("/:category/get", endpoints.GetCategory)
 	categoryGroup.POST("/:category/update", endpoints.UpdateCategory)
+	categoryGroup.DELETE("/:category/delete", endpoints.DeleteCategory)
 	categoryGroup.PUT("/insert", endpoints.InsertCategory)
 
 	// Manufacture endpoints
 	manufactureGroup.GET("/list", endpoints.ListManufacture)
 	manufactureGroup.GET("/:manufacture/get", endpoints.GetManufacture)
 	manufactureGroup.POST("/:manufacture/update", endpoints.UpdateManufacture)
+	manufactureGroup.DELETE("/:manufacture/delete", endpoints.DeleteManufature)
 	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
 
 	// Swagger API documentation
