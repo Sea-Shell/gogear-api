@@ -6,7 +6,7 @@ on:
       - "v*"
 
 env:
-  IMAGE_REGISTRY: registry.hub.docker.com
+  IMAGE_REGISTRY: docker.com
   IMAGE_REPOSITORY: bateau
   IMAGE_NAME: gogear-api
 
