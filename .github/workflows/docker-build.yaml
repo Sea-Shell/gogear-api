@@ -1,9 +1,7 @@
 name: "Release build and push"
 
 on:
-  push:
-    tags:
-      - "v*"
+  create:
 
 env:
   IMAGE_REGISTRY: docker.com
@@ -17,6 +15,7 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    if: github.ref_type == 'tag' && github.ref == 'refs/tags/v*'
     steps:
       - name: checkout
         uses: actions/checkout@v4.1.1
