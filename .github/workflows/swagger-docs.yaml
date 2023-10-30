@@ -38,7 +38,7 @@ jobs:
       - name: Generate swagger docs
         shell: bash
         run: 
-          swag init --generatedTime
+          swag init --outputTypes json,yaml --output docs/
 
       - name: Get last commit message
         id: last-commit-message
