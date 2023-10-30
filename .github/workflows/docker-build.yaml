@@ -15,7 +15,7 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag' && github.ref == 'refs/tags/v*'
+    if: github.ref_type == 'tag' && github.ref == 'refs/tag/v*'
     steps:
       - name: checkout
         uses: actions/checkout@v4.1.1
