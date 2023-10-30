@@ -1,4 +1,4 @@
-FROM registry.hub.docker.com/library/golang:1.21-alpine as go-upx
+FROM docker.io/library/golang:1.21-alpine as go-upx
 RUN ["sh", "-exo", "pipefail", "-c", "apk add git upx; rm -vf /var/cache/apk/*"]
 ENV CGO_ENABLED 1
 
@@ -44,7 +44,7 @@ RUN chmod +x /app/gogear-api
 RUN ["upx", "-q", "gogear-api"]
 
 ##########################
-FROM registry.hub.docker.com/library/alpine:3.18.4
+FROM docker.io/library/alpine:3.18.4
 
 WORKDIR /app
 
