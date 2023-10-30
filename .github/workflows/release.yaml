@@ -1,9 +1,14 @@
-name: "Release"
+name: "Build Push and Deploy main"
 
 on:
   push:
     branches:
       - "main"
+
+env:
+  IMAGE_REGISTRY: docker.io
+  IMAGE_REPOSITORY: bateau
+  IMAGE_NAME: gogear-api
 
 permissions:
   contents: read
@@ -22,3 +27,64 @@ jobs:
       runs-on: ubuntu-latest
       release-enabled: true
       lint-enabled: false
+  build:
+    runs-on: [ubuntu-latest]
+    outputs:
+      digest: ${{ steps.build_push.outputs.digest }}
+    needs: release
+    steps:
+      # Checkout repo code
+      - name: Checkout repo
+        uses: actions/checkout@v3.6.0
+        with:
+          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          fetch-depth: 0
+      # Docker login/build/push
+      - uses: docker/login-action@v2.2.0
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.PLATTFORM_ACR_PUSH_CLIENT_ID }}
+          password: ${{ secrets.PLATTFORM_ACR_PUSH_CLIENT_SECRET }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2.10.0
+      - name: Build and push
+        id: build_push
+        uses: docker/build-push-action@v4.1.1
+        with:
+          push: true
+          cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache
+          cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache,mode=max,ignore-error=true
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+  deploy:
+    runs-on: [ubuntu-latest]
+    needs: [release, build ]
+    permissions:
+      id-token: write
+      actions: read
+      contents: read
+    steps:
+      # Checkout repo code
+      - name: Checkout repo
+        uses: actions/checkout@v3.6.0
+        with:
+          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          fetch-depth: 0
+      - name: Kubeconfig context
+        uses: azure/k8s-set-context@v3.1
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+      # Do the deploy on K8s cluster set in the above context
+      - name: Deply manifests to k8s
+        uses: azure/k8s-deploy@v4.10
+        timeout-minutes: 15
+        with:
+          action: deploy
+          annotate-namespace: false
+          images: |
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}@${{ needs.build.outputs.digest }}
+          manifests: kubernetes-manifests
+          namespace: seashell
+          strategy: basic
