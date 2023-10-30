@@ -7,6 +7,7 @@ import (
 	"log"
 
 	endpoints "github.com/SeaShell/gogear-api/pkg/api"
+	docs "github.com/SeaShell/gogear-api/pkg/docs"
 	models "github.com/SeaShell/gogear-api/pkg/models"
 	utils "github.com/SeaShell/gogear-api/pkg/utils"
 
@@ -16,8 +17,6 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	zap "go.uber.org/zap"
 	zapcore "go.uber.org/zap/zapcore"
-
-	"github.com/SeaShell/gogear-api/docs"
 )
 
 func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
@@ -68,22 +67,17 @@ const (
     configFile = "config.yaml"
 )
 
-// @title           GoGear API
-// @version         1.0
-// @description     This is the API of GoGear
-// @contact.name    API Support
-// @contact.email   support@seashell.no
-// @license.name    Apache 2.0
-// @license.url     http://www.apache.org/licenses/LICENSE-2.0.html
-//
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-//
-// @securityDefinitions.basic BasicAuth
-//
-// @host            localhost:8081
-// @BasePath        /api/v1
+//	@title			GoGear API
+//	@version		1.0
+//	@description	This is the API of GoGear
+
+//	@contact.name	API Support
+//	@contact.email	support@seashell.no
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @BasePath	/api/v1
 func main() {
     configFile := flag.String("config", configFile, "Config file")
 
