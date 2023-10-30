@@ -257,7 +257,6 @@ definitions:
       user_username:
         type: string
     type: object
-host: localhost:8081
 info:
   contact:
     email: support@seashell.no
@@ -1231,11 +1230,4 @@ paths:
       summary: List user
       tags:
       - User
-securityDefinitions:
-  BasicAuth:
-    type: basic
-  BearerAuth:
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"
