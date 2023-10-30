@@ -10,11 +10,10 @@ permissions:
 name: Linting
 jobs:
   commit-lint:
-    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@v2.1.0
-    with:
-      runs-on: ubuntu-latest
-      release-enabled: false
-      lint-enabled: true
+    name: Commit linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wagoid/commitlint-github-action@v5
   golang-lint:
     name: Golang linting
     runs-on: ubuntu-latest
