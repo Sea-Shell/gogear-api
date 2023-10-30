@@ -111,13 +111,13 @@ func main() {
         c.Header("Access-Control-Allow-Origin", "*")
     })
 
-    router.Use(setLogger(log))
+	router.Use(setLogger(log))
+	router.Use(databaseMiddleware(db))
+	router.Use(configMiddleware(&config.General))
 
-    router.Use(databaseMiddleware(db))
-    router.Use(configMiddleware(&config.General))
-
-    // API v1
-    v1 := router.Group("/api/v1")
+	// API v1
+	swagger := router.Group("/swagger")
+	v1 		:= router.Group("/api/v1")
 
     // API Groups
     userGroup           := v1.Group("/users")
@@ -174,7 +174,7 @@ func main() {
     manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
 
     // Swagger API documentation
-    router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+    swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
     // Listen to all addresses and port defined
     router.Run("0.0.0.0:" + config.General.ListenPort)
