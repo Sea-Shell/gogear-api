@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gogear-api
+  namespace: seashell
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gogear-api
+  template:
+    metadata:
+      labels:
+        app: gogear-api
+    spec:
+      securityContext:
+        fsGroup: 1000
+      dnsPolicy: "ClusterFirst"
+      containers:
+      - name: gogear-api
+        image: docker.io/bateau/gogear-api:latest
+        args:
+        - --config
+        - /config/config.yaml
+        imagePullPolicy: Always
+        ports:
+          - name: gogear-api
+            containerPort: 8081
+        env:
+        - name: HOST
+          value: api.gogear.grevling.sea-shell.no
+        - name: TZ
+          value: 'Europe/Oslo'
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: config
+        hostPath:
+          path: /data/disk2/opt/gogear-api
