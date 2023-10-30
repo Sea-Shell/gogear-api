@@ -67,17 +67,17 @@ const (
     configFile = "config.yaml"
 )
 
-//	@title			GoGear API
-//	@version		1.0
-//	@description	This is the API of GoGear
+//	@title          GoGear API
+//	@version        1.0
+//	@description    This is the API of GoGear
 
-//	@contact.name	API Support
-//	@contact.email	support@seashell.no
+//	@contact.name   API Support
+//	@contact.email  support@seashell.no
 
-//	@license.name	Apache 2.0
-//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+//	@license.name   Apache 2.0
+//	@license.url    http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @BasePath	/api/v1
+// @BasePath        /api/v1
 func main() {
     configFile := flag.String("config", configFile, "Config file")
 
@@ -111,13 +111,13 @@ func main() {
         c.Header("Access-Control-Allow-Origin", "*")
     })
 
-	router.Use(setLogger(log))
-	router.Use(databaseMiddleware(db))
-	router.Use(configMiddleware(&config.General))
+    router.Use(setLogger(log))
+    router.Use(databaseMiddleware(db))
+    router.Use(configMiddleware(&config.General))
 
-	// API v1
-	swagger := router.Group("/swagger")
-	v1 		:= router.Group("/api/v1")
+    // API v1
+    swagger := router.Group("/swagger")
+    v1 		:= router.Group("/api/v1")
 
     // API Groups
     userGroup           := v1.Group("/users")
