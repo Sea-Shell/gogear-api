@@ -41,8 +41,17 @@ func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
     return zap.Must(cfg.Build()).Sugar()
 }
 
-func setLogger(logger *zap.SugaredLogger) gin.HandlerFunc {
+func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
     return func(c *gin.Context) {
+        // Log the request details
+        logger.Infow("Received request",
+            "method", c.Request.Method,
+            "url", c.FullPath(),
+            "status", c.Writer.Status(),
+            "url-params", c.Params,
+        )
+
+        // Continue processing the request
         c.Set("logger", logger)
         c.Next()
     }
@@ -111,7 +120,7 @@ func main() {
         c.Header("Access-Control-Allow-Origin", "*")
     })
 
-    router.Use(setLogger(log))
+    router.Use(LogRequestsMiddleware(log))
     router.Use(databaseMiddleware(db))
     router.Use(configMiddleware(&config.General))
 
