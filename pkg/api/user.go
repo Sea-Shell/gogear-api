@@ -46,8 +46,6 @@ func ListUser(c *gin.Context) {
     log := c.MustGet("logger").(*zap.SugaredLogger)
     db := c.MustGet("db").(*sql.DB)
 
-    log.Debugf("Request parameters: %#v", c.Request.URL.Query())
-
     if limit == "" {
         limit = "30"
     }
@@ -107,8 +105,6 @@ func ListUser(c *gin.Context) {
     baseCountQuery := "SELECT COUNT(*) FROM users"
     countQuery := baseCountQuery + whereClause
 
-    fmt.Printf("countQuery: %s\n", countQuery)
-
     var totalCount int
     err = db.QueryRow(countQuery).Scan(&totalCount)
     if err != nil {
@@ -134,8 +130,6 @@ func ListUser(c *gin.Context) {
     queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
 
     query := baseQuery + whereClause + queryLimit
-
-    fmt.Printf("THE Query: %s\n", query)
 
     log.Debugf("Query: %s", query)
 
