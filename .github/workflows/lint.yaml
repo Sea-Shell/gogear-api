@@ -13,6 +13,7 @@ jobs:
     name: Commit linting
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
       pull-requests: write
       statuses: write
@@ -20,12 +21,21 @@ jobs:
       checks: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4.1.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4.0.0
         with:
-          node-version: 14
+          node-version: 21.1.0
+
+      - uses: actions/cache@v3.3.2
+        with:
+          path: |
+            ~/.npm
+            **/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
@@ -39,9 +49,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
+            import * as fs from 'fs';
+            import * as github from 'github';
+
+            const context = github.context;
             const prNumber = context.payload.pull_request.number;
-            const commentBody = fs.readFileSync('semantic-release-check.log', 'utf8');
+            const commentBody = fs.existsSync('semantic-release-check.log')
+              ? fs.readFileSync('semantic-release-check.log', 'utf8')
+              : 'Semantic release check failed';
             github.issues.createComment({
               issue_number: prNumber,
               owner: context.repo.owner,
