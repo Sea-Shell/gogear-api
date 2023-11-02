@@ -17,7 +17,8 @@ approval_rules:
     description: A rule that requires status checks to be green
     if:
       has_successful_status:
-        - "lint_release / Commit lint"
+        - "Commit linting"
+        - "Golang linting"
   
   - name: seashell-approval
     description: A rule that requires approval from one in a team
