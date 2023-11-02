@@ -12,8 +12,42 @@ jobs:
   commit-lint:
     name: Commit linting
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      statuses: write
+      actions: write
+      checks: write
     steps:
-      - uses: wagoid/commitlint-github-action@v5
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check commit messages
+        run: npm run semantic-release-dry-run
+
+      - name: Comment on Pull Request
+        if: ${{ failure() }}
+        uses: actions/github-script@v6.4.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.pull_request.number;
+            const commentBody = fs.readFileSync('semantic-release-check.log', 'utf8');
+            github.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody,
+            });
   golang-lint:
     name: Golang linting
     runs-on: ubuntu-latest
