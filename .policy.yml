@@ -4,7 +4,7 @@ policy:
     - and:
       - status checks
       - or:
-        - seashell-approval
+        - seashell-auto-approval
         - dependabot-patch
         - dependabot-minor
   disapproval:
@@ -20,17 +20,18 @@ approval_rules:
         - "Commit linting"
         - "Golang linting"
   
-  - name: seashell-approval
-    description: A rule that requires approval from one in a team
+  - name: seashell-auto-approval
+    description: A rule that dont require approvals if from seashell
     if:
+      only_has_contributors_in:
+        teams:  
+          - "Sea-Shell/seashell"
+      author_is_only_contributor: true
     requires:
-      count: 1
-      teams:
-        - "Sea-Shell/owners"
+      count: 0
     options:
-      request_review:
-        enabled: true
-        mode: teams
+      allow_author: false
+      allow_contributor: false
 
   - name: dependabot-patch
     description: Rule to approve PR when label is patch, author is dependabot

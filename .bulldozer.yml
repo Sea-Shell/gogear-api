@@ -17,4 +17,4 @@ merge:
     pr_body_substrings: ["Do not merge", "==DO_NOT_MERGE=="]
     comment_substrings: ["Do not merge", "==DO_NOT_MERGE=="]
   required_statuses:
-    - 'sea-shell-policy-bot: main'
+    - 'policy-bot: main'
