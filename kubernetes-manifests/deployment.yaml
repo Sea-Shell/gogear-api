@@ -18,7 +18,7 @@ spec:
       dnsPolicy: "ClusterFirst"
       containers:
       - name: gogear-api
-        image: docker.io/bateau/gogear-api:1.1.4
+        image: docker.io/bateau/gogear-api:v1.1.5
         args:
         - --config
         - /config/config.yaml
