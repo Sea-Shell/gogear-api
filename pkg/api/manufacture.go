@@ -19,15 +19,15 @@ import (
 	zap "go.uber.org/zap"
 )
 
-//	@Summary		Get manufacture by ID
-//	@Description	Get manufacture spessific to ID
-//	@Tags			Manufacture
-//	@Accept			json
-//	@Produce		json
-//	@Param			manufacture	path		int					true	"Unique ID of manufacture you want to get"
-//	@Success		200			{object}	models.Manufacture	"desc"
-//	@Failure		default		{object}	models.Error
-//	@Router			/manufacture/{manufacture}/get [get]
+// @Summary        Get manufacture by ID
+// @Description    Get manufacture spessific to ID
+// @Tags           Manufacture
+// @Accept         json
+// @Produce        json
+// @Param          manufacture    path        int                    true    "Unique ID of manufacture you want to get"
+// @Success        200            {object}    models.Manufacture    "desc"
+// @Failure        default        {object}    models.Error
+// @Router         /manufacture/{manufacture}/get [get]
 func GetManufacture(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -71,18 +71,18 @@ func GetManufacture(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, param_Manufacturer)
 }
 
-//	@Summary		List manufacture
-//	@Description	Get a list of manufacturers
-//	@Tags			Manufacture
-//	@Accept			json
-//	@Produce		json
-//	@Param			page			query		int		false	"Page number"				default(1)
-//	@Param			limit			query		int		false	"Number of items per page"	default(30)
-//	@Param			manufacture		query		string	false	"search by manufacturename (this is case insensitive and wildcard)"
-//	@Param			manufacturename	query		string	false	"search by manufactures full name (this is case insensitive and wildcard)"
-//	@Success		200				{object}	models.ResponsePayload{items=[]models.Manufacture}
-//	@Failure		default			{object}	models.Error
-//	@Router			/manufacture/list [get]
+// @Summary        List manufacture
+// @Description    Get a list of manufacturers
+// @Tags           Manufacture
+// @Accept         json
+// @Produce        json
+// @Param          page               query        int        false    "Page number"                default(1)
+// @Param          limit              query        int        false    "Number of items per page"    default(30)
+// @Param          manufacture        query        string     false    "search by manufacturename (this is case insensitive and wildcard)"
+// @Param          manufacturename    query        string     false    "search by manufactures full name (this is case insensitive and wildcard)"
+// @Success        200                {object}    models.ResponsePayload{items=[]models.Manufacture}
+// @Failure        default            {object}    models.Error
+// @Router         /manufacture/list [get]
 func ListManufacture(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -100,7 +100,7 @@ func ListManufacture(c *gin.Context) {
     if limit == "" {
         limit = "30"
     }
-    
+
     if page == "" || page == "0" {
         page = "1"
     }
@@ -154,7 +154,7 @@ func ListManufacture(c *gin.Context) {
         return
     }
 
-    start := strconv.Itoa((page_int-1)*limit_int)
+    start := strconv.Itoa((page_int - 1) * limit_int)
     totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
 
     start_int, err := strconv.Atoi(start)
@@ -234,23 +234,24 @@ func ListManufacture(c *gin.Context) {
             Path:     c.Request.URL.Path,
             RawQuery: currentQueryParameters.Encode(),
         }
-        payload.PrevPage = new(string) 
+        payload.PrevPage = new(string)
         *payload.PrevPage = prevPage.String()
     }
 
     c.IndentedJSON(http.StatusOK, payload)
 }
 
-//	@Summary		Update manufacture with ID
-//	@Description	Update manufacture identified by ID
-//	@Tags			Manufacture
-//	@Accept			json
-//	@Produce		json
-//	@Param			manufacture	path		int				true	"Unique ID of manufacture you want to update"
-//	@Param			request	body		models.Manufacture	true	"query params"	test
-//	@Success		200		{object}	models.Status		"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/manufacture/{manufacture}/update [post]
+// @Summary        Update manufacture with ID
+// @Description    Update manufacture identified by ID
+// @Security       BearerAuth
+// @Tags           Manufacture
+// @Accept         json
+// @Produce        json
+// @Param          manufacture    path        int                  true    "Unique ID of manufacture you want to update"
+// @Param          request        body        models.Manufacture   true    "query params"    test
+// @Success        200            {object}    models.Status        "status: success when all goes well"
+// @Failure        default        {object}    models.Error
+// @Router         /manufacture/{manufacture}/update [post]
 func UpdateManufacture(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -274,15 +275,16 @@ func UpdateManufacture(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Insert new manufacture
-//	@Description	Insert new manufacture with corresponding values
-//	@Tags			Manufacture
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		models.Manufacture	true	"query params"	test
-//	@Success		200		{object}	models.Status		"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/manufacture/insert [put]
+// @Summary        Insert new manufacture
+// @Description    Insert new manufacture with corresponding values
+// @Security       BearerAuth
+// @Tags           Manufacture
+// @Accept         json
+// @Produce        json
+// @Param          request        body        models.Manufacture   true    "query params"    test
+// @Success        200            {object}    models.Status        "status: success when all goes well"
+// @Failure        default        {object}    models.Error
+// @Router         /manufacture/insert [put]
 func InsertManufacture(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -306,16 +308,16 @@ func InsertManufacture(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Delete manufacture with ID
-// @Description	Delete manufacture with corresponding ID value
-// @Security	BearerAuth
-// @Tags		Manufacture
-// @Accept		json
-// @Produce		json
-// @Param		manufacture		path		int					true	"Unique ID of manufacture you want to update"
-// @Success		200				{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router		/manufacture/{manufacture}/delete [delete]
+// @Summary        Delete manufacture with ID
+// @Description    Delete manufacture with corresponding ID value
+// @Security       BearerAuth
+// @Tags           Manufacture
+// @Accept         json
+// @Produce        json
+// @Param          manufacture        path        int              true    "Unique ID of manufacture you want to update"
+// @Success        200                {object}    models.Status    "status: success when all goes well"
+// @Failure        default            {object}    models.Error
+// @Router         /manufacture/{manufacture}/delete [delete]
 func DeleteManufature(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 

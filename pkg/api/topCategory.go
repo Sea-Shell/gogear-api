@@ -19,15 +19,15 @@ import (
 	zap "go.uber.org/zap"
 )
 
-//	@Summary		Get top category with ID
-//	@Description	Get top category spessific to ID
-//	@Tags			Top Category
-//	@Accept			json
-//	@Produce		json
-//	@Param			topCategoryId	path		int						true	"Unique ID of top category you want to get"
-//	@Success		200				{object}	models.GearTopCategory	"desc"
-//	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/{topCategory}/get [get]
+// @Summary        Get top category with ID
+// @Description    Get top category spessific to ID
+// @Tags           Top Category
+// @Accept         json
+// @Produce        json
+// @Param          topCategoryId      path        int                     true    "Unique ID of top category you want to get"
+// @Success        200                {object}    models.GearTopCategory
+// @Failure        default            {object}    models.Error
+// @Router         /topCategory/{topCategory}/get [get]
 func GetTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -45,7 +45,7 @@ func GetTopCategory(c *gin.Context) {
     // extraSQl = append(extraSQl, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
     // extraSQl = append(extraSQl, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
     // extraSQl = append(extraSQl, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-    
+
     results, err := utils.GenericGet[models.GearTopCategory]("gear_top_category", urlParameter, extraSQl, db)
     if err != nil {
         log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
@@ -57,17 +57,17 @@ func GetTopCategory(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, results)
 }
 
-//	@Summary		List top categories
-//	@Description	Get a list of top category items
-//	@Tags			Top Category
-//	@Accept			json
-//	@Produce		json
-//	@Param			page			query		int			false	"Page number"				default(1)
-//	@Param			limit			query		int			false	"Number of items per page"	default(30)
-//	@Param			topCategory		query		[]int		false	"top categories" 			collectionFormat(multi)
-//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearTopCategory}
-//	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/list [get]
+// @Summary        List top categories
+// @Description    Get a list of top category items
+// @Tags           Top Category
+// @Accept         json
+// @Produce        json
+// @Param          page               query        int            false    "Page number"                default(1)
+// @Param          limit              query        int            false    "Number of items per page"   default(30)
+// @Param          topCategory        query        []int          false    "top categories"             collectionFormat(multi)
+// @Success        200                {object}     models.ResponsePayload{items=[]models.GearTopCategory}
+// @Failure        default            {object}     models.Error
+// @Router         /topCategory/list [get]
 func ListTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -85,7 +85,7 @@ func ListTopCategory(c *gin.Context) {
     if limit == "" {
         limit = "30"
     }
-    
+
     if page == "" || page == "0" {
         page = "1"
     }
@@ -139,7 +139,7 @@ func ListTopCategory(c *gin.Context) {
         return
     }
 
-    start := strconv.Itoa((page_int-1)*limit_int)
+    start := strconv.Itoa((page_int - 1) * limit_int)
     totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
 
     start_int, err := strconv.Atoi(start)
@@ -219,23 +219,24 @@ func ListTopCategory(c *gin.Context) {
             Path:     c.Request.URL.Path,
             RawQuery: currentQueryParameters.Encode(),
         }
-        payload.PrevPage = new(string) 
+        payload.PrevPage = new(string)
         *payload.PrevPage = prevPage.String()
     }
 
     c.IndentedJSON(http.StatusOK, payload)
 }
 
-//	@Summary		Update top category with ID
-//	@Description	Update top category identified by ID
-//	@Tags			Top Category
-//	@Accept			json
-//	@Produce		json
-//	@Param			topCategoryId		path		int							true		"Unique ID of top category you want to update"
-//	@Param			request				body		models.GearTopCategory		true		"Request body"
-//	@Success		200				{object}	models.Status		"status: success when all goes well"
-//	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/{topCategory}/update [post]
+// @Summary        Update top category with ID
+// @Description    Update top category identified by ID
+// @Security       BearerAuth
+// @Tags           Top Category
+// @Accept         json
+// @Produce        json
+// @Param          topCategoryId      path        int                      true        "Unique ID of top category you want to update"
+// @Param          request            body        models.GearTopCategory   true        "Request body"
+// @Success        200                {object}    models.Status            "status: success when all goes well"
+// @Failure        default            {object}    models.Error
+// @Router         /topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -259,15 +260,16 @@ func UpdateTopCategory(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Insert new top category
-//	@Description	Insert new top category with corresponding values
-//	@Tags			Top Category
-//	@Accept			json
-//	@Produce		json
-//	@Param			request			body		models.GearTopCategory	true "Request body"
-//	@Success		200				{object}	models.Status				 "status: success when all goes well"
-//	@Failure		default			{object}	models.Error
-//	@Router			/topCategory/insert [put]
+// @Summary        Insert new top category
+// @Description    Insert new top category with corresponding values
+// @Security       BearerAuth
+// @Tags           Top Category
+// @Accept         json
+// @Produce        json
+// @Param          request            body        models.GearTopCategory    true    "Request body"
+// @Success        200                {object}    models.Status             "status: success when all goes well"
+// @Failure        default            {object}    models.Error
+// @Router         /topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -291,16 +293,16 @@ func InsertTopCategory(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Delete topCategory with ID
-// @Description	Delete topCategory with corresponding ID value
-// @Security	BearerAuth
-// @Tags		Top Category
-// @Accept		json
-// @Produce		json
-// @Param		topCategory		path		int					true	"Unique ID of topCategory you want to update"
-// @Success		200				{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router		/topCategory/{topCategory}/delete [delete]
+// @Summary        Delete topCategory with ID
+// @Description    Delete topCategory with corresponding ID value
+// @Security       BearerAuth
+// @Tags           Top Category
+// @Accept         json
+// @Produce        json
+// @Param          topCategory        path        int                    true    "Unique ID of topCategory you want to update"
+// @Success        200                {object}    models.Status          "status: success when all goes well"
+// @Failure        default            {object}    models.Error
+// @Router         /topCategory/{topCategory}/delete [delete]
 func DeleteTopCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 

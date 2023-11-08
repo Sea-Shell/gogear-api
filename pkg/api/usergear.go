@@ -19,20 +19,21 @@ import (
 	zap "go.uber.org/zap"
 )
 
-//	@Summary		List users gear
-//	@Description	Get a list a users gear
-//	@Tags			User gear
-//	@Accept			json
-//	@Produce		json
-//	@Param			user			path		int			true	"Unique ID of user you want to get the Gear of"
-//	@Param			page			query		int			false	"Page number"				default(1)
-//	@Param			limit			query		int			false	"Number of items per page"	default(30)
-//	@Param			topCategory		query		[]int		false	"top categories" 			collectionFormat(multi)
-//	@Param			category		query		[]int		false	"sub categories" 			collectionFormat(multi)
-//	@Param			manufacture		query		[]int		false	"manufacturers" 			collectionFormat(multi)
-//	@Success		200				{object}	models.ResponsePayload{items=[]models.UserGear}
-//	@Failure		default			{object}	models.Error
-//	@Router			/usergear/{user}/list [get]
+// @Summary        List users gear
+// @Description    Get a list a users gear
+// @Security       BearerAuth
+// @Tags           User gear
+// @Accept         json
+// @Produce        json
+// @Param          user               path         int          true     "Unique ID of user you want to get the Gear of"
+// @Param          page               query        int          false    "Page number"                 default(1)
+// @Param          limit              query        int          false    "Number of items per page"    default(30)
+// @Param          topCategory        query        []int        false    "top categories"              collectionFormat(multi)
+// @Param          category           query        []int        false    "sub categories"              collectionFormat(multi)
+// @Param          manufacture        query        []int        false    "manufacturers"               collectionFormat(multi)
+// @Success        200                {object}    models.ResponsePayload{items=[]models.UserGear}
+// @Failure        default            {object}    models.Error
+// @Router         /usergear/{user}/list [get]
 func ListUserGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -59,7 +60,7 @@ func ListUserGear(c *gin.Context) {
     if limit == "" {
         limit = "30"
     }
-    
+
     if page == "" || page == "0" {
         page = "1"
     }
@@ -155,7 +156,7 @@ func ListUserGear(c *gin.Context) {
         return
     }
 
-    start := strconv.Itoa((page_int-1)*limit_int)
+    start := strconv.Itoa((page_int - 1) * limit_int)
     totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
 
     start_int, err := strconv.Atoi(start)
@@ -235,21 +236,22 @@ func ListUserGear(c *gin.Context) {
             Path:     c.Request.URL.Path,
             RawQuery: currentQueryParameters.Encode(),
         }
-        payload.PrevPage = new(string) 
+        payload.PrevPage = new(string)
         *payload.PrevPage = prevPage.String()
     }
 
     c.IndentedJSON(http.StatusOK, payload)
 }
 
-//	@Summary		Get user registered gear with ID
-//	@Description	Get user registeredgear spessific to ID
-//	@Tags			User gear
-//	@Accept			json 
-//	@Produce		json
-//	@Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
-//	@Success		200		{object}	models.UserGear	"desc"
-//	@Router			/usergear/registration/{usergear}/get [get]
+// @Summary        Get user registered gear with ID
+// @Description    Get user registeredgear spessific to ID
+// @Security       BearerAuth
+// @Tags           User gear
+// @Accept         json
+// @Produce        json
+// @Param          usergear    path        int                true    "Unique ID of user registered gear you want to get"
+// @Success        200         {object}    models.UserGear    "desc"
+// @Router         /usergear/registration/{usergear}/get [get]
 func GetUserGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -262,14 +264,14 @@ func GetUserGear(c *gin.Context) {
         log.Errorf("urlParamter is of wrong type: %#v", err)
         c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
     }
-    
+
     var extra []string
     extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
     extra = append(extra, "LEFT JOIN users ON user_gear_registrations.gearId = users.userId")
     extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
     extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
     extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-    
+
     results, err := utils.GenericGet[models.UserGear]("user_gear_registrations", urlParameter, extra, db)
     if err != nil {
         log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
@@ -281,14 +283,15 @@ func GetUserGear(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, results)
 }
 
-//	@Summary		Insert user registered gear
-//	@Description	Insert user registered gear with corresponding values
-//	@Tags			User gear
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		models.UserGearLinkNoId	true	"query params"	test
-//	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Router			/usergear/insert [put]
+// @Summary        Insert user registered gear
+// @Description    Insert user registered gear with corresponding values
+// @Security       BearerAuth
+// @Tags           User gear
+// @Accept         json
+// @Produce        json
+// @Param          request    body        models.UserGearLinkNoId    true    "query params"
+// @Success        200        {object}    models.Status              "status: success when all goes well"
+// @Router         /usergear/insert [put]
 func InsertUserGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -312,15 +315,16 @@ func InsertUserGear(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Update user registered gear with ID
-//	@Description	Update user registered gear identified by ID
-//	@Tags			User gear
-//	@Accept			json
-//	@Produce		json
-//	@Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
-//	@Param			request	body		models.UserGearLink		true	"query params"	test
-//	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Router			/usergear/registration/{usergear}/update [post]
+// @Summary        Update user registered gear with ID
+// @Description    Update user registered gear identified by ID
+// @Security       BearerAuth
+// @Tags           User gear
+// @Accept         json
+// @Produce        json
+// @Param          usergear    path        int                  true    "Unique ID of user registered gear you want to get"
+// @Param          request     body        models.UserGearLink  true    "query params"
+// @Success        200         {object}    models.Status        "status: success when all goes well"
+// @Router         /usergear/registration/{usergear}/update [post]
 func UpdateUserGear(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -344,16 +348,16 @@ func UpdateUserGear(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Delete userGear with ID
-// @Description	Delete userGear with corresponding ID value
-// @Security	BearerAuth
-// @Tags		User gear
-// @Accept		json
-// @Produce		json
-// @Param		userGear		path		int					true	"Unique ID of userGear you want to update"
-// @Success		200				{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router		/usergear/registration/{usergear}/delete [delete]
+// @Summary      Delete userGear with ID
+// @Description  Delete userGear with corresponding ID value
+// @Security     BearerAuth
+// @Tags         User gear
+// @Accept       json
+// @Produce      json
+// @Param        userGear       path        int              true    "Unique ID of userGear you want to update"
+// @Success      200            {object}    models.Status    "status: success when all goes well"
+// @Failure      default        {object}    models.Error
+// @Router       /usergear/registration/{usergear}/delete [delete]
 func DeleteUserGearRegistration(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
