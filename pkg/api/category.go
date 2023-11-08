@@ -19,15 +19,15 @@ import (
 	zap "go.uber.org/zap"
 )
 
-// @Summary		Get category with ID
-// @Description	Get category spessific to ID
-// @Tags			Category
-// @Accept			json
-// @Produce		json
-// @Param			categoryId		path		int					true	"Unique ID of category you want to get"
-// @Success		200				{object}	models.GearCategory	"desc"
-// @Failure		default			{object}	models.Error
-// @Router			/category/{category}/get [get]
+// @Summary        Get category with ID
+// @Description    Get category spessific to ID
+// @Tags           Category
+// @Accept         json
+// @Produce        json
+// @Param          categoryId         path        int                    true    "Unique ID of category you want to get"
+// @Success        200                {object}    models.GearCategory    "desc"
+// @Failure        default            {object}    models.Error
+// @Router         /category/{category}/get [get]
 func GetCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -57,18 +57,18 @@ func GetCategory(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, results)
 }
 
-// @Summary		List categories
-// @Description	Get a list of category items
-// @Tags			Category
-// @Accept			json
-// @Produce		json
-// @Param			page			query		int			false	"Page number"				default(1)
-// @Param			limit			query		int			false	"Number of items per page"	default(30)
-// @Param			category		query		[]int		false	"Top category" 				collectionFormat(multi)
-// @Param			topCategory		query		[]int		false	"Top gear category" 		collectionFormat(multi)
-// @Success		200				{object}	models.ResponsePayload{items=[]models.GearCategory}
-// @Failure		default			{object}	models.Error
-// @Router			/category/list [get]
+// @Summary        List categories
+// @Description    Get a list of category items
+// @Tags           Category
+// @Accept         json
+// @Produce        json
+// @Param          page               query        int          false    "Page number"                default(1)
+// @Param          limit              query        int          false    "Number of items per page"    default(30)
+// @Param          category           query        []int        false    "Top category"                 collectionFormat(multi)
+// @Param          topCategory        query        []int        false    "Top gear category"         collectionFormat(multi)
+// @Success        200                {object}     models.ResponsePayload{items=[]models.GearCategory}
+// @Failure        default            {object}     models.Error
+// @Router         /category/list [get]
 func ListCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -235,16 +235,16 @@ func ListCategory(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, payload)
 }
 
-// @Summary		Update category with ID
-// @Description	Update category identified by ID
-// @Tags			Category
-// @Accept			json
-// @Produce		json
-// @Param			categoryId		path		int					true	"Unique ID of category you want to update"
-// @Param			request	body		models.GearCategory			true	"Request body"
-// @Success		200				{object}	models.Status		"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router			/category/{category}/update [post]
+// @Summary        Update category with ID
+// @Description    Update category identified by ID
+// @Tags           Category
+// @Accept         json
+// @Produce        json
+// @Param          categoryId       path        int                  true    "Unique ID of category you want to update"
+// @Param          request          body        models.GearCategory  true    "Request body"
+// @Success        200              {object}    models.Status        "status: success when all goes well"
+// @Failure        default          {object}    models.Error
+// @Router         /category/{category}/update [post]
 func UpdateCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -268,15 +268,15 @@ func UpdateCategory(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Insert new category
-// @Description	Insert new category with corresponding values
-// @Tags			Category
-// @Accept			json
-// @Produce		json
-// @Param			request	body		models.GearCategory	true	"Request body"
-// @Success		200		{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router			/category/insert [put]
+// @Summary        Insert new category
+// @Description    Insert new category with corresponding values
+// @Tags           Category
+// @Accept         json
+// @Produce        json
+// @Param          request    body        models.GearCategory    true    "Request body"
+// @Success        200        {object}    models.Status          "status: success when all goes well"
+// @Failure        default    {object}    models.Error
+// @Router         /category/insert [put]
 func InsertCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -300,16 +300,16 @@ func InsertCategory(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Delete category with ID
-// @Description	Delete category with corresponding ID value
-// @Security	BearerAuth
-// @Tags		Category
-// @Accept		json
-// @Produce		json
-// @Param		category		path		int					true	"Unique ID of category you want to update"
-// @Success		200				{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router		/category/{category}/delete [delete]
+// @Summary        Delete category with ID
+// @Description    Delete category with corresponding ID value
+// @Security       BearerAuth
+// @Tags           Category
+// @Accept         json
+// @Produce        json
+// @Param          category           path        int              true    "Unique ID of category you want to update"
+// @Success        200                {object}    models.Status    "status: success when all goes well"
+// @Failure        default            {object}    models.Error
+// @Router         /category/{category}/delete [delete]
 func DeleteCategory(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 

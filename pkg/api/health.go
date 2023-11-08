@@ -8,13 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//	@Summary        Get application health
-//	@Description    Get health status of application
-//	@Tags           Health
-//	@Accept         json
-//	@Produce        json
-//	@Success        200     {object}    models.Health   "desc"
-//	@Router	        /health [get]
+//    @Summary        Get application health
+//    @Description    Get health status of application
+//    @Tags           Health
+//    @Accept         json
+//    @Produce        json
+//    @Success        200     {object}    models.Health   "desc"
+//    @Router         /health [get]
 func ReturnHealth(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, models.Health{
         Status:        "ok",

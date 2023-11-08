@@ -20,18 +20,19 @@ import (
 	zap "go.uber.org/zap"
 )
 
-//	@Summary		List user
-//	@Description	Get a list of user items
-//	@Tags			User
-//	@Accept			json
-//	@Produce		json
-//	@Param			page		query		int		false	"Page number"				default(1)
-//	@Param			limit		query		int		false	"Number of items per page"	default(30)
-//	@Param			user		query		string	false	"search by username (this is case insensitive and wildcard)"
-//	@Param			username	query		string	false	"search by users full name (this is case insensitive and wildcard)"
-//	@Success		200			{object}	models.ResponsePayload{items=[]models.User}
-//	@Failure		default		{object}	models.Error
-//	@Router			/users/list [get]
+// @Summary        List user
+// @Description    Get a list of user items
+// @Security       BearerAuth
+// @Tags           User
+// @Accept         json
+// @Produce        json
+// @Param          page           query        int       false    "Page number"                 default(1)
+// @Param          limit          query        int       false    "Number of items per page"    default(30)
+// @Param          user           query        string    false    "search by username (this is case insensitive and wildcard)"
+// @Param          username       query        string    false    "search by users full name (this is case insensitive and wildcard)"
+// @Success        200            {object}    models.ResponsePayload{items=[]models.User}
+// @Failure        default        {object}    models.Error
+// @Router         /users/list [get]
 func ListUser(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -193,22 +194,23 @@ func ListUser(c *gin.Context) {
             Path:     c.Request.URL.Path,
             RawQuery: currentQueryParameters.Encode(),
         }
-        payload.PrevPage = new(string) 
+        payload.PrevPage = new(string)
         *payload.PrevPage = prevPage.String()
     }
 
     c.IndentedJSON(http.StatusOK, payload)
 }
 
-//	@Summary		Get user with ID
-//	@Description	Get user spessific to ID
-//	@Tags			User
-//	@Accept			json 
-//	@Produce		json
-//	@Param			user	path		int			true	"Unique ID of user you want to get"
-//	@Success		200		{object}	models.User	"desc"
-//	@Failure		default		{object}	models.Error
-//	@Router			/users/{user}/get [get]
+// @Summary        Get user with ID
+// @Description    Get user spessific to ID
+// @Security       BearerAuth
+// @Tags           User
+// @Accept         json
+// @Produce        json
+// @Param          user           path        int            true    "Unique ID of user you want to get"
+// @Success        200            {object}    models.User    "desc"
+// @Failure        default        {object}    models.Error
+// @Router         /users/{user}/get [get]
 func GetUser(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -289,15 +291,16 @@ func SetUserPassword(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Insert new user
-//	@Description	Insert new user with corresponding values
-//	@Tags			User
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		models.UserWithPass	true	"query params"	test
-//	@Success		200		{object}	models.Status		"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/users/insert [put]
+// @Summary        Insert new user
+// @Description    Insert new user with corresponding values
+// @Security       BearerAuth
+// @Tags           User
+// @Accept         json
+// @Produce        json
+// @Param          request    body        models.UserWithPass    true    "query params"    test
+// @Success        200        {object}    models.Status          "status: success when all goes well"
+// @Failure        default    {object}    models.Error
+// @Router         /users/insert [put]
 func InsertUser(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -321,16 +324,17 @@ func InsertUser(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-//	@Summary		Update user with ID
-//	@Description	Update user identified by ID
-//	@Tags			User
-//	@Accept			json
-//	@Produce		json
-//	@Param			user	path		int				true	"Unique ID of user you want to update"
-//	@Param			request	body		models.User		true	"query params"	test
-//	@Success		200		{object}	models.Status	"status: success when all goes well"
-//	@Failure		default		{object}	models.Error
-//	@Router			/users/{user}/update [post]
+// @Summary        Update user with ID
+// @Description    Update user identified by ID
+// @Security       BearerAuth
+// @Tags           User
+// @Accept         json
+// @Produce        json
+// @Param          user       path        int              true    "Unique ID of user you want to update"
+// @Param          request    body        models.User      true    "query params"    test
+// @Success        200        {object}    models.Status    "status: success when all goes well"
+// @Failure        default    {object}    models.Error
+// @Router         /users/{user}/update [post]
 func UpdateUser(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 
@@ -354,16 +358,16 @@ func UpdateUser(c *gin.Context) {
     c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
-// @Summary		Delete user with ID
-// @Description	Delete user with corresponding ID value
-// @Security	BearerAuth
-// @Tags		User
-// @Accept		json
-// @Produce		json
-// @Param		user			path		int				true	"Unique ID of user you want to update"
-// @Success		200				{object}	models.Status	"status: success when all goes well"
-// @Failure		default			{object}	models.Error
-// @Router		/users/{user}/delete [delete]
+// @Summary        Delete user with ID
+// @Description    Delete user with corresponding ID value
+// @Security       BearerAuth
+// @Tags           User
+// @Accept         json
+// @Produce        json
+// @Param          user             path        int              true    "Unique ID of user you want to update"
+// @Success        200              {object}    models.Status    "status: success when all goes well"
+// @Failure        default          {object}    models.Error
+// @Router         /users/{user}/delete [delete]
 func DeleteUser(c *gin.Context) {
     c.Header("Content-Type", "application/json")
 

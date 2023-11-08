@@ -17,8 +17,8 @@ type User struct {
 }
 
 // type UserGear struct {
-// 	GearId int64  `json:"gear_id" db:"gearId"`
-// 	UserId int64  `json:"user_id" db:"userId"`
+//     GearId int64  `json:"gear_id" db:"gearId"`
+//     UserId int64  `json:"user_id" db:"userId"`
 // }
 
 type UserInventory struct {
