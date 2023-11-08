@@ -265,6 +265,11 @@
         },
         "/gear/insert": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Insert new gear with corresponding values",
                 "consumes": [
                     "application/json"
@@ -474,6 +479,11 @@
         },
         "/gear/{gear}/update": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Update gear identified by ID",
                 "consumes": [
                     "application/json"
@@ -544,6 +554,11 @@
         },
         "/manufacture/insert": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Insert new manufacture with corresponding values",
                 "consumes": [
                     "application/json"
@@ -737,6 +752,11 @@
         },
         "/manufacture/{manufacture}/update": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Update manufacture identified by ID",
                 "consumes": [
                     "application/json"
@@ -784,6 +804,11 @@
         },
         "/topCategory/insert": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Insert new top category with corresponding values",
                 "consumes": [
                     "application/json"
@@ -959,7 +984,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "desc",
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.GearTopCategory"
                         }
@@ -975,6 +1000,11 @@
         },
         "/topCategory/{topCategory}/update": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Update top category identified by ID",
                 "consumes": [
                     "application/json"
@@ -1022,6 +1052,11 @@
         },
         "/usergear/insert": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Insert user registered gear with corresponding values",
                 "consumes": [
                     "application/json"
@@ -1099,6 +1134,11 @@
         },
         "/usergear/registration/{usergear}/get": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get user registeredgear spessific to ID",
                 "consumes": [
                     "application/json"
@@ -1131,6 +1171,11 @@
         },
         "/usergear/registration/{usergear}/update": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Update user registered gear identified by ID",
                 "consumes": [
                     "application/json"
@@ -1172,6 +1217,11 @@
         },
         "/usergear/{user}/list": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list a users gear",
                 "consumes": [
                     "application/json"
@@ -1269,6 +1319,11 @@
         },
         "/users/insert": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Insert new user with corresponding values",
                 "consumes": [
                     "application/json"
@@ -1309,6 +1364,11 @@
         },
         "/users/list": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list of user items",
                 "consumes": [
                     "application/json"
@@ -1424,6 +1484,11 @@
         },
         "/users/{user}/get": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get user spessific to ID",
                 "consumes": [
                     "application/json"
@@ -1462,6 +1527,11 @@
         },
         "/users/{user}/update": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Update user identified by ID",
                 "consumes": [
                     "application/json"

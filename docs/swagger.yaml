@@ -508,6 +508,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Update gear with ID
       tags:
       - Gear
@@ -534,6 +536,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Insert new gear
       tags:
       - Gear
@@ -688,6 +692,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Update manufacture with ID
       tags:
       - Manufacture
@@ -714,6 +720,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Insert new manufacture
       tags:
       - Manufacture
@@ -805,7 +813,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: desc
+          description: OK
           schema:
             $ref: '#/definitions/models.GearTopCategory'
         default:
@@ -843,6 +851,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Update top category with ID
       tags:
       - Top Category
@@ -869,6 +879,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Insert new top category
       tags:
       - Top Category
@@ -976,6 +988,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: List users gear
       tags:
       - User gear
@@ -998,6 +1012,8 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+      security:
+      - BearerAuth: []
       summary: Insert user registered gear
       tags:
       - User gear
@@ -1046,6 +1062,8 @@ paths:
           description: desc
           schema:
             $ref: '#/definitions/models.UserGear'
+      security:
+      - BearerAuth: []
       summary: Get user registered gear with ID
       tags:
       - User gear
@@ -1073,6 +1091,8 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+      security:
+      - BearerAuth: []
       summary: Update user registered gear with ID
       tags:
       - User gear
@@ -1125,6 +1145,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Get user with ID
       tags:
       - User
@@ -1156,6 +1178,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Update user with ID
       tags:
       - User
@@ -1182,6 +1206,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: Insert new user
       tags:
       - User
@@ -1227,6 +1253,8 @@ paths:
           description: ""
           schema:
             $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
       summary: List user
       tags:
       - User
