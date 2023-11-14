@@ -13,10 +13,17 @@
         },
         "version": "1.0"
     },
-    "basePath": "/api/v1",
     "paths": {
         "/category/insert": {
             "put": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Insert new category with corresponding values",
                 "consumes": [
                     "application/json"
@@ -139,7 +146,11 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write",
+                            "admin"
+                        ]
                     }
                 ],
                 "description": "Delete category with corresponding ID value",
@@ -218,6 +229,14 @@
         },
         "/category/{category}/update": {
             "post": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Update category identified by ID",
                 "consumes": [
                     "application/json"
@@ -267,7 +286,9 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new gear with corresponding values",
@@ -310,6 +331,14 @@
         },
         "/gear/list": {
             "get": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Get a list of gear items",
                 "consumes": [
                     "application/json"
@@ -400,7 +429,9 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete gear with corresponding ID value",
@@ -481,7 +512,9 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update gear identified by ID",
@@ -556,7 +589,9 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new manufacture with corresponding values",
@@ -673,7 +708,9 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete manufacture with corresponding ID value",
@@ -754,7 +791,9 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update manufacture identified by ID",
@@ -806,7 +845,9 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new top category with corresponding values",
@@ -921,7 +962,9 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete topCategory with corresponding ID value",
@@ -1002,7 +1045,9 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update top category identified by ID",
@@ -1054,7 +1099,9 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert user registered gear with corresponding values",
@@ -1093,7 +1140,9 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete userGear with corresponding ID value",
@@ -1136,7 +1185,9 @@
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get user registeredgear spessific to ID",
@@ -1173,7 +1224,9 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update user registered gear identified by ID",
@@ -1219,7 +1272,9 @@
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get a list a users gear",
@@ -1321,7 +1376,9 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new user with corresponding values",
@@ -1366,7 +1423,9 @@
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get a list of user items",
@@ -1443,7 +1502,9 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete user with corresponding ID value",
@@ -1486,7 +1547,9 @@
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get user spessific to ID",
@@ -1529,7 +1592,9 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update user identified by ID",
@@ -1970,6 +2035,24 @@
                 "user_username": {
                     "type": "string"
                 }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "APIKey": {
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        },
+        "OAuth2Application": {
+            "description": "OAuth protects our entity endpoints",
+            "type": "oauth2",
+            "flow": "password",
+            "tokenUrl": "https://oauth2.googleapis.com/token",
+            "scopes": {
+                "admin": " Grants read and write access to administrative information",
+                "read": " Grants read access",
+                "write": " Grants read and write access"
             }
         }
     }

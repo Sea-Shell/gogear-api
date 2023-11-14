@@ -24,6 +24,14 @@ const docTemplate = `{
     "paths": {
         "/category/insert": {
             "put": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Insert new category with corresponding values",
                 "consumes": [
                     "application/json"
@@ -146,7 +154,11 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write",
+                            "admin"
+                        ]
                     }
                 ],
                 "description": "Delete category with corresponding ID value",
@@ -225,6 +237,14 @@ const docTemplate = `{
         },
         "/category/{category}/update": {
             "post": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Update category identified by ID",
                 "consumes": [
                     "application/json"
@@ -274,7 +294,9 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new gear with corresponding values",
@@ -317,6 +339,14 @@ const docTemplate = `{
         },
         "/gear/list": {
             "get": {
+                "security": [
+                    {
+                        "APIKey": [],
+                        "OAuth2Application": [
+                            "write"
+                        ]
+                    }
+                ],
                 "description": "Get a list of gear items",
                 "consumes": [
                     "application/json"
@@ -407,7 +437,9 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete gear with corresponding ID value",
@@ -488,7 +520,9 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update gear identified by ID",
@@ -563,7 +597,9 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new manufacture with corresponding values",
@@ -680,7 +716,9 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete manufacture with corresponding ID value",
@@ -761,7 +799,9 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update manufacture identified by ID",
@@ -813,7 +853,9 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new top category with corresponding values",
@@ -928,7 +970,9 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete topCategory with corresponding ID value",
@@ -1009,7 +1053,9 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update top category identified by ID",
@@ -1061,7 +1107,9 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert user registered gear with corresponding values",
@@ -1100,7 +1148,9 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete userGear with corresponding ID value",
@@ -1143,7 +1193,9 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get user registeredgear spessific to ID",
@@ -1180,7 +1232,9 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update user registered gear identified by ID",
@@ -1226,7 +1280,9 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get a list a users gear",
@@ -1328,7 +1384,9 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Insert new user with corresponding values",
@@ -1373,7 +1431,9 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get a list of user items",
@@ -1450,7 +1510,9 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Delete user with corresponding ID value",
@@ -1493,7 +1555,9 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Get user spessific to ID",
@@ -1536,7 +1600,9 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "OAuth2Application": [
+                            "write"
+                        ]
                     }
                 ],
                 "description": "Update user identified by ID",
@@ -1979,6 +2045,24 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "APIKey": {
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        },
+        "OAuth2Application": {
+            "description": "OAuth protects our entity endpoints",
+            "type": "oauth2",
+            "flow": "password",
+            "tokenUrl": "https://oauth2.googleapis.com/token",
+            "scopes": {
+                "admin": " Grants read and write access to administrative information",
+                "read": " Grants read access",
+                "write": " Grants read and write access"
+            }
+        }
     }
 }`
 
@@ -1986,7 +2070,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "",
-	BasePath:         "/api/v1",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "GoGear API",
 	Description:      "This is the API of GoGear",
