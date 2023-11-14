@@ -27,8 +27,6 @@ spec:
           - name: gogear-api
             containerPort: 8081
         env:
-        - name: HOST
-          value: api.gogear.grevling.sea-shell.no
         - name: TZ
           value: 'Europe/Oslo'
         volumeMounts:
