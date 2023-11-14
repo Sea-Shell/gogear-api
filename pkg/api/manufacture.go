@@ -243,7 +243,7 @@ func ListManufacture(c *gin.Context) {
 
 // @Summary        Update manufacture with ID
 // @Description    Update manufacture identified by ID
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Manufacture
 // @Accept         json
 // @Produce        json
@@ -277,7 +277,7 @@ func UpdateManufacture(c *gin.Context) {
 
 // @Summary        Insert new manufacture
 // @Description    Insert new manufacture with corresponding values
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Manufacture
 // @Accept         json
 // @Produce        json
@@ -310,7 +310,7 @@ func InsertManufacture(c *gin.Context) {
 
 // @Summary        Delete manufacture with ID
 // @Description    Delete manufacture with corresponding ID value
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Manufacture
 // @Accept         json
 // @Produce        json

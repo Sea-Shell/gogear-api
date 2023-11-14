@@ -22,7 +22,7 @@ import (
 
 // @Summary        List user
 // @Description    Get a list of user items
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           User
 // @Accept         json
 // @Produce        json
@@ -203,7 +203,7 @@ func ListUser(c *gin.Context) {
 
 // @Summary        Get user with ID
 // @Description    Get user spessific to ID
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           User
 // @Accept         json
 // @Produce        json
@@ -293,7 +293,7 @@ func SetUserPassword(c *gin.Context) {
 
 // @Summary        Insert new user
 // @Description    Insert new user with corresponding values
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           User
 // @Accept         json
 // @Produce        json
@@ -326,7 +326,7 @@ func InsertUser(c *gin.Context) {
 
 // @Summary        Update user with ID
 // @Description    Update user identified by ID
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           User
 // @Accept         json
 // @Produce        json
@@ -360,7 +360,7 @@ func UpdateUser(c *gin.Context) {
 
 // @Summary        Delete user with ID
 // @Description    Delete user with corresponding ID value
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           User
 // @Accept         json
 // @Produce        json

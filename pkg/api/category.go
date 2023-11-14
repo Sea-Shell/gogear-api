@@ -237,6 +237,7 @@ func ListCategory(c *gin.Context) {
 
 // @Summary        Update category with ID
 // @Description    Update category identified by ID
+// @Security       OAuth2Application[write] || APIKey
 // @Tags           Category
 // @Accept         json
 // @Produce        json
@@ -270,6 +271,7 @@ func UpdateCategory(c *gin.Context) {
 
 // @Summary        Insert new category
 // @Description    Insert new category with corresponding values
+// @Security       OAuth2Application[write] || APIKey
 // @Tags           Category
 // @Accept         json
 // @Produce        json
@@ -302,7 +304,7 @@ func InsertCategory(c *gin.Context) {
 
 // @Summary        Delete category with ID
 // @Description    Delete category with corresponding ID value
-// @Security       BearerAuth
+// @Security       OAuth2Application[write, admin] || APIKey
 // @Tags           Category
 // @Accept         json
 // @Produce        json
