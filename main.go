@@ -17,7 +17,16 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	zap "go.uber.org/zap"
 	zapcore "go.uber.org/zap/zapcore"
+	oauth2 "golang.org/x/oauth2"
 )
+
+const (
+    listenPort     = "8081"
+    configFile     = "config.yaml"
+    googleCredFile = "google-creds.json"
+)
+
+var GoogleConf *oauth2.Config
 
 func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
     customCallerEncoder := func(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
@@ -46,9 +55,10 @@ func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
         // Log the request details
         logger.Infow("Received request",
             "method", c.Request.Method,
-            "url", c.FullPath(),
             "status", c.Writer.Status(),
+            "url", c.FullPath(),
             "url-params", c.Request.URL.Query(),
+            "X-API-Key", c.Request.Header.Get("X-API-Key"),
         )
 
         // Continue processing the request
@@ -71,22 +81,25 @@ func configMiddleware(config *models.General) gin.HandlerFunc {
     }
 }
 
-const (
-    listenPort = "8081"
-    configFile = "config.yaml"
-)
-
-//	@title          GoGear API
-//	@version        1.0
-//	@description    This is the API of GoGear
-
-//	@contact.name   API Support
-//	@contact.email  support@seashell.no
-
-//	@license.name   Apache 2.0
-//	@license.url    http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @BasePath        /api/v1
+// @title           GoGear API
+// @version         1.0
+// @description     This is the API of GoGear
+// @contact.name    API Support
+// @contact.email   support@seashell.no
+// @license.name    Apache 2.0
+// @license.url     http://www.apache.org/licenses/LICENSE-2.0.html
+//
+// @securityDefinitions.apikey APIKey
+// @in header
+// @name X-API-Key
+//
+// @securitydefinitions.oauth2.password OAuth2Application
+// @description OAuth protects our entity endpoints
+// @tokenUrl https://oauth2.googleapis.com/token
+// @authorizationurl https://accounts.google.com/o/oauth2/auth
+// @scope.write Grants read and write access
+// @scope.admin Grants read and write access to administrative information
+// @scope.read Grants read access
 func main() {
     configFile := flag.String("config", configFile, "Config file")
 
@@ -113,6 +126,9 @@ func main() {
 
     docs.SwaggerInfo.Title = "GoGear API"
     docs.SwaggerInfo.Description = "This is the API of GoGear."
+    docs.SwaggerInfo.Host = config.General.Hostname
+    docs.SwaggerInfo.Schemes = []string{"https"}
+    docs.SwaggerInfo.BasePath = "/api/v1"
 
     router := gin.New()
     router.Use(gin.Recovery())
@@ -126,18 +142,19 @@ func main() {
 
     // API v1
     swagger := router.Group("/swagger")
-    v1 		:= router.Group("/api/v1")
+    v1 := router.Group("/api/v1")
+    v1.Use(utils.CheckApiKey())
 
     // API Groups
-    userGroup           := v1.Group("/users")
-    gearGroup           := v1.Group("/gear")
-    topCategoryGroup    := v1.Group("/topCategory")
-    categoryGroup       := v1.Group("/category")
-    manufactureGroup    := v1.Group("/manufacture")
-    userGearGroup       := v1.Group("/usergear")
+    userGroup := v1.Group("/users")
+    gearGroup := v1.Group("/gear")
+    topCategoryGroup := v1.Group("/topCategory")
+    categoryGroup := v1.Group("/category")
+    manufactureGroup := v1.Group("/manufacture")
+    userGearGroup := v1.Group("/usergear")
 
     // The routes
-    v1.GET("/health", endpoints.ReturnHealth)
+    router.GET("/health", endpoints.ReturnHealth)
 
     // User endpoints
     userGroup.GET("/list", endpoints.ListUser)
@@ -186,5 +203,7 @@ func main() {
     swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
     // Listen to all addresses and port defined
-    router.Run("0.0.0.0:" + config.General.ListenPort)
+    if err := router.Run("0.0.0.0:" + config.General.ListenPort); err != nil {
+        log.Fatal(err)
+    }
 }

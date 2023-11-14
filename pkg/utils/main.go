@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"unicode"
 
+	"github.com/SeaShell/gogear-api/pkg/models"
+	"github.com/gin-gonic/gin"
 	zap "go.uber.org/zap"
 	zapcore "go.uber.org/zap/zapcore"
 	"golang.org/x/crypto/bcrypt"
@@ -28,6 +31,24 @@ func GetLogLevel(level string) zapcore.Level {
         return zap.ErrorLevel
     default:
         return zap.InfoLevel // Default to info level if an invalid log level is specified
+    }
+}
+
+func CheckApiKey() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        
+        token := c.Request.Header.Get("X-API-Key")
+
+        if token == "" {
+            c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "Token must be set"})
+            return
+        }
+        if token != "cliff-manana-crocus-canard" {
+            c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "Token is invalid"})
+            return
+        }
+
+        c.Next()
     }
 }
 

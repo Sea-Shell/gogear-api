@@ -20,6 +20,6 @@ func ReturnHealth(c *gin.Context) {
         Status:        "ok",
         Name:          "GoGear-api",
         Updated:       time.Now().Format("02.01.2006 15:04:05"),
-        Documentation: "https://github.com/SeaShell/gogear-api",
+        Documentation: "https://github.com/Sea-Shell/gogear-api",
     })
 }
