@@ -21,6 +21,7 @@ import (
 
 // @Summary        List gear
 // @Description    Get a list of gear items
+// @Security       OAuth2Application[write] || APIKey
 // @Tags           Gear
 // @Accept         json
 // @Produce        json
@@ -246,7 +247,7 @@ func GetGear(c *gin.Context) {
 
 // @Summary        Insert new gear
 // @Description    Insert new gear with corresponding values
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Gear
 // @Accept         json
 // @Produce        json
@@ -279,7 +280,7 @@ func InsertGear(c *gin.Context) {
 
 // @Summary        Update gear with ID
 // @Description    Update gear identified by ID
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Gear
 // @Accept         json
 // @Produce        json
@@ -313,7 +314,7 @@ func UpdateGear(c *gin.Context) {
 
 // @Summary        Delete gear with ID
 // @Description    Delete gear with corresponding ID value
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Gear
 // @Accept         json
 // @Produce        json

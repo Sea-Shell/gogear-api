@@ -228,7 +228,7 @@ func ListTopCategory(c *gin.Context) {
 
 // @Summary        Update top category with ID
 // @Description    Update top category identified by ID
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Top Category
 // @Accept         json
 // @Produce        json
@@ -262,7 +262,7 @@ func UpdateTopCategory(c *gin.Context) {
 
 // @Summary        Insert new top category
 // @Description    Insert new top category with corresponding values
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Top Category
 // @Accept         json
 // @Produce        json
@@ -295,7 +295,7 @@ func InsertTopCategory(c *gin.Context) {
 
 // @Summary        Delete topCategory with ID
 // @Description    Delete topCategory with corresponding ID value
-// @Security       BearerAuth
+// @Security       OAuth2Application[write]
 // @Tags           Top Category
 // @Accept         json
 // @Produce        json
