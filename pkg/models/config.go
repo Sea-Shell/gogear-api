@@ -23,9 +23,10 @@ type Database struct {
 }
 
 type General struct {
-    Hostname   string `yaml:"hostname" json:"hostname"`
-    ListenPort string `yaml:"listen-port" json:"listen_port"`
-    LogLevel   string `yaml:"log-level" json:"log-level"`
+    Hostname   string   `yaml:"hostname" json:"hostname"`
+	Schemes    []string `yaml:"schemes" json:"schemes"`
+    ListenPort string   `yaml:"listen-port" json:"listen_port"`
+    LogLevel   string   `yaml:"log-level" json:"log-level"`
 }
 
 type GoogleCreds struct {
