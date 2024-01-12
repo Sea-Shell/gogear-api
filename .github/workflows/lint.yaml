@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 21.1.0
 
-      - uses: actions/cache@v3.3.2
+      - uses: actions/cache@v3.3.3
         with:
           path: |
             ~/.npm
