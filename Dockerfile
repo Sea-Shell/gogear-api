@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.21-alpine as go-upx
+FROM docker.io/library/golang:1.22-alpine as go-upx
 RUN ["sh", "-exo", "pipefail", "-c", "apk add git upx; rm -vf /var/cache/apk/*"]
 ENV CGO_ENABLED 1
 
