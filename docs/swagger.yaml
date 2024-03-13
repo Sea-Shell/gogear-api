@@ -258,7 +258,7 @@ definitions:
     type: object
 info:
   contact:
-    email: support@seashell.no
+    email: support@sea-shell.no
     name: API Support
   description: This is the API of GoGear
   license:
@@ -270,1027 +270,1028 @@ paths:
   /category/{category}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete category with corresponding ID value
       parameters:
-      - description: Unique ID of category you want to update
-        in: path
-        name: category
-        required: true
-        type: integer
+        - description: Unique ID of category you want to update
+          in: path
+          name: category
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - APIKey: []
-        OAuth2Application:
-        - write
-        - admin
+        - APIKey: []
+          OAuth2Application:
+            - write
+            - admin
       summary: Delete category with ID
       tags:
-      - Category
+        - Category
   /category/{category}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get category spessific to ID
       parameters:
-      - description: Unique ID of category you want to get
-        in: path
-        name: categoryId
-        required: true
-        type: integer
+        - description: Unique ID of category you want to get
+          in: path
+          name: categoryId
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.GearCategory'
+            $ref: "#/definitions/models.GearCategory"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: Get category with ID
       tags:
-      - Category
+        - Category
   /category/{category}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update category identified by ID
       parameters:
-      - description: Unique ID of category you want to update
-        in: path
-        name: categoryId
-        required: true
-        type: integer
-      - description: Request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearCategory'
+        - description: Unique ID of category you want to update
+          in: path
+          name: categoryId
+          required: true
+          type: integer
+        - description: Request body
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.GearCategory"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - APIKey: []
-        OAuth2Application:
-        - write
+        - APIKey: []
+          OAuth2Application:
+            - write
       summary: Update category with ID
       tags:
-      - Category
+        - Category
   /category/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert new category with corresponding values
       parameters:
-      - description: Request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearCategory'
+        - description: Request body
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.GearCategory"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - APIKey: []
-        OAuth2Application:
-        - write
+        - APIKey: []
+          OAuth2Application:
+            - write
       summary: Insert new category
       tags:
-      - Category
+        - Category
   /category/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of category items
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - collectionFormat: multi
-        description: Top category
-        in: query
-        items:
+        - default: 1
+          description: Page number
+          in: query
+          name: page
           type: integer
-        name: category
-        type: array
-      - collectionFormat: multi
-        description: Top gear category
-        in: query
-        items:
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
           type: integer
-        name: topCategory
-        type: array
+        - collectionFormat: multi
+          description: Top category
+          in: query
+          items:
+            type: integer
+          name: category
+          type: array
+        - collectionFormat: multi
+          description: Top gear category
+          in: query
+          items:
+            type: integer
+          name: topCategory
+          type: array
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.GearCategory'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.GearCategory"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: List categories
       tags:
-      - Category
+        - Category
   /gear/{gear}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete gear with corresponding ID value
       parameters:
-      - description: Unique ID of gear you want to delete
-        in: path
-        name: gear
-        required: true
-        type: integer
+        - description: Unique ID of gear you want to delete
+          in: path
+          name: gear
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Delete gear with ID
       tags:
-      - Gear
+        - Gear
   /gear/{gear}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get gear spessific to ID
       parameters:
-      - description: Unique ID of Gear you want to get
-        in: path
-        name: gear
-        required: true
-        type: integer
+        - description: Unique ID of Gear you want to get
+          in: path
+          name: gear
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.FullGear'
+            $ref: "#/definitions/models.FullGear"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: Get gear with ID
       tags:
-      - Gear
+        - Gear
   /gear/{gear}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update gear identified by ID
       parameters:
-      - description: Unique ID of Gear you want to get
-        in: path
-        name: gear
-        required: true
-        type: integer
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.Gear'
+        - description: Unique ID of Gear you want to get
+          in: path
+          name: gear
+          required: true
+          type: integer
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.Gear"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Update gear with ID
       tags:
-      - Gear
+        - Gear
   /gear/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert new gear with corresponding values
       parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearNoId'
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.GearNoId"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Insert new gear
       tags:
-      - Gear
+        - Gear
   /gear/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of gear items
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - description: Gear category
-        in: query
-        name: category
-        type: string
-      - description: Top gear category
-        in: query
-        name: topCategory
-        type: string
-      - description: Gear manufacturer
-        in: query
-        name: manufacturer
-        type: string
-      - collectionFormat: multi
-        description: string collection
-        in: query
-        items:
+        - default: 1
+          description: Page number
+          in: query
+          name: page
+          type: integer
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
+          type: integer
+        - description: Gear category
+          in: query
+          name: category
           type: string
-        name: collection
-        type: array
+        - description: Top gear category
+          in: query
+          name: topCategory
+          type: string
+        - description: Gear manufacturer
+          in: query
+          name: manufacturer
+          type: string
+        - collectionFormat: multi
+          description: string collection
+          in: query
+          items:
+            type: string
+          name: collection
+          type: array
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.GearListItem'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.GearListItem"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - APIKey: []
-        OAuth2Application:
-        - write
+        - APIKey: []
+          OAuth2Application:
+            - write
       summary: List gear
       tags:
-      - Gear
+        - Gear
   /health:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get health status of application
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.Health'
+            $ref: "#/definitions/models.Health"
       summary: Get application health
       tags:
-      - Health
+        - Health
   /manufacture/{manufacture}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete manufacture with corresponding ID value
       parameters:
-      - description: Unique ID of manufacture you want to update
-        in: path
-        name: manufacture
-        required: true
-        type: integer
+        - description: Unique ID of manufacture you want to update
+          in: path
+          name: manufacture
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Delete manufacture with ID
       tags:
-      - Manufacture
+        - Manufacture
   /manufacture/{manufacture}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get manufacture spessific to ID
       parameters:
-      - description: Unique ID of manufacture you want to get
-        in: path
-        name: manufacture
-        required: true
-        type: integer
+        - description: Unique ID of manufacture you want to get
+          in: path
+          name: manufacture
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.Manufacture'
+            $ref: "#/definitions/models.Manufacture"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: Get manufacture by ID
       tags:
-      - Manufacture
+        - Manufacture
   /manufacture/{manufacture}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update manufacture identified by ID
       parameters:
-      - description: Unique ID of manufacture you want to update
-        in: path
-        name: manufacture
-        required: true
-        type: integer
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.Manufacture'
+        - description: Unique ID of manufacture you want to update
+          in: path
+          name: manufacture
+          required: true
+          type: integer
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.Manufacture"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Update manufacture with ID
       tags:
-      - Manufacture
+        - Manufacture
   /manufacture/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert new manufacture with corresponding values
       parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.Manufacture'
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.Manufacture"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Insert new manufacture
       tags:
-      - Manufacture
+        - Manufacture
   /manufacture/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of manufacturers
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - description: search by manufacturename (this is case insensitive and wildcard)
-        in: query
-        name: manufacture
-        type: string
-      - description: search by manufactures full name (this is case insensitive and
-          wildcard)
-        in: query
-        name: manufacturename
-        type: string
+        - default: 1
+          description: Page number
+          in: query
+          name: page
+          type: integer
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
+          type: integer
+        - description: search by manufacturename (this is case insensitive and wildcard)
+          in: query
+          name: manufacture
+          type: string
+        - description:
+            search by manufactures full name (this is case insensitive and
+            wildcard)
+          in: query
+          name: manufacturename
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.Manufacture'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.Manufacture"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: List manufacture
       tags:
-      - Manufacture
+        - Manufacture
   /topCategory/{topCategory}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete topCategory with corresponding ID value
       parameters:
-      - description: Unique ID of topCategory you want to update
-        in: path
-        name: topCategory
-        required: true
-        type: integer
+        - description: Unique ID of topCategory you want to update
+          in: path
+          name: topCategory
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Delete topCategory with ID
       tags:
-      - Top Category
+        - Top Category
   /topCategory/{topCategory}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get top category spessific to ID
       parameters:
-      - description: Unique ID of top category you want to get
-        in: path
-        name: topCategoryId
-        required: true
-        type: integer
+        - description: Unique ID of top category you want to get
+          in: path
+          name: topCategoryId
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.GearTopCategory'
+            $ref: "#/definitions/models.GearTopCategory"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: Get top category with ID
       tags:
-      - Top Category
+        - Top Category
   /topCategory/{topCategory}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update top category identified by ID
       parameters:
-      - description: Unique ID of top category you want to update
-        in: path
-        name: topCategoryId
-        required: true
-        type: integer
-      - description: Request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearTopCategory'
+        - description: Unique ID of top category you want to update
+          in: path
+          name: topCategoryId
+          required: true
+          type: integer
+        - description: Request body
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.GearTopCategory"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Update top category with ID
       tags:
-      - Top Category
+        - Top Category
   /topCategory/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert new top category with corresponding values
       parameters:
-      - description: Request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.GearTopCategory'
+        - description: Request body
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.GearTopCategory"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Insert new top category
       tags:
-      - Top Category
+        - Top Category
   /topCategory/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of top category items
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - collectionFormat: multi
-        description: top categories
-        in: query
-        items:
+        - default: 1
+          description: Page number
+          in: query
+          name: page
           type: integer
-        name: topCategory
-        type: array
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
+          type: integer
+        - collectionFormat: multi
+          description: top categories
+          in: query
+          items:
+            type: integer
+          name: topCategory
+          type: array
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.GearTopCategory'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.GearTopCategory"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       summary: List top categories
       tags:
-      - Top Category
+        - Top Category
   /usergear/{user}/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list a users gear
       parameters:
-      - description: Unique ID of user you want to get the Gear of
-        in: path
-        name: user
-        required: true
-        type: integer
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - collectionFormat: multi
-        description: top categories
-        in: query
-        items:
+        - description: Unique ID of user you want to get the Gear of
+          in: path
+          name: user
+          required: true
           type: integer
-        name: topCategory
-        type: array
-      - collectionFormat: multi
-        description: sub categories
-        in: query
-        items:
+        - default: 1
+          description: Page number
+          in: query
+          name: page
           type: integer
-        name: category
-        type: array
-      - collectionFormat: multi
-        description: manufacturers
-        in: query
-        items:
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
           type: integer
-        name: manufacture
-        type: array
+        - collectionFormat: multi
+          description: top categories
+          in: query
+          items:
+            type: integer
+          name: topCategory
+          type: array
+        - collectionFormat: multi
+          description: sub categories
+          in: query
+          items:
+            type: integer
+          name: category
+          type: array
+        - collectionFormat: multi
+          description: manufacturers
+          in: query
+          items:
+            type: integer
+          name: manufacture
+          type: array
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.UserGear'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.UserGear"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: List users gear
       tags:
-      - User gear
+        - User gear
   /usergear/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert user registered gear with corresponding values
       parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserGearLinkNoId'
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.UserGearLinkNoId"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Insert user registered gear
       tags:
-      - User gear
+        - User gear
   /usergear/registration/{usergear}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete userGear with corresponding ID value
       parameters:
-      - description: Unique ID of userGear you want to update
-        in: path
-        name: userGear
-        required: true
-        type: integer
+        - description: Unique ID of userGear you want to update
+          in: path
+          name: userGear
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Delete userGear with ID
       tags:
-      - User gear
+        - User gear
   /usergear/registration/{usergear}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get user registeredgear spessific to ID
       parameters:
-      - description: Unique ID of user registered gear you want to get
-        in: path
-        name: usergear
-        required: true
-        type: integer
+        - description: Unique ID of user registered gear you want to get
+          in: path
+          name: usergear
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.UserGear'
+            $ref: "#/definitions/models.UserGear"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Get user registered gear with ID
       tags:
-      - User gear
+        - User gear
   /usergear/registration/{usergear}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update user registered gear identified by ID
       parameters:
-      - description: Unique ID of user registered gear you want to get
-        in: path
-        name: usergear
-        required: true
-        type: integer
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserGearLink'
+        - description: Unique ID of user registered gear you want to get
+          in: path
+          name: usergear
+          required: true
+          type: integer
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.UserGearLink"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Update user registered gear with ID
       tags:
-      - User gear
+        - User gear
   /users/{user}/delete:
     delete:
       consumes:
-      - application/json
+        - application/json
       description: Delete user with corresponding ID value
       parameters:
-      - description: Unique ID of user you want to update
-        in: path
-        name: user
-        required: true
-        type: integer
+        - description: Unique ID of user you want to update
+          in: path
+          name: user
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Delete user with ID
       tags:
-      - User
+        - User
   /users/{user}/get:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get user spessific to ID
       parameters:
-      - description: Unique ID of user you want to get
-        in: path
-        name: user
-        required: true
-        type: integer
+        - description: Unique ID of user you want to get
+          in: path
+          name: user
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: desc
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: "#/definitions/models.User"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Get user with ID
       tags:
-      - User
+        - User
   /users/{user}/update:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Update user identified by ID
       parameters:
-      - description: Unique ID of user you want to update
-        in: path
-        name: user
-        required: true
-        type: integer
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.User'
+        - description: Unique ID of user you want to update
+          in: path
+          name: user
+          required: true
+          type: integer
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.User"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Update user with ID
       tags:
-      - User
+        - User
   /users/insert:
     put:
       consumes:
-      - application/json
+        - application/json
       description: Insert new user with corresponding values
       parameters:
-      - description: query params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserWithPass'
+        - description: query params
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/models.UserWithPass"
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: "status: success when all goes well"
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: "#/definitions/models.Status"
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: Insert new user
       tags:
-      - User
+        - User
   /users/list:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get a list of user items
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 30
-        description: Number of items per page
-        in: query
-        name: limit
-        type: integer
-      - description: search by username (this is case insensitive and wildcard)
-        in: query
-        name: user
-        type: string
-      - description: search by users full name (this is case insensitive and wildcard)
-        in: query
-        name: username
-        type: string
+        - default: 1
+          description: Page number
+          in: query
+          name: page
+          type: integer
+        - default: 30
+          description: Number of items per page
+          in: query
+          name: limit
+          type: integer
+        - description: search by username (this is case insensitive and wildcard)
+          in: query
+          name: user
+          type: string
+        - description: search by users full name (this is case insensitive and wildcard)
+          in: query
+          name: username
+          type: string
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/models.ResponsePayload'
-            - properties:
-                items:
+              - $ref: "#/definitions/models.ResponsePayload"
+              - properties:
                   items:
-                    $ref: '#/definitions/models.User'
-                  type: array
-              type: object
+                    items:
+                      $ref: "#/definitions/models.User"
+                    type: array
+                type: object
         default:
           description: ""
           schema:
-            $ref: '#/definitions/models.Error'
+            $ref: "#/definitions/models.Error"
       security:
-      - OAuth2Application:
-        - write
+        - OAuth2Application:
+            - write
       summary: List user
       tags:
-      - User
+        - User
 securityDefinitions:
   APIKey:
     in: header
@@ -1300,9 +1301,9 @@ securityDefinitions:
     description: OAuth protects our entity endpoints
     flow: password
     scopes:
-      admin: ' Grants read and write access to administrative information'
-      read: ' Grants read access'
-      write: ' Grants read and write access'
+      admin: " Grants read and write access to administrative information"
+      read: " Grants read access"
+      write: " Grants read and write access"
     tokenUrl: https://oauth2.googleapis.com/token
     type: oauth2
 swagger: "2.0"

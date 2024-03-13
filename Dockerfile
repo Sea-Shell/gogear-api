@@ -33,7 +33,7 @@ COPY go.sum    /app/
 COPY pkg       /app/pkg
 COPY docs      /app/docs
 
-ENV GOPRIVATE=github.com/SeaShell/gogear-api
+ENV GOPRIVATE=github.com/Sea-Shell/gogear-api
 
 RUN go mod download
 RUN go mod verify

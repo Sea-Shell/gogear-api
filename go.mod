@@ -1,4 +1,4 @@
-module github.com/SeaShell/gogear-api
+module github.com/Sea-Shell/gogear-api
 
 go 1.21
 
