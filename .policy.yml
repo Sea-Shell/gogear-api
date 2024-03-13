@@ -6,10 +6,22 @@ approval_rules:
         - "commit-lint / Commit linting"
         - "golang-lint / Golang linting"
     name: status checks
+    options:
+      allow_contributor: false
+      invalidate_on_push: false
+      request_review:
+        enabled: true
+        mode: teams
 
   - description: A rule that dont require approvals if from seashell
     if:
       author_is_only_contributor: true
+      has_valid_signatures: true
+      has_valid_signatures_by_keys:
+        key_ids:
+          - 4E0ED32BE590D451
+      modified_lines:
+        total: "< 200"
       only_has_contributors_in:
         teams:
           - "Sea-Shell/seashell"
@@ -30,6 +42,9 @@ approval_rules:
         - "dependencies"
         - "patch"
       has_valid_signatures: true
+      has_valid_signatures_by_keys:
+        key_ids:
+          - B5690EEEBB952194
     name: dependabot-patch
     requires:
       count: 0
@@ -44,6 +59,9 @@ approval_rules:
         - "dependencies"
         - "minor"
       has_valid_signatures: true
+      has_valid_signatures_by_keys:
+        key_ids:
+          - B5690EEEBB952194
     name: dependabot-minor
     requires:
       count: 0
@@ -59,4 +77,4 @@ policy:
   disapproval:
     requires:
       teams:
-        - "Sea-Shell/owners"
+        - "Sea-Shell/seashell"
