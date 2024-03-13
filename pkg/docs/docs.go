@@ -11,7 +11,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "contact": {
             "name": "API Support",
-            "email": "support@seashell.no"
+            "email": "support@sea-shell.no"
         },
         "license": {
             "name": "Apache 2.0",
