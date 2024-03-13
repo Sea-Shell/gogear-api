@@ -69,7 +69,7 @@ approval_rules:
 policy:
   approval:
     - status checks
-    - or:
+    - and:
         - seashell-auto-approval
         - dependabot-patch
         - dependabot-minor
