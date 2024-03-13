@@ -13,26 +13,30 @@ spec:
       labels:
         app: gogear-api
     spec:
+      containers:
+        - args:
+            - --config
+            - /config/config.yaml
+          env:
+            - name: TZ
+              value: "Europe/Oslo"
+          image: docker.io/bateau/gogear-api:v1.1.5
+          imagePullPolicy: Always
+          name: gogear-api
+          ports:
+            - containerPort: 8081
+              name: gogear-api
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          volumeMounts:
+            - mountPath: /config
+              name: config
+      dnsPolicy: "ClusterFirst"
       securityContext:
         fsGroup: 1000
-      dnsPolicy: "ClusterFirst"
-      containers:
-      - name: gogear-api
-        image: docker.io/bateau/gogear-api:v1.1.5
-        args:
-        - --config
-        - /config/config.yaml
-        imagePullPolicy: Always
-        ports:
-          - name: gogear-api
-            containerPort: 8081
-        env:
-        - name: TZ
-          value: 'Europe/Oslo'
-        volumeMounts:
-        - name: config
-          mountPath: /config
       volumes:
-      - name: config
-        hostPath:
-          path: /data/disk2/opt/gogear-api
+        - hostPath:
+            path: /data/disk2/opt/gogear-api
+          name: config

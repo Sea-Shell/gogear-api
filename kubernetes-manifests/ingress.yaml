@@ -9,17 +9,17 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-  - host: gogear.grevling.sea-shell.no
-    http:
-      paths:
-      - backend:
-          service:
-            name: gogear-api
-            port: 
-              number: 8081
-        path: "/"
-        pathType: Prefix
+    - host: api.gogear.grevling.sea-shell.no
+      http:
+        paths:
+          - backend:
+              service:
+                name: gogear-api
+                port:
+                  number: 8081
+            path: "/"
+            pathType: Prefix
   tls:
-  - hosts:
-    - gogear.grevling.sea-shell.no
-    secretName: gogear-api-certificate
+    - hosts:
+        - api.gogear.grevling.sea-shell.no
+      secretName: gogear-api-certificate
