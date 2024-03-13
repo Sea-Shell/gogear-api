@@ -18,7 +18,7 @@ approval_rules:
         key_ids:
           - 4E0ED32BE590D451
           - 7115251C2B41A5EC
-          - 43xMON8v36mP3nlDbcMbiByM/0W7vY2150k2yUOdMx0
+          - 43xMON8v36mP3nlD
     name: pre-approved signatures
     requires:
       count: 0
