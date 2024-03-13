@@ -2050,9 +2050,9 @@
             "flow": "password",
             "tokenUrl": "https://oauth2.googleapis.com/token",
             "scopes": {
-                "admin": " Grants read and write access to administrative information",
-                "read": " Grants read access",
-                "write": " Grants read and write access"
+                "admin": "Grants read and write access to administrative information",
+                "read": "Grants read access",
+                "write": "Grants read and write access"
             }
         }
     }
