@@ -68,12 +68,11 @@ approval_rules:
 
 policy:
   approval:
-    - and:
-        - status checks
-        - or:
-            - seashell-auto-approval
-            - dependabot-patch
-            - dependabot-minor
+    - status checks
+    - or:
+        - seashell-auto-approval
+        - dependabot-patch
+        - dependabot-minor
   disapproval:
     requires:
       teams:
