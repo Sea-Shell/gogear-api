@@ -41,7 +41,7 @@ jobs:
           ref: refs/tags/${{ needs.release.outputs.git-tag }}
           fetch-depth: 0
       # Docker login/build/push
-      - uses: docker/login-action@v3.0.0
+      - uses: docker/login-action@v3.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
