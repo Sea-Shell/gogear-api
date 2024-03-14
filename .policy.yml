@@ -70,10 +70,10 @@ approval_rules:
 
 policy:
   approval:
-    - status checks
-    - or:
-        - pre-approved signatures
+    - and:
+        - status checks
         - or:
+            - pre-approved signatures
             - dependabot-patch
             - dependabot-minor
             - reviews
