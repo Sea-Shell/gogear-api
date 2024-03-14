@@ -61,11 +61,15 @@ approval_rules:
   - description: review when needed
     name: reviews
     options:
-      add_reviewers:
-        teams:
-          - "Sea-Shell/seashell"
+      request_review:
+        enabled: true
+        mode: teams
     requires:
       count: 1
+      permissions:
+        - "write"
+      teams:
+        - "Sea-Shell/seashell"
 
 policy:
   approval:
