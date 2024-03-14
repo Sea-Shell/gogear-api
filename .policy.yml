@@ -3,8 +3,8 @@ approval_rules:
   - description: A rule that requires status checks to be green
     if:
       has_successful_status:
-        - "Linting / Commit linting"
-        - "Linting / Golang linting"
+        - "Commit linting"
+        - "Golang linting"
     name: status checks
     options:
       allow_author: false
