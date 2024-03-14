@@ -7,28 +7,20 @@ approval_rules:
         - "golang-lint / Golang linting"
     name: status checks
     options:
+      allow_author: false
       allow_contributor: false
-      invalidate_on_push: false
+      invalidate_on_push: true
       request_review:
         enabled: true
         mode: teams
 
-  - description: A rule that dont require approvals if from seashell
+  - description: A rule that dont require approvals if signed by pre-approved signing-keys
     if:
-      author_is_only_contributor: true
       has_valid_signatures: true
       has_valid_signatures_by_keys:
         key_ids:
           - 4E0ED32BE590D451
-      modified_lines:
-        total: "< 200"
-      only_has_contributors_in:
-        teams:
-          - "Sea-Shell/seashell"
-    name: seashell-auto-approval
-    options:
-      allow_author: false
-      allow_contributor: false
+    name: pre-approved signatures
     requires:
       count: 0
 
@@ -66,13 +58,28 @@ approval_rules:
     requires:
       count: 0
 
+  - description: review when needed
+    name: reviews
+    options:
+      request_review:
+        enabled: true
+        mode: teams
+    requires:
+      count: 1
+      permissions:
+        - "write"
+      teams:
+        - "Sea-Shell/seashell"
+
 policy:
   approval:
     - status checks
     - and:
-        - seashell-auto-approval
-        - dependabot-patch
-        - dependabot-minor
+        - pre-approved signatures
+        - or:
+            - reviews
+            - dependabot-patch
+            - dependabot-minor
   disapproval:
     requires:
       teams:
