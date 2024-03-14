@@ -71,12 +71,12 @@ approval_rules:
 policy:
   approval:
     - status checks
-    - and:
+    - or:
         - pre-approved signatures
         - or:
-            - reviews
             - dependabot-patch
             - dependabot-minor
+            - reviews
   disapproval:
     requires:
       teams:
