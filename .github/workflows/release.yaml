@@ -72,7 +72,7 @@ jobs:
           ref: refs/tags/${{ needs.release.outputs.git-tag }}
           fetch-depth: 0
       - name: Kubeconfig context
-        uses: azure/k8s-set-context@v3.1
+        uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
