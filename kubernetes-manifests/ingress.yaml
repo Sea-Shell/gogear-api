@@ -17,7 +17,7 @@ spec:
                 name: gogear-api
                 port:
                   number: 8081
-            path: "/api/"
+            path: "/api"
             pathType: Prefix
   tls:
     - hosts:
