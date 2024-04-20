@@ -17,7 +17,13 @@ approval_rules:
         teams:
           - "Sea-Shell/seashell"
       has_valid_signatures: true
+      has_valid_signatures_by:
+        teams:
+          - "Sea-Shell/seashell"
     name: pre-approved signatures
+    options:
+      request_review:
+        enabled: false
     requires:
       count: 0
 
@@ -35,6 +41,9 @@ approval_rules:
         key_ids:
           - B5690EEEBB952194
     name: dependabot-patch
+    options:
+      request_review:
+        enabled: false
     requires:
       count: 0
 
@@ -52,6 +61,9 @@ approval_rules:
         key_ids:
           - B5690EEEBB952194
     name: dependabot-minor
+    options:
+      request_review:
+        enabled: false
     requires:
       count: 0
 
@@ -71,12 +83,12 @@ approval_rules:
 policy:
   approval:
     - and:
-        - status checks
-        - or:
-            - pre-approved signatures
-            - dependabot-patch
-            - dependabot-minor
-            - reviews
+      - status checks
+      - or:
+          - pre-approved signatures
+          - dependabot-patch
+          - dependabot-minor
+          - reviews
   disapproval:
     requires:
       teams:
