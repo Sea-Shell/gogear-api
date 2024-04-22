@@ -1,20 +1,43 @@
 ---
-version: 1
+## Bulldozer configuration file
+# The following labels should be added to the repository for this configuration to work optiomally:
+# - `do not merge`, `nomerge`, `noautomerge`, `ignore`: This label is used to prevent the PR from being merged
+#
+# - rebase: This label is used to trigger a rebase merge method
+# - squash: This label is used to trigger a squash merge method
+#
+# - updateme: This label is used to trigger an update of the PR
+# - donotupdate: This label is used to prevent the PR from being updated
 merge:
   allow_merge_with_no_checks: false
   delete_after_merge: true
-  merge_method:
-    - method: squash
-      trigger:
-        max_commits: 10
-  method: merge
-  options:
-    squash:
-      body: summarize_commits
-      title: pull_request_title
   ignore:
+    comment_substrings: ["Do not merge", "==DO_NOT_MERGE=="]
     labels: ["do not merge", "nomerge", "noautomerge", "ignore"]
     pr_body_substrings: ["Do not merge", "==DO_NOT_MERGE=="]
-    comment_substrings: ["Do not merge", "==DO_NOT_MERGE=="]
+  merge_method:
+    - method: rebase
+      trigger:
+        comment_substrings: ["rebase", "Rebase", "==REBASE=="]
+        labels: ["rebase"]
+        max_commits: 5
+    - method: squash
+      trigger:
+        comment_substrings: ["squash", "Squash", "==SQUASH=="]
+        labels: ["squash"]
+  method: merge
   required_statuses:
     - 'policy-bot: main'
+  trigger:
+    auto_merge: true
+    branches:
+      - main
+update:
+  trigger:
+    labels:
+      - "updateme"
+  ignore: 
+    labels:
+      - "donotupdate"
+  ignore_drafts: true
+version: 1
