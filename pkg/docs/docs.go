@@ -214,7 +214,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Unique ID of category you want to get",
-                        "name": "categoryId",
+                        "name": "categoryID",
                         "in": "path",
                         "required": true
                     }
@@ -260,7 +260,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Unique ID of category you want to update",
-                        "name": "categoryId",
+                        "name": "categoryID",
                         "in": "path",
                         "required": true
                     },
@@ -317,7 +317,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearNoId"
+                            "$ref": "#/definitions/models.GearNoID"
                         }
                     }
                 ],
@@ -1028,7 +1028,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Unique ID of top category you want to get",
-                        "name": "topCategoryId",
+                        "name": "topCategoryID",
                         "in": "path",
                         "required": true
                     }
@@ -1073,7 +1073,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Unique ID of top category you want to update",
-                        "name": "topCategoryId",
+                        "name": "topCategoryID",
                         "in": "path",
                         "required": true
                     },
@@ -1130,7 +1130,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserGearLinkNoId"
+                            "$ref": "#/definitions/models.UserGearLinkNoID"
                         }
                     }
                 ],
@@ -1690,6 +1690,9 @@ const docTemplate = `{
                 "gear_name": {
                     "type": "string"
                 },
+                "gear_size_definition": {
+                    "type": "integer"
+                },
                 "gear_status": {
                     "type": "boolean"
                 },
@@ -1736,6 +1739,9 @@ const docTemplate = `{
                 },
                 "gear_name": {
                     "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "integer"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -1789,6 +1795,9 @@ const docTemplate = `{
                 "gear_name": {
                     "type": "string"
                 },
+                "gear_size_definition": {
+                    "type": "integer"
+                },
                 "gear_top_category_id": {
                     "type": "integer"
                 },
@@ -1806,7 +1815,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.GearNoId": {
+        "models.GearNoID": {
             "type": "object",
             "properties": {
                 "gear_category_id": {
@@ -1823,6 +1832,9 @@ const docTemplate = `{
                 },
                 "gear_name": {
                     "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "integer"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -2014,7 +2026,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UserGearLinkNoId": {
+        "models.UserGearLinkNoID": {
             "type": "object",
             "properties": {
                 "usergear_gear_id": {
@@ -2058,9 +2070,9 @@ const docTemplate = `{
             "flow": "password",
             "tokenUrl": "https://oauth2.googleapis.com/token",
             "scopes": {
-                "admin": " Grants read and write access to administrative information",
-                "read": " Grants read access",
-                "write": " Grants read and write access"
+                "admin": "Grants read and write access to administrative information",
+                "read": "Grants read access",
+                "write": "Grants read and write access"
             }
         }
     }

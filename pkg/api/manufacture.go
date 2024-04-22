@@ -37,14 +37,14 @@ func GetManufacture(c *gin.Context) {
 
 	manufacture := c.Param(function)
 
-	var param_Manufacturer models.Manufacture
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_Manufacturer))
+	var paramManufacturer models.Manufacture
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramManufacturer))
 
-	baseQuery := fmt.Sprintf("SELECT %s FROM manufacture WHERE manufactureId = ? LIMIT 1", strings.Join(fields, ", "))
+	baseQuery := fmt.Sprintf("SELECT %s FROM manufacture WHERE manufactureID = ? LIMIT 1", strings.Join(fields, ", "))
 
 	row := db.QueryRow(baseQuery, manufacture)
 
-	dest, err := utils.GetScanFields(param_Manufacturer)
+	dest, err := utils.GetScanFields(paramManufacturer)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -63,12 +63,12 @@ func GetManufacture(c *gin.Context) {
 		return
 	}
 
-	for i := 0; i < reflect.TypeOf(param_Manufacturer).NumField(); i++ {
-		reflect.ValueOf(&param_Manufacturer).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+	for i := 0; i < reflect.TypeOf(paramManufacturer).NumField(); i++ {
+		reflect.ValueOf(&paramManufacturer).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 	}
 
-	log.Infof("successfully fetched ManufactureId: %s, ManufactureName: %s", param_Manufacturer.ManufactureId, param_Manufacturer.ManufactureName)
-	c.IndentedJSON(http.StatusOK, param_Manufacturer)
+	log.Infof("successfully fetched ManufactureID: %s, ManufactureName: %s", paramManufacturer.ManufactureID, paramManufacturer.ManufactureName)
+	c.IndentedJSON(http.StatusOK, paramManufacturer)
 }
 
 // @Summary        List manufacture
@@ -105,27 +105,27 @@ func ListManufacture(c *gin.Context) {
 		page = "1"
 	}
 
-	page_int, err := strconv.Atoi(page)
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		log.Errorf("Error setting page to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	limit_int, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("Error setting limit to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	if page_int <= 0 {
+	if pageInt <= 0 {
 		log.Errorf("Error page is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
 		return
 	}
 
-	if limit_int <= 0 {
+	if limitInt <= 0 {
 		log.Errorf("Error limit is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
 		return
@@ -154,21 +154,21 @@ func ListManufacture(c *gin.Context) {
 		return
 	}
 
-	start := strconv.Itoa((page_int - 1) * limit_int)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
+	start := strconv.Itoa((pageInt - 1) * limitInt)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
 
-	start_int, err := strconv.Atoi(start)
+	startInt, err := strconv.Atoi(start)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var param_Manufacturer models.Manufacture
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_Manufacturer))
+	var paramManufacturer models.Manufacture
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramManufacturer))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM manufacture`, strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
 
 	query := baseQuery + whereClause + queryLimit
 
@@ -181,7 +181,7 @@ func ListManufacture(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_Manufacturer)
+	dest, err := utils.GetScanFields(paramManufacturer)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -203,23 +203,23 @@ func ListManufacture(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_Manufacturer).NumField(); i++ {
-			reflect.ValueOf(&param_Manufacturer).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(paramManufacturer).NumField(); i++ {
+			reflect.ValueOf(&paramManufacturer).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		manufactureList = append(manufactureList, param_Manufacturer)
+		manufactureList = append(manufactureList, paramManufacturer)
 	}
 
 	payload := models.ResponsePayload{
 		TotalItemCount: totalCount,
-		CurrentPage:    page_int,
-		ItemLimit:      limit_int,
+		CurrentPage:    pageInt,
+		ItemLimit:      limitInt,
 		TotalPages:     totalPages,
 		Items:          manufactureList,
 	}
 
-	if page_int < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int+1))
+	if pageInt < totalPages {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
 		nextPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -228,8 +228,8 @@ func ListManufacture(c *gin.Context) {
 		*payload.NextPage = nextPage.String()
 	}
 
-	if page_int > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int-1))
+	if pageInt > 1 {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
 		prevPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -339,6 +339,6 @@ func DeleteManufature(c *gin.Context) {
 		return
 	}
 
-	log.Infof("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureId, result.ManufactureName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureId, result.ManufactureName)})
+	log.Infof("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureID, result.ManufactureName)
+	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureID, result.ManufactureName)})
 }
