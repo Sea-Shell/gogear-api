@@ -22,7 +22,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/category/insert": {
+        "/api/v1/category/insert": {
             "put": {
                 "security": [
                     {
@@ -70,7 +70,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/category/list": {
+        "/api/v1/category/list": {
             "get": {
                 "description": "Get a list of category items",
                 "consumes": [
@@ -150,7 +150,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/category/{category}/delete": {
+        "/api/v1/category/{category}/delete": {
             "delete": {
                 "security": [
                     {
@@ -197,7 +197,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/category/{category}/get": {
+        "/api/v1/category/{category}/get": {
             "get": {
                 "description": "Get category spessific to ID",
                 "consumes": [
@@ -235,7 +235,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/category/{category}/update": {
+        "/api/v1/category/{category}/update": {
             "post": {
                 "security": [
                     {
@@ -290,7 +290,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gear/insert": {
+        "/api/v1/gear/insert": {
             "put": {
                 "security": [
                     {
@@ -337,7 +337,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gear/list": {
+        "/api/v1/gear/list": {
             "get": {
                 "security": [
                     {
@@ -433,7 +433,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gear/{gear}/delete": {
+        "/api/v1/gear/{gear}/delete": {
             "delete": {
                 "security": [
                     {
@@ -478,7 +478,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gear/{gear}/get": {
+        "/api/v1/gear/{gear}/get": {
             "get": {
                 "description": "Get gear spessific to ID",
                 "consumes": [
@@ -516,7 +516,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gear/{gear}/update": {
+        "/api/v1/gear/{gear}/update": {
             "post": {
                 "security": [
                     {
@@ -570,30 +570,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/health": {
-            "get": {
-                "description": "Get health status of application",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Get application health",
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.Health"
-                        }
-                    }
-                }
-            }
-        },
-        "/manufacture/insert": {
+        "/api/v1/manufacture/insert": {
             "put": {
                 "security": [
                     {
@@ -640,7 +617,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/manufacture/list": {
+        "/api/v1/manufacture/list": {
             "get": {
                 "description": "Get a list of manufacturers",
                 "consumes": [
@@ -712,7 +689,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/manufacture/{manufacture}/delete": {
+        "/api/v1/manufacture/{manufacture}/delete": {
             "delete": {
                 "security": [
                     {
@@ -757,7 +734,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/manufacture/{manufacture}/get": {
+        "/api/v1/manufacture/{manufacture}/get": {
             "get": {
                 "description": "Get manufacture spessific to ID",
                 "consumes": [
@@ -795,7 +772,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/manufacture/{manufacture}/update": {
+        "/api/v1/manufacture/{manufacture}/update": {
             "post": {
                 "security": [
                     {
@@ -849,7 +826,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/topCategory/insert": {
+        "/api/v1/topCategory/insert": {
             "put": {
                 "security": [
                     {
@@ -896,7 +873,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/topCategory/list": {
+        "/api/v1/topCategory/list": {
             "get": {
                 "description": "Get a list of top category items",
                 "consumes": [
@@ -966,7 +943,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/topCategory/{topCategory}/delete": {
+        "/api/v1/topCategory/{topCategory}/delete": {
             "delete": {
                 "security": [
                     {
@@ -1011,7 +988,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/topCategory/{topCategory}/get": {
+        "/api/v1/topCategory/{topCategory}/get": {
             "get": {
                 "description": "Get top category spessific to ID",
                 "consumes": [
@@ -1049,7 +1026,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/topCategory/{topCategory}/update": {
+        "/api/v1/topCategory/{topCategory}/update": {
             "post": {
                 "security": [
                     {
@@ -1103,7 +1080,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/usergear/insert": {
+        "/api/v1/usergear/insert": {
             "put": {
                 "security": [
                     {
@@ -1144,7 +1121,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/usergear/registration/{usergear}/delete": {
+        "/api/v1/usergear/registration/{usergear}/delete": {
             "delete": {
                 "security": [
                     {
@@ -1189,7 +1166,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/usergear/registration/{usergear}/get": {
+        "/api/v1/usergear/registration/{usergear}/get": {
             "get": {
                 "security": [
                     {
@@ -1228,7 +1205,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/usergear/registration/{usergear}/update": {
+        "/api/v1/usergear/registration/{usergear}/update": {
             "post": {
                 "security": [
                     {
@@ -1276,7 +1253,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/usergear/{user}/list": {
+        "/api/v1/usergear/{user}/list": {
             "get": {
                 "security": [
                     {
@@ -1380,7 +1357,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/insert": {
+        "/api/v1/users/insert": {
             "put": {
                 "security": [
                     {
@@ -1427,7 +1404,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/list": {
+        "/api/v1/users/list": {
             "get": {
                 "security": [
                     {
@@ -1506,7 +1483,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/{user}/delete": {
+        "/api/v1/users/{user}/delete": {
             "delete": {
                 "security": [
                     {
@@ -1551,7 +1528,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/{user}/get": {
+        "/api/v1/users/{user}/get": {
             "get": {
                 "security": [
                     {
@@ -1596,7 +1573,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/{user}/update": {
+        "/api/v1/users/{user}/update": {
             "post": {
                 "security": [
                     {
@@ -1649,6 +1626,29 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/health": {
+            "get": {
+                "description": "Get health status of application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Get application health",
+                "responses": {
+                    "200": {
+                        "description": "desc",
+                        "schema": {
+                            "$ref": "#/definitions/models.Health"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1691,7 +1691,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gear_size_definition": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -1741,7 +1741,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gear_size_definition": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -1796,7 +1796,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gear_size_definition": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "gear_top_category_id": {
                     "type": "integer"
@@ -1834,7 +1834,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "gear_size_definition": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "gear_status": {
                     "type": "boolean"

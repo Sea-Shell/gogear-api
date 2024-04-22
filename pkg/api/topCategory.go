@@ -27,7 +27,7 @@ import (
 // @Param          topCategoryID      path        int                     true    "Unique ID of top category you want to get"
 // @Success        200                {object}    models.GearTopCategory
 // @Failure        default            {object}    models.Error
-// @Router         /topCategory/{topCategory}/get [get]
+// @Router         /api/v1/topCategory/{topCategory}/get [get]
 func GetTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -67,7 +67,7 @@ func GetTopCategory(c *gin.Context) {
 // @Param          topCategory        query        []int          false    "top categories"             collectionFormat(multi)
 // @Success        200                {object}     models.ResponsePayload{items=[]models.GearTopCategory}
 // @Failure        default            {object}     models.Error
-// @Router         /topCategory/list [get]
+// @Router         /api/v1/topCategory/list [get]
 func ListTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -236,7 +236,7 @@ func ListTopCategory(c *gin.Context) {
 // @Param          request            body        models.GearTopCategory   true        "Request body"
 // @Success        200                {object}    models.Status            "status: success when all goes well"
 // @Failure        default            {object}    models.Error
-// @Router         /topCategory/{topCategory}/update [post]
+// @Router         /api/v1/topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -269,7 +269,7 @@ func UpdateTopCategory(c *gin.Context) {
 // @Param          request            body        models.GearTopCategory    true    "Request body"
 // @Success        200                {object}    models.Status             "status: success when all goes well"
 // @Failure        default            {object}    models.Error
-// @Router         /topCategory/insert [put]
+// @Router         /api/v1/topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -302,7 +302,7 @@ func InsertTopCategory(c *gin.Context) {
 // @Param          topCategory        path        int                    true    "Unique ID of topCategory you want to update"
 // @Success        200                {object}    models.Status          "status: success when all goes well"
 // @Failure        default            {object}    models.Error
-// @Router         /topCategory/{topCategory}/delete [delete]
+// @Router         /api/v1/topCategory/{topCategory}/delete [delete]
 func DeleteTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

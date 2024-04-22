@@ -33,7 +33,7 @@ import (
 // @Param          collection       query        []string       false    "string collection"           collectionFormat(multi)
 // @Success        200              {object}     models.ResponsePayload{items=[]models.GearListItem}
 // @Failure        default          {object}     models.Error
-// @Router         /gear/list [get]
+// @Router         /api/v1/gear/list [get]
 func ListGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -215,7 +215,7 @@ func ListGear(c *gin.Context) {
 // @Param          gear       path        int                true    "Unique ID of Gear you want to get"
 // @Success        200        {object}    models.FullGear    "desc"
 // @Failure        default    {object}    models.Error
-// @Router         /gear/{gear}/get [get]
+// @Router         /api/v1/gear/{gear}/get [get]
 func GetGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -254,7 +254,7 @@ func GetGear(c *gin.Context) {
 // @Param          request    body        models.GearNoID    true    "query params"    test
 // @Success        200        {object}    models.Status      "status: success when all goes well"
 // @Failure        default    {object}    models.Error
-// @Router         /gear/insert [put]
+// @Router         /api/v1/gear/insert [put]
 func InsertGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -288,7 +288,7 @@ func InsertGear(c *gin.Context) {
 // @Param          request    body        models.Gear        true    "query params"    test
 // @Success        200        {object}    models.Status      "status: success when all goes well"
 // @Failure        default    {object}    models.Error
-// @Router         /gear/{gear}/update [post]
+// @Router         /api/v1/gear/{gear}/update [post]
 func UpdateGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -321,7 +321,7 @@ func UpdateGear(c *gin.Context) {
 // @Param          gear                path        int              true    "Unique ID of gear you want to delete"
 // @Success        200                 {object}    models.Status    "status: success when all goes well"
 // @Failure        default             {object}    models.Error
-// @Router         /gear/{gear}/delete [delete]
+// @Router         /api/v1/gear/{gear}/delete [delete]
 func DeleteGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

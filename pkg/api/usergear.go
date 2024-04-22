@@ -33,7 +33,7 @@ import (
 // @Param          manufacture        query        []int        false    "manufacturers"               collectionFormat(multi)
 // @Success        200                {object}    models.ResponsePayload{items=[]models.UserGear}
 // @Failure        default            {object}    models.Error
-// @Router         /usergear/{user}/list [get]
+// @Router         /api/v1/usergear/{user}/list [get]
 func ListUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -251,7 +251,7 @@ func ListUserGear(c *gin.Context) {
 // @Produce        json
 // @Param          usergear    path        int                true    "Unique ID of user registered gear you want to get"
 // @Success        200         {object}    models.UserGear    "desc"
-// @Router         /usergear/registration/{usergear}/get [get]
+// @Router         /api/v1/usergear/registration/{usergear}/get [get]
 func GetUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -313,7 +313,7 @@ func GetUserGear(c *gin.Context) {
 // @Produce        json
 // @Param          request    body        models.UserGearLinkNoID    true    "query params"
 // @Success        200        {object}    models.Status              "status: success when all goes well"
-// @Router         /usergear/insert [put]
+// @Router         /api/v1/usergear/insert [put]
 func InsertUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -346,7 +346,7 @@ func InsertUserGear(c *gin.Context) {
 // @Param          usergear    path        int                  true    "Unique ID of user registered gear you want to get"
 // @Param          request     body        models.UserGearLink  true    "query params"
 // @Success        200         {object}    models.Status        "status: success when all goes well"
-// @Router         /usergear/registration/{usergear}/update [post]
+// @Router         /api/v1/usergear/registration/{usergear}/update [post]
 func UpdateUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -379,7 +379,7 @@ func UpdateUserGear(c *gin.Context) {
 // @Param        userGear       path        int              true    "Unique ID of userGear you want to update"
 // @Success      200            {object}    models.Status    "status: success when all goes well"
 // @Failure      default        {object}    models.Error
-// @Router       /usergear/registration/{usergear}/delete [delete]
+// @Router       /api/v1/usergear/registration/{usergear}/delete [delete]
 func DeleteUserGearRegistration(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

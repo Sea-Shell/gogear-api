@@ -31,7 +31,7 @@ import (
 // @Param          username       query        string    false    "search by users full name (this is case insensitive and wildcard)"
 // @Success        200            {object}    models.ResponsePayload{items=[]models.User}
 // @Failure        default        {object}    models.Error
-// @Router         /users/list [get]
+// @Router         /api/v1/users/list [get]
 func ListUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -209,7 +209,7 @@ func ListUser(c *gin.Context) {
 // @Param          user           path        int            true    "Unique ID of user you want to get"
 // @Success        200            {object}    models.User    "desc"
 // @Failure        default        {object}    models.Error
-// @Router         /users/{user}/get [get]
+// @Router         /api/v1/users/{user}/get [get]
 func GetUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -248,7 +248,7 @@ func GetUser(c *gin.Context) {
 // @Param          request    body        models.UserWithPass    true    "query params"    test
 // @Success        200        {object}    models.Status          "status: success when all goes well"
 // @Failure        default    {object}    models.Error
-// @Router         /users/insert [put]
+// @Router         /api/v1/users/insert [put]
 func InsertUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -282,7 +282,7 @@ func InsertUser(c *gin.Context) {
 // @Param          request    body        models.User      true    "query params"    test
 // @Success        200        {object}    models.Status    "status: success when all goes well"
 // @Failure        default    {object}    models.Error
-// @Router         /users/{user}/update [post]
+// @Router         /api/v1/users/{user}/update [post]
 func UpdateUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -315,7 +315,7 @@ func UpdateUser(c *gin.Context) {
 // @Param          user             path        int              true    "Unique ID of user you want to update"
 // @Success        200              {object}    models.Status    "status: success when all goes well"
 // @Failure        default          {object}    models.Error
-// @Router         /users/{user}/delete [delete]
+// @Router         /api/v1/users/{user}/delete [delete]
 func DeleteUser(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

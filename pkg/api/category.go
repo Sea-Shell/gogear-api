@@ -27,7 +27,7 @@ import (
 // @Param          categoryID         path        int                    true    "Unique ID of category you want to get"
 // @Success        200                {object}    models.GearCategory    "desc"
 // @Failure        default            {object}    models.Error
-// @Router         /category/{category}/get [get]
+// @Router         /api/v1/category/{category}/get [get]
 func GetCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -68,7 +68,7 @@ func GetCategory(c *gin.Context) {
 // @Param          topCategory        query        []int        false    "Top gear category"         collectionFormat(multi)
 // @Success        200                {object}     models.ResponsePayload{items=[]models.GearCategory}
 // @Failure        default            {object}     models.Error
-// @Router         /category/list [get]
+// @Router         /api/v1/category/list [get]
 func ListCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -245,7 +245,7 @@ func ListCategory(c *gin.Context) {
 // @Param          request          body        models.GearCategory  true    "Request body"
 // @Success        200              {object}    models.Status        "status: success when all goes well"
 // @Failure        default          {object}    models.Error
-// @Router         /category/{category}/update [post]
+// @Router         /api/v1/category/{category}/update [post]
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -278,7 +278,7 @@ func UpdateCategory(c *gin.Context) {
 // @Param          request    body        models.GearCategory    true    "Request body"
 // @Success        200        {object}    models.Status          "status: success when all goes well"
 // @Failure        default    {object}    models.Error
-// @Router         /category/insert [put]
+// @Router         /api/v1/category/insert [put]
 func InsertCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -311,7 +311,7 @@ func InsertCategory(c *gin.Context) {
 // @Param          category           path        int              true    "Unique ID of category you want to update"
 // @Success        200                {object}    models.Status    "status: success when all goes well"
 // @Failure        default            {object}    models.Error
-// @Router         /category/{category}/delete [delete]
+// @Router         /api/v1/category/{category}/delete [delete]
 func DeleteCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
