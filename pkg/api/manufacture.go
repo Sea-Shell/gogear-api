@@ -27,7 +27,7 @@ import (
 // @Param          manufacture    path        int                    true    "Unique ID of manufacture you want to get"
 // @Success        200            {object}    models.Manufacture    "desc"
 // @Failure        default        {object}    models.Error
-// @Router         /manufacture/{manufacture}/get [get]
+// @Router         /api/v1/manufacture/{manufacture}/get [get]
 func GetManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -82,7 +82,7 @@ func GetManufacture(c *gin.Context) {
 // @Param          manufacturename    query        string     false    "search by manufactures full name (this is case insensitive and wildcard)"
 // @Success        200                {object}    models.ResponsePayload{items=[]models.Manufacture}
 // @Failure        default            {object}    models.Error
-// @Router         /manufacture/list [get]
+// @Router         /api/v1/manufacture/list [get]
 func ListManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -251,7 +251,7 @@ func ListManufacture(c *gin.Context) {
 // @Param          request        body        models.Manufacture   true    "query params"    test
 // @Success        200            {object}    models.Status        "status: success when all goes well"
 // @Failure        default        {object}    models.Error
-// @Router         /manufacture/{manufacture}/update [post]
+// @Router         /api/v1/manufacture/{manufacture}/update [post]
 func UpdateManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -284,7 +284,7 @@ func UpdateManufacture(c *gin.Context) {
 // @Param          request        body        models.Manufacture   true    "query params"    test
 // @Success        200            {object}    models.Status        "status: success when all goes well"
 // @Failure        default        {object}    models.Error
-// @Router         /manufacture/insert [put]
+// @Router         /api/v1/manufacture/insert [put]
 func InsertManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -317,7 +317,7 @@ func InsertManufacture(c *gin.Context) {
 // @Param          manufacture        path        int              true    "Unique ID of manufacture you want to update"
 // @Success        200                {object}    models.Status    "status: success when all goes well"
 // @Failure        default            {object}    models.Error
-// @Router         /manufacture/{manufacture}/delete [delete]
+// @Router         /api/v1/manufacture/{manufacture}/delete [delete]
 func DeleteManufature(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

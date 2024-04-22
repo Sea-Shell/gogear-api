@@ -128,7 +128,7 @@ func main() {
 	docs.SwaggerInfo.Description = "This is the API of GoGear."
 	docs.SwaggerInfo.Host = config.General.Hostname
 	docs.SwaggerInfo.Schemes = config.General.Schemes
-	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.BasePath = "/"
 
 	router := gin.New()
 	router.Use(gin.Recovery())
