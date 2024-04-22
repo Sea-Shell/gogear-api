@@ -24,6 +24,8 @@ definitions:
         type: integer
       gear_name:
         type: string
+      gear_size_definition:
+        type: integer
       gear_status:
         type: boolean
       gear_top_category_id:
@@ -55,6 +57,8 @@ definitions:
         type: integer
       gear_name:
         type: string
+      gear_size_definition:
+        type: integer
       gear_status:
         type: boolean
       gear_top_category_id:
@@ -89,6 +93,8 @@ definitions:
         type: integer
       gear_name:
         type: string
+      gear_size_definition:
+        type: integer
       gear_top_category_id:
         type: integer
       manufacture_id:
@@ -100,7 +106,7 @@ definitions:
       top_category_name:
         type: string
     type: object
-  models.GearNoId:
+  models.GearNoID:
     properties:
       gear_category_id:
         type: integer
@@ -112,6 +118,8 @@ definitions:
         type: integer
       gear_name:
         type: string
+      gear_size_definition:
+        type: integer
       gear_status:
         type: boolean
       gear_top_category_id:
@@ -236,7 +244,7 @@ definitions:
       usergear_user_id:
         type: integer
     type: object
-  models.UserGearLinkNoId:
+  models.UserGearLinkNoID:
     properties:
       usergear_gear_id:
         type: integer
@@ -305,7 +313,7 @@ paths:
       parameters:
       - description: Unique ID of category you want to get
         in: path
-        name: categoryId
+        name: categoryID
         required: true
         type: integer
       produces:
@@ -330,7 +338,7 @@ paths:
       parameters:
       - description: Unique ID of category you want to update
         in: path
-        name: categoryId
+        name: categoryID
         required: true
         type: integer
       - description: Request body
@@ -536,7 +544,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.GearNoId'
+          $ref: '#/definitions/models.GearNoID'
       produces:
       - application/json
       responses:
@@ -827,7 +835,7 @@ paths:
       parameters:
       - description: Unique ID of top category you want to get
         in: path
-        name: topCategoryId
+        name: topCategoryID
         required: true
         type: integer
       produces:
@@ -852,7 +860,7 @@ paths:
       parameters:
       - description: Unique ID of top category you want to update
         in: path
-        name: topCategoryId
+        name: topCategoryID
         required: true
         type: integer
       - description: Request body
@@ -1028,7 +1036,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.UserGearLinkNoId'
+          $ref: '#/definitions/models.UserGearLinkNoID'
       produces:
       - application/json
       responses:

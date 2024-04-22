@@ -24,7 +24,7 @@ import (
 // @Tags           Category
 // @Accept         json
 // @Produce        json
-// @Param          categoryId         path        int                    true    "Unique ID of category you want to get"
+// @Param          categoryID         path        int                    true    "Unique ID of category you want to get"
 // @Success        200                {object}    models.GearCategory    "desc"
 // @Failure        default            {object}    models.Error
 // @Router         /category/{category}/get [get]
@@ -41,12 +41,12 @@ func GetCategory(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 	}
 
-	var extraSQl []string
-	// extraSQl = append(extraSQl, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
-	// extraSQl = append(extraSQl, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
-	// extraSQl = append(extraSQl, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	var extraSQL []string
+	// extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
+	// extraSQL = append(extraSQL, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
+	// extraSQL = append(extraSQL, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
 
-	results, err := utils.GenericGet[models.GearCategory]("gear_category", urlParameter, extraSQl, db)
+	results, err := utils.GenericGet[models.GearCategory]("gear_category", urlParameter, extraSQL, db)
 	if err != nil {
 		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -92,27 +92,27 @@ func ListCategory(c *gin.Context) {
 		page = "1"
 	}
 
-	page_int, err := strconv.Atoi(page)
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		log.Errorf("Error setting page to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	limit_int, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("Error setting limit to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	if page_int <= 0 {
+	if pageInt <= 0 {
 		log.Errorf("Error page is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
 		return
 	}
 
-	if limit_int <= 0 {
+	if limitInt <= 0 {
 		log.Errorf("Error limit is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
 		return
@@ -146,23 +146,23 @@ func ListCategory(c *gin.Context) {
 		return
 	}
 
-	start := strconv.Itoa((page_int - 1) * limit_int)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
+	start := strconv.Itoa((pageInt - 1) * limitInt)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
 
-	start_int, err := strconv.Atoi(start)
+	startInt, err := strconv.Atoi(start)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var param_category models.GearCategoryListItem
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_category))
+	var paramCategory models.GearCategoryListItem
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramCategory))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM gear_category
     LEFT JOIN gear_top_category ON gear_category.categoryTopCategoryId = gear_top_category.topCategoryId`,
 		strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
 
 	query := baseQuery + whereClause + queryLimit
 
@@ -175,7 +175,7 @@ func ListCategory(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_category)
+	dest, err := utils.GetScanFields(paramCategory)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -197,23 +197,23 @@ func ListCategory(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_category).NumField(); i++ {
-			reflect.ValueOf(&param_category).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(paramCategory).NumField(); i++ {
+			reflect.ValueOf(&paramCategory).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		gearCategoryList = append(gearCategoryList, param_category)
+		gearCategoryList = append(gearCategoryList, paramCategory)
 	}
 
 	payload := models.ResponsePayload{
 		TotalItemCount: totalCount,
-		CurrentPage:    page_int,
-		ItemLimit:      limit_int,
+		CurrentPage:    pageInt,
+		ItemLimit:      limitInt,
 		TotalPages:     totalPages,
 		Items:          gearCategoryList,
 	}
 
-	if page_int < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int+1))
+	if pageInt < totalPages {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
 		nextPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -222,8 +222,8 @@ func ListCategory(c *gin.Context) {
 		*payload.NextPage = nextPage.String()
 	}
 
-	if page_int > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int-1))
+	if pageInt > 1 {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
 		prevPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -241,7 +241,7 @@ func ListCategory(c *gin.Context) {
 // @Tags           Category
 // @Accept         json
 // @Produce        json
-// @Param          categoryId       path        int                  true    "Unique ID of category you want to update"
+// @Param          categoryID       path        int                  true    "Unique ID of category you want to update"
 // @Param          request          body        models.GearCategory  true    "Request body"
 // @Success        200              {object}    models.Status        "status: success when all goes well"
 // @Failure        default          {object}    models.Error
@@ -333,6 +333,6 @@ func DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	log.Infof("success! Category with category_id %v and name %s was deleted", result.CategoryId, result.CategoryName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Category with category_id %v and name %s has been deleted", result.CategoryId, result.CategoryName)})
+	log.Infof("success! Category with category_id %v and name %s was deleted", result.CategoryID, result.CategoryName)
+	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Category with category_id %v and name %s has been deleted", result.CategoryID, result.CategoryName)})
 }

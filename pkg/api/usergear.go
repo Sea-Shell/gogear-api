@@ -41,7 +41,7 @@ func ListUserGear(c *gin.Context) {
 
 	page := c.Query("page")
 	limit := c.Query("limit")
-	userId := c.Param("user")
+	userID := c.Param("user")
 	topCategories := c.QueryArray("topCategory")
 	categories := c.QueryArray("category")
 	manufacturers := c.QueryArray("manufacture")
@@ -51,8 +51,8 @@ func ListUserGear(c *gin.Context) {
 
 	log.Debugf("Request parameters: %#v", c.Request.URL.Query())
 
-	if userId == "" {
-		log.Errorf("Error userId was not supplied")
+	if userID == "" {
+		log.Errorf("Error userID was not supplied")
 		c.IndentedJSON(http.StatusNoContent, models.Error{Error: "userId supplied was not valid"})
 		return
 	}
@@ -65,34 +65,34 @@ func ListUserGear(c *gin.Context) {
 		page = "1"
 	}
 
-	userId_int, err := strconv.Atoi(userId)
+	userIDInt, err := strconv.Atoi(userID)
 	if err != nil {
-		log.Errorf("Error setting userId to int: %#v", err)
+		log.Errorf("Error setting userID to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	page_int, err := strconv.Atoi(page)
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		log.Errorf("Error setting page to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	limit_int, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("Error setting limit to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	if page_int <= 0 {
+	if pageInt <= 0 {
 		log.Errorf("Error page is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
 		return
 	}
 
-	if limit_int <= 0 {
+	if limitInt <= 0 {
 		log.Errorf("Error limit is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
 		return
@@ -100,35 +100,35 @@ func ListUserGear(c *gin.Context) {
 
 	conditions := []string{}
 
-	if userId != "" {
-		userIdQ := fmt.Sprintf("user_gear_registrations.userId = %d", userId_int)
-		conditions = append(conditions, userIdQ)
+	if userID != "" {
+		userIDQ := fmt.Sprintf("user_gear_registrations.userId = %d", userIDInt)
+		conditions = append(conditions, userIDQ)
 	}
 
 	for _, topCategory := range topCategories {
-		topCategory_int, err := strconv.Atoi(topCategory)
+		topCategoryInt, err := strconv.Atoi(topCategory)
 		if err != nil {
 			continue
 		}
-		topcat := fmt.Sprintf("gear.gearTopCategoryId = %d", topCategory_int)
+		topcat := fmt.Sprintf("gear.gearTopCategoryId = %d", topCategoryInt)
 		conditions = append(conditions, topcat)
 	}
 
 	for _, category := range categories {
-		category_int, err := strconv.Atoi(category)
+		categoryInt, err := strconv.Atoi(category)
 		if err != nil {
 			continue
 		}
-		cat := fmt.Sprintf("gear.gearCategoryId = %d", category_int)
+		cat := fmt.Sprintf("gear.gearCategoryId = %d", categoryInt)
 		conditions = append(conditions, cat)
 	}
 
 	for _, manufacture := range manufacturers {
-		manufacture_int, err := strconv.Atoi(manufacture)
+		manufactureInt, err := strconv.Atoi(manufacture)
 		if err != nil {
 			continue
 		}
-		manufac := fmt.Sprintf("gear.gearManufactureId = %d", manufacture_int)
+		manufac := fmt.Sprintf("gear.gearManufactureId = %d", manufactureInt)
 		conditions = append(conditions, manufac)
 	}
 
@@ -143,10 +143,10 @@ func ListUserGear(c *gin.Context) {
 	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
 	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
 	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-	extraSQl := strings.Join(extra, " ")
+	extraSQL := strings.Join(extra, " ")
 
 	baseCountQuery := "SELECT COUNT(*) FROM user_gear_registrations"
-	countQuery := baseCountQuery + extraSQl + whereClause
+	countQuery := baseCountQuery + extraSQL + whereClause
 
 	var totalCount int
 	err = db.QueryRow(countQuery).Scan(&totalCount)
@@ -156,23 +156,23 @@ func ListUserGear(c *gin.Context) {
 		return
 	}
 
-	start := strconv.Itoa((page_int - 1) * limit_int)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
+	start := strconv.Itoa((pageInt - 1) * limitInt)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
 
-	start_int, err := strconv.Atoi(start)
+	startInt, err := strconv.Atoi(start)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var param_topCategory models.UserGear
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_topCategory))
+	var paramTopCategory models.UserGear
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramTopCategory))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM user_gear_registrations`, strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
 
-	query := baseQuery + extraSQl + whereClause + queryLimit
+	query := baseQuery + extraSQL + whereClause + queryLimit
 
 	log.Debugf("Query: %s", query)
 
@@ -183,7 +183,7 @@ func ListUserGear(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_topCategory)
+	dest, err := utils.GetScanFields(paramTopCategory)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -205,23 +205,23 @@ func ListUserGear(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_topCategory).NumField(); i++ {
-			reflect.ValueOf(&param_topCategory).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(paramTopCategory).NumField(); i++ {
+			reflect.ValueOf(&paramTopCategory).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		gearTopCategoryList = append(gearTopCategoryList, param_topCategory)
+		gearTopCategoryList = append(gearTopCategoryList, paramTopCategory)
 	}
 
 	payload := models.ResponsePayload{
 		TotalItemCount: totalCount,
-		CurrentPage:    page_int,
-		ItemLimit:      limit_int,
+		CurrentPage:    pageInt,
+		ItemLimit:      limitInt,
 		TotalPages:     totalPages,
 		Items:          gearTopCategoryList,
 	}
 
-	if page_int < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int+1))
+	if pageInt < totalPages {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
 		nextPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -230,8 +230,8 @@ func ListUserGear(c *gin.Context) {
 		*payload.NextPage = nextPage.String()
 	}
 
-	if page_int > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int-1))
+	if pageInt > 1 {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
 		prevPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -287,7 +287,7 @@ func GetUserGear(c *gin.Context) {
 
 	var extra []string
 	extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
-	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.gearId = users.userId")
+	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.userId = users.userId")
 	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
 	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
 	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
@@ -311,7 +311,7 @@ func GetUserGear(c *gin.Context) {
 // @Tags           User gear
 // @Accept         json
 // @Produce        json
-// @Param          request    body        models.UserGearLinkNoId    true    "query params"
+// @Param          request    body        models.UserGearLinkNoID    true    "query params"
 // @Success        200        {object}    models.Status              "status: success when all goes well"
 // @Router         /usergear/insert [put]
 func InsertUserGear(c *gin.Context) {
@@ -401,6 +401,6 @@ func DeleteUserGearRegistration(c *gin.Context) {
 		return
 	}
 
-	log.Infof("success! User gear registration linking %s to user %s was deleted", result.GearName, result.UserGearUserId)
+	log.Infof("success! User gear registration linking %s to user %s was deleted", result.GearName, result.UserGearUserID)
 	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User gear registration linking %s to user %s was deleted", result.GearName, result.UserUsername)})
 }

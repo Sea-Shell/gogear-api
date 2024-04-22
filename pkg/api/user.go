@@ -54,27 +54,27 @@ func ListUser(c *gin.Context) {
 		page = "1"
 	}
 
-	page_int, err := strconv.Atoi(page)
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		log.Errorf("Error setting page to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	limit_int, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("Error setting limit to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	if page_int <= 0 {
+	if pageInt <= 0 {
 		log.Errorf("Error page is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
 		return
 	}
 
-	if limit_int <= 0 {
+	if limitInt <= 0 {
 		log.Errorf("Error limit is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
 		return
@@ -113,21 +113,21 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	start := strconv.Itoa((page_int - 1) * limit_int)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
+	start := strconv.Itoa((pageInt - 1) * limitInt)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
 
-	start_int, err := strconv.Atoi(start)
+	startInt, err := strconv.Atoi(start)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var param_user models.User
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_user))
+	var paramUser models.User
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramUser))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM users`, strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
 
 	query := baseQuery + whereClause + queryLimit
 
@@ -140,7 +140,7 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_user)
+	dest, err := utils.GetScanFields(paramUser)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -162,23 +162,23 @@ func ListUser(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_user).NumField(); i++ {
-			reflect.ValueOf(&param_user).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(paramUser).NumField(); i++ {
+			reflect.ValueOf(&paramUser).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		users = append(users, param_user)
+		users = append(users, paramUser)
 	}
 
 	payload := models.ResponsePayload{
 		TotalItemCount: totalCount,
-		CurrentPage:    page_int,
-		ItemLimit:      limit_int,
+		CurrentPage:    pageInt,
+		ItemLimit:      limitInt,
 		TotalPages:     totalPages,
 		Items:          users,
 	}
 
-	if page_int < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int+1))
+	if pageInt < totalPages {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
 		nextPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -187,8 +187,8 @@ func ListUser(c *gin.Context) {
 		*payload.NextPage = nextPage.String()
 	}
 
-	if page_int > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int-1))
+	if pageInt > 1 {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
 		prevPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -223,12 +223,12 @@ func GetUser(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 	}
 
-	var extraSQl []string
-	// extraSQl = append(extraSQl, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
-	// extraSQl = append(extraSQl, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
-	// extraSQl = append(extraSQl, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	var extraSQL []string
+	// extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
+	// extraSQL = append(extraSQL, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
+	// extraSQL = append(extraSQL, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
 
-	results, err := utils.GenericGet[models.User]("users", urlParameter, extraSQl, db)
+	results, err := utils.GenericGet[models.User]("users", urlParameter, extraSQL, db)
 	if err != nil {
 		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -338,7 +338,7 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	for _, userRegistration := range *userRegistrations {
-		_, err := utils.GenericDelete[models.UserGearLink]("user_gear_registrations", int(*userRegistration.UserGearRegistrationId), db)
+		_, err := utils.GenericDelete[models.UserGearLink]("user_gear_registrations", int(*userRegistration.UserGearRegistrationID), db)
 		if err != nil {
 			log.Error(err.Error())
 			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -353,6 +353,6 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	log.Infof("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserId)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserId)})
+	log.Infof("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)
+	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)})
 }

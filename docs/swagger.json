@@ -206,7 +206,7 @@
                     {
                         "type": "integer",
                         "description": "Unique ID of category you want to get",
-                        "name": "categoryId",
+                        "name": "categoryID",
                         "in": "path",
                         "required": true
                     }
@@ -252,7 +252,7 @@
                     {
                         "type": "integer",
                         "description": "Unique ID of category you want to update",
-                        "name": "categoryId",
+                        "name": "categoryID",
                         "in": "path",
                         "required": true
                     },
@@ -309,7 +309,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearNoId"
+                            "$ref": "#/definitions/models.GearNoID"
                         }
                     }
                 ],
@@ -1020,7 +1020,7 @@
                     {
                         "type": "integer",
                         "description": "Unique ID of top category you want to get",
-                        "name": "topCategoryId",
+                        "name": "topCategoryID",
                         "in": "path",
                         "required": true
                     }
@@ -1065,7 +1065,7 @@
                     {
                         "type": "integer",
                         "description": "Unique ID of top category you want to update",
-                        "name": "topCategoryId",
+                        "name": "topCategoryID",
                         "in": "path",
                         "required": true
                     },
@@ -1122,7 +1122,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserGearLinkNoId"
+                            "$ref": "#/definitions/models.UserGearLinkNoID"
                         }
                     }
                 ],
@@ -1682,6 +1682,9 @@
                 "gear_name": {
                     "type": "string"
                 },
+                "gear_size_definition": {
+                    "type": "integer"
+                },
                 "gear_status": {
                     "type": "boolean"
                 },
@@ -1728,6 +1731,9 @@
                 },
                 "gear_name": {
                     "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "integer"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -1781,6 +1787,9 @@
                 "gear_name": {
                     "type": "string"
                 },
+                "gear_size_definition": {
+                    "type": "integer"
+                },
                 "gear_top_category_id": {
                     "type": "integer"
                 },
@@ -1798,7 +1807,7 @@
                 }
             }
         },
-        "models.GearNoId": {
+        "models.GearNoID": {
             "type": "object",
             "properties": {
                 "gear_category_id": {
@@ -1815,6 +1824,9 @@
                 },
                 "gear_name": {
                     "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "integer"
                 },
                 "gear_status": {
                     "type": "boolean"
@@ -2006,7 +2018,7 @@
                 }
             }
         },
-        "models.UserGearLinkNoId": {
+        "models.UserGearLinkNoID": {
             "type": "object",
             "properties": {
                 "usergear_gear_id": {

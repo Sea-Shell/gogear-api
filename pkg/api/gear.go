@@ -59,27 +59,27 @@ func ListGear(c *gin.Context) {
 		page = "1"
 	}
 
-	page_int, err := strconv.Atoi(page)
+	pageInt, err := strconv.Atoi(page)
 	if err != nil {
 		log.Errorf("Error setting page to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	limit_int, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("Error setting limit to int: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	if page_int <= 0 {
+	if pageInt <= 0 {
 		log.Errorf("Error page is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
 		return
 	}
 
-	if limit_int <= 0 {
+	if limitInt <= 0 {
 		log.Errorf("Error limit is less than 0: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
 		return
@@ -115,17 +115,17 @@ func ListGear(c *gin.Context) {
 		return
 	}
 
-	start := strconv.Itoa((page_int - 1) * limit_int)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limit_int)))
+	start := strconv.Itoa((pageInt - 1) * limitInt)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
 
-	start_int, err := strconv.Atoi(start)
+	startInt, err := strconv.Atoi(start)
 	if err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
 
-	var param_gear models.GearListItem
-	fields := utils.GetDBFieldNames(reflect.TypeOf(param_gear))
+	var paramGear models.GearListItem
+	fields := utils.GetDBFieldNames(reflect.TypeOf(paramGear))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM gear
         LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId
@@ -133,7 +133,7 @@ func ListGear(c *gin.Context) {
         LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`,
 		strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", start_int, limit_int)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
 
 	query := baseQuery + whereClause + queryLimit
 
@@ -146,7 +146,7 @@ func ListGear(c *gin.Context) {
 		return
 	}
 
-	dest, err := utils.GetScanFields(param_gear)
+	dest, err := utils.GetScanFields(paramGear)
 	if err != nil {
 		log.Errorf("Error getting destination arguments: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -168,23 +168,23 @@ func ListGear(c *gin.Context) {
 			return
 		}
 
-		for i := 0; i < reflect.TypeOf(param_gear).NumField(); i++ {
-			reflect.ValueOf(&param_gear).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
+		for i := 0; i < reflect.TypeOf(paramGear).NumField(); i++ {
+			reflect.ValueOf(&paramGear).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		gearList = append(gearList, param_gear)
+		gearList = append(gearList, paramGear)
 	}
 
 	payload := models.ResponsePayload{
 		TotalItemCount: totalCount,
-		CurrentPage:    page_int,
-		ItemLimit:      limit_int,
+		CurrentPage:    pageInt,
+		ItemLimit:      limitInt,
 		TotalPages:     totalPages,
 		Items:          gearList,
 	}
 
-	if page_int < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int+1))
+	if pageInt < totalPages {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
 		nextPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -193,8 +193,8 @@ func ListGear(c *gin.Context) {
 		*payload.NextPage = nextPage.String()
 	}
 
-	if page_int > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(page_int-1))
+	if pageInt > 1 {
+		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
 		prevPage := url.URL{
 			Path:     c.Request.URL.Path,
 			RawQuery: currentQueryParameters.Encode(),
@@ -203,7 +203,7 @@ func ListGear(c *gin.Context) {
 		*payload.PrevPage = prevPage.String()
 	}
 
-	log.Infof("successfully fetched gear with id: %s, gearName: %s", param_gear.GearId, param_gear.GearName)
+	log.Infof("successfully fetched gear with id: %s, gearName: %s", paramGear.GearID, paramGear.GearName)
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
@@ -229,12 +229,12 @@ func GetGear(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 	}
 
-	var extraSQl []string
-	extraSQl = append(extraSQl, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
-	extraSQl = append(extraSQl, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
-	extraSQl = append(extraSQl, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	var extraSQL []string
+	extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
+	extraSQL = append(extraSQL, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
+	extraSQL = append(extraSQL, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
 
-	results, err := utils.GenericGet[models.FullGear]("gear", urlParameter, extraSQl, db)
+	results, err := utils.GenericGet[models.FullGear]("gear", urlParameter, extraSQL, db)
 	if err != nil {
 		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -251,7 +251,7 @@ func GetGear(c *gin.Context) {
 // @Tags           Gear
 // @Accept         json
 // @Produce        json
-// @Param          request    body        models.GearNoId    true    "query params"    test
+// @Param          request    body        models.GearNoID    true    "query params"    test
 // @Success        200        {object}    models.Status      "status: success when all goes well"
 // @Failure        default    {object}    models.Error
 // @Router         /gear/insert [put]
@@ -343,8 +343,8 @@ func DeleteGear(c *gin.Context) {
 		return
 	}
 
-	log.Infof("success! Gear with gear_id %v and gear_name %s was deleted", result.GearId, result.GearName)
+	log.Infof("success! Gear with gear_id %v and gear_name %s was deleted", result.GearID, result.GearName)
 	c.JSON(http.StatusOK, map[string]string{
-		"status": fmt.Sprintf("success! Gear with gear_id %v and gear_name %s was deleted", result.GearId, result.GearName),
+		"status": fmt.Sprintf("success! Gear with gear_id %v and gear_name %s was deleted", result.GearID, result.GearName),
 	})
 }
