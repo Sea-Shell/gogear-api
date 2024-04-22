@@ -17,7 +17,21 @@ spec:
                 name: gogear-api
                 port:
                   number: 8081
+            path: "/swagger"
+            pathType: Prefix
+          - backend:
+              service:
+                name: gogear-api
+                port:
+                  number: 8081
             path: "/api"
+            pathType: Prefix
+          - backend:
+              service:
+                name: gogear-api
+                port:
+                  number: 8081
+            path: "/health"
             pathType: Prefix
   tls:
     - hosts:
