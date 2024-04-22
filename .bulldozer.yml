@@ -33,11 +33,11 @@ merge:
     branches:
       - main
 update:
+  ignore:
+    labels:
+      - donotupdate
+  ignore_drafts: true
   trigger:
     labels:
-      - "updateme"
-  ignore: 
-    labels:
-      - "donotupdate"
-  ignore_drafts: true
+      - updateme
 version: 1
