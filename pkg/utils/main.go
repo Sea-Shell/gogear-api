@@ -153,12 +153,12 @@ func GenericUpdate[model any](table string, data []byte, db *sql.DB) error {
 	return nil
 }
 
-func GenericInsert[model any](table string, data []byte, db *sql.DB) error {
+func GenericInsert[model any](table string, data []byte, db *sql.DB) (*model, error) {
 	var body model
 
 	err := json.Unmarshal(data, &body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var params model
@@ -173,11 +173,21 @@ func GenericInsert[model any](table string, data []byte, db *sql.DB) error {
 
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, fieldString, valuePlaceHolders)
 
-	_, err = db.Exec(query, values...)
+	results, err := db.Exec(query, values...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	lastID, err := results.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	createdObject, err := GenericGet[model](table, int(lastID), nil, db)
+	if err != nil {
+		return nil, err
+	}
+	return createdObject, nil
 }
 
 func GenericGet[model any](table string, id int, sql []string, db *sql.DB) (*model, error) {
