@@ -242,7 +242,7 @@ func GenericDelete[model any](table string, id int, db *sql.DB) (*model, error) 
 		return nil, err
 	}
 
-	row, err := result.LastInsertId()
+	row, err := result.RowsAffected()
 	if err != nil {
 		return nil, err
 	}
