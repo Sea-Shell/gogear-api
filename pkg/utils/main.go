@@ -230,6 +230,9 @@ func GenericDelete[model any](table string, id int, db *sql.DB) (*model, error) 
 	}
 
 	deletedObject, err := GenericGet[model](table, id, nil, db)
+	if err != nil {
+		return nil, err
+	}
 
 	baseQuery := fmt.Sprintf("DELETE FROM %s ", table)
 
