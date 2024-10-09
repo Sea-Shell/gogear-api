@@ -36,7 +36,7 @@ jobs:
     steps:
       # Checkout repo code
       - name: Checkout repo
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v4.2.1
         with:
           ref: refs/tags/${{ needs.release.outputs.git-tag }}
           fetch-depth: 0
@@ -67,7 +67,7 @@ jobs:
     steps:
       # Checkout repo code
       - name: Checkout repo
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v4.2.1
         with:
           ref: refs/tags/${{ needs.release.outputs.git-tag }}
           fetch-depth: 0
