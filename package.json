@@ -4,7 +4,7 @@
     },
     "dependencies": {
         "conventional-changelog-conventionalcommits": "^8.0.0",
-        "semantic-release": "^24.1.2",
+        "semantic-release": "^24.1.3",
         "semantic-release-tags": "^2.0.0"
       },
       "publishConfig": {
