@@ -77,7 +77,7 @@ jobs:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
       - name: Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TAIL_SCALE_OAUTH_CLIENT }}
           oauth-secret: ${{ secrets.TAIL_SCALE_OAUTH_CLIENT_SECRET }}
