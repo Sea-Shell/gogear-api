@@ -58,7 +58,7 @@ const docTemplate = `{
                     "200": {
                         "description": "status: success when all goes well",
                         "schema": {
-                            "$ref": "#/definitions/models.Status"
+                            "$ref": "#/definitions/models.GearCategory"
                         }
                     },
                     "default": {
@@ -317,7 +317,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearNoID"
+                            "$ref": "#/definitions/models.Gear"
                         }
                     }
                 ],
@@ -605,7 +605,7 @@ const docTemplate = `{
                     "200": {
                         "description": "status: success when all goes well",
                         "schema": {
-                            "$ref": "#/definitions/models.Status"
+                            "$ref": "#/definitions/models.Manufacture"
                         }
                     },
                     "default": {
@@ -1815,41 +1815,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.GearNoID": {
-            "type": "object",
-            "properties": {
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_height": {
-                    "type": "integer"
-                },
-                "gear_length": {
-                    "type": "integer"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_size_definition": {
-                    "type": "string"
-                },
-                "gear_status": {
-                    "type": "boolean"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_weight": {
-                    "type": "integer"
-                },
-                "gear_width": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.GearTopCategory": {
             "type": "object",
             "properties": {
@@ -2080,18 +2045,18 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-    Version:          "1.0",
-    Host:             "",
-    BasePath:         "",
-    Schemes:          []string{},
-    Title:            "GoGear API",
-    Description:      "This is the API of GoGear",
-    InfoInstanceName: "swagger",
-    SwaggerTemplate:  docTemplate,
-    LeftDelim:        "{{",
-    RightDelim:       "}}",
+	Version:          "1.0",
+	Host:             "",
+	BasePath:         "",
+	Schemes:          []string{},
+	Title:            "GoGear API",
+	Description:      "This is the API of GoGear",
+	InfoInstanceName: "swagger",
+	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {
-    swag.Register(SwaggerInfo.InstanceName(), SwaggerInfo)
+	swag.Register(SwaggerInfo.InstanceName(), SwaggerInfo)
 }

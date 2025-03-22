@@ -81,25 +81,25 @@ func configMiddleware(config *models.General) gin.HandlerFunc {
     }
 }
 
-// @title                               GoGear API
-// @version                             1.0
-// @description                         This is the API of GoGear
-// @contact.name                        API Support
-// @contact.email                       support@sea-shell.no
-// @license.name                        Apache 2.0
-// @license.url                         http://www.apache.org/licenses/LICENSE-2.0.html
+//	@title									GoGear API
+//	@version								1.0
+//	@description							This is the API of GoGear
+//	@contact.name							API Support
+//	@contact.email							support@sea-shell.no
+//	@license.name							Apache 2.0
+//	@license.url							http://www.apache.org/licenses/LICENSE-2.0.html
 //
-// @securityDefinitions.apikey          APIKey
-// @in                                  header
-// @name                                X-API-Key
+//	@securityDefinitions.apikey				APIKey
+//	@in										header
+//	@name									X-API-Key
 //
-// @securitydefinitions.oauth2.password OAuth2Application
-// @description                         OAuth protects our entity endpoints
-// @tokenUrl                            https://oauth2.googleapis.com/token
-// @authorizationurl                    https://accounts.google.com/o/oauth2/auth
-// @scope.write                         Grants read and write access
-// @scope.admin                         Grants read and write access to administrative information
-// @scope.read                          Grants read access
+//	@securitydefinitions.oauth2.password	OAuth2Application
+//	@description							OAuth protects our entity endpoints
+//	@tokenUrl								https://oauth2.googleapis.com/token
+//	@authorizationurl						https://accounts.google.com/o/oauth2/auth
+//	@scope.write							Grants read and write access
+//	@scope.admin							Grants read and write access to administrative information
+//	@scope.read								Grants read access
 func main() {
     configFile := flag.String("config", configFile, "Config file")
 

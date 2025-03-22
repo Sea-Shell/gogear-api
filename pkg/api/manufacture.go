@@ -282,7 +282,7 @@ func UpdateManufacture(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		models.Manufacture	true	"query params"	test
-//	@Success		200		{object}	models.Manufature	"status: success when all goes well"
+//	@Success		200		{object}	models.Manufacture	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
 //	@Router			/api/v1/manufacture/insert [put]
 func InsertManufacture(c *gin.Context) {
