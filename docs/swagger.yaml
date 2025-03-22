@@ -551,7 +551,7 @@ paths:
         "200":
           description: 'status: success when all goes well'
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: '#/definitions/models.Gear'
         default:
           description: ""
           schema:
