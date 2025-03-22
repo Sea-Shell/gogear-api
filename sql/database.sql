@@ -7,17 +7,17 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS gear (
-    gearId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    gearTopCategoryId INTEGER NOT NULL,
-    gearCategoryId INTEGER NOT NULL,
-    gearManufactureId INTEGER NOT NULL,
-    gearSizeDefinition TEXT,
-    gearName TEXT NOT NULL,
-    gearWeight INTEGER,
-    gearHeight INTEGER,
-    gearLength INTEGER,
-    gearWidth INTEGER,
-    gearStatus BOOLEAN,
+    `gearId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `gearTopCategoryId` INTEGER NOT NULL,
+    `gearCategoryId` INTEGER NOT NULL,
+    `gearManufactureId` INTEGER NOT NULL,
+    `gearSizeDefinition` TEXT,
+    `gearName` TEXT NOT NULL,
+    `gearWeight` INTEGER,
+    `gearHeight` INTEGER,
+    `gearLength` INTEGER,
+    `gearWidth` INTEGER,
+    `gearStatus` BOOLEAN,
     FOREIGN KEY (gearTopCategoryId) REFERENCES gear_top_category(topCategoryId),
     FOREIGN KEY (gearCategoryId) REFERENCES gear_category(categoryId),
     FOREIGN KEY (gearManufactureId) REFERENCES manufacture(manufactureId)

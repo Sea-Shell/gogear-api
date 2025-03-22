@@ -58,7 +58,7 @@ const docTemplate = `{
                     "200": {
                         "description": "status: success when all goes well",
                         "schema": {
-                            "$ref": "#/definitions/models.Status"
+                            "$ref": "#/definitions/models.GearCategory"
                         }
                     },
                     "default": {
@@ -317,7 +317,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearNoID"
+                            "$ref": "#/definitions/models.Gear"
                         }
                     }
                 ],
@@ -325,7 +325,7 @@ const docTemplate = `{
                     "200": {
                         "description": "status: success when all goes well",
                         "schema": {
-                            "$ref": "#/definitions/models.Status"
+                            "$ref": "#/definitions/models.Gear"
                         }
                     },
                     "default": {
@@ -605,7 +605,7 @@ const docTemplate = `{
                     "200": {
                         "description": "status: success when all goes well",
                         "schema": {
-                            "$ref": "#/definitions/models.Status"
+                            "$ref": "#/definitions/models.Manufacture"
                         }
                     },
                     "default": {
@@ -1812,41 +1812,6 @@ const docTemplate = `{
                 },
                 "top_category_name": {
                     "type": "string"
-                }
-            }
-        },
-        "models.GearNoID": {
-            "type": "object",
-            "properties": {
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_height": {
-                    "type": "integer"
-                },
-                "gear_length": {
-                    "type": "integer"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_size_definition": {
-                    "type": "string"
-                },
-                "gear_status": {
-                    "type": "boolean"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_weight": {
-                    "type": "integer"
-                },
-                "gear_width": {
-                    "type": "integer"
                 }
             }
         },
