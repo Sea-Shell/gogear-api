@@ -5,7 +5,7 @@ toolchain go1.24.1
 
 require (
 	github.com/gin-gonic/gin v1.10.0
-	github.com/mattn/go-sqlite3 v1.14.25
+	github.com/mattn/go-sqlite3 v1.14.27
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
