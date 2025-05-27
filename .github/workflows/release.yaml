@@ -17,7 +17,7 @@ permissions:
 jobs:
   release:
     name: release
-    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@v4.1.0
+    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@v4.2.1
     permissions:
       contents: write # to be able to publish a GitHub release
       issues: write # to be able to comment on released issues
