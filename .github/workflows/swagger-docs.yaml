@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "msg=$(git log -n 1 --pretty=format:%B)" >> $GITHUB_OUTPUT
       
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: stefanzweifel/git-auto-commit-action@v6
         with:
           file_pattern: 'docs/docs.go docs/swagger.json docs/swagger.yaml'
           commit_message: ${{ steps.last-commit-message.outputs.msg }}
