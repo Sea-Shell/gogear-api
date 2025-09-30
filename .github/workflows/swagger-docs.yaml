@@ -25,9 +25,9 @@ jobs:
           fetch-depth: 2
 
       - name: Setup GoLang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           check-latest: true
 
       - name: Install swag cmd
