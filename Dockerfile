@@ -44,7 +44,7 @@ RUN chmod +x /app/gogear-api
 RUN ["upx", "-q", "gogear-api"]
 
 ##########################
-FROM docker.io/library/alpine:3.22.1
+FROM docker.io/library/alpine:3.22.2
 
 WORKDIR /app
 
