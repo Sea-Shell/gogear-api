@@ -75,12 +75,12 @@ jobs:
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
+          kubeconfig: ${{ secrets.K8S_KONFIG }}
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          oauth-client-id: ${{ secrets.TAIL_SCALE_OAUTH_CLIENT }}
-          oauth-secret: ${{ secrets.TAIL_SCALE_OAUTH_CLIENT_SECRET }}
+          oauth-client-id: ${{ secrets.TS_ACTION_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_ACTION_CLIENT_SECRET }}
           tags: tag:github
       # Do the deploy on K8s cluster set in the above context
       - name: Deply manifests to k8s
@@ -88,9 +88,9 @@ jobs:
         timeout-minutes: 15
         with:
           action: deploy
+          namespace: seashell
           annotate-namespace: false
+          strategy: basic
+          manifests: kubernetes-manifests
           images: |
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}@${{ needs.build.outputs.digest }}
-          manifests: kubernetes-manifests
-          namespace: seashell
-          strategy: basic

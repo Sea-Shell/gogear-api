@@ -3,13 +3,13 @@ kind: Ingress
 metadata:
   annotations:
     cert-manager.io/acme-challenge-type: http01
-    cert-manager.io/cluster-issuer: letsencrypt
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   name: gogear-api
   namespace: seashell
 spec:
   ingressClassName: traefik
   rules:
-    - host: gogear.grevling.sea-shell.no
+    - host: gogear.bateau.cloud
       http:
         paths:
           - backend:
@@ -35,5 +35,5 @@ spec:
             pathType: Prefix
   tls:
     - hosts:
-        - gogear.grevling.sea-shell.no
+        - gogear.bateau.cloud
       secretName: gogear-api-certificate
