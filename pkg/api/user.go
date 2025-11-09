@@ -19,6 +19,8 @@ import (
 	zap "go.uber.org/zap"
 )
 
+// ListUser lists users based on query
+//
 // @Summary		List user
 // @Description	Get a list of user items
 // @Security		BearerAuth
@@ -202,6 +204,8 @@ func ListUser(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
+// GetUser gets spessific user based on ID
+//
 // @Summary		Get user with ID
 // @Description	Get user spessific to ID
 // @Security		BearerAuth
@@ -241,6 +245,8 @@ func GetUser(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
+// InsertUser creates new user in the database
+//
 // @Summary		Insert new user
 // @Description	Insert new user with corresponding values
 // @Security		BearerAuth
@@ -274,6 +280,8 @@ func InsertUser(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// UpdateUser updates user in database
+//
 // @Summary		Update user with ID
 // @Description	Update user identified by ID
 // @Security		BearerAuth
@@ -308,6 +316,8 @@ func UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// DeleteUser delets user from database
+//
 // @Summary		Delete user with ID
 // @Description	Delete user with corresponding ID value
 // @Security		BearerAuth
