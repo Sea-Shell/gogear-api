@@ -25,10 +25,10 @@ import (
 // @Tags			Category
 // @Accept			json
 // @Produce		json
-// @Param			categoryID	path		int					true	"Unique ID of category you want to get"
+// @Param			category	path		int					true	"Unique ID of category you want to get"
 // @Success		200			{object}	models.GearCategory	"desc"
 // @Failure		default		{object}	models.Error
-// @Router			/api/v1/category/{categoryID}/get [get]
+// @Router			/api/v1/category/{category}/get [get]
 func GetCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
