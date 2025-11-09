@@ -89,17 +89,18 @@ func ListGear(c *gin.Context) {
 	}
 
 	conditions := []string{}
+	queryParams := []interface{}{}
 	if topCategory != "" {
-		topcat := fmt.Sprintf("gear.gearTopCategoryId = %s", topCategory)
-		conditions = append(conditions, topcat)
+		conditions = append(conditions, "gear.gearTopCategoryId = ?")
+		queryParams = append(queryParams, topCategory)
 	}
 	if category != "" {
-		cat := fmt.Sprintf("gear.gearCategoryId = %s", category)
-		conditions = append(conditions, cat)
+		conditions = append(conditions, "gear.gearCategoryId = ?")
+		queryParams = append(queryParams, category)
 	}
 	if manufacturer != "" {
-		cat := fmt.Sprintf("gear.GearManufactureId = %s", manufacturer)
-		conditions = append(conditions, cat)
+		conditions = append(conditions, "gear.GearManufactureId = ?")
+		queryParams = append(queryParams, manufacturer)
 	}
 	if hasContainer {
 		containerBool, err := strconv.ParseBool(container)
@@ -123,7 +124,7 @@ func ListGear(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, queryParams...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
