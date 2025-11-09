@@ -305,6 +305,7 @@ func SearchGear(c *gin.Context) {
 	if len(conditions) > 0 {
 		whereClause = " WHERE " + strings.Join(conditions, " OR ")
 	}
+	var args []interface{}
 
 	baseCountQuery := "SELECT COUNT(*) FROM gear"
 	countQuery := baseCountQuery + whereClause
