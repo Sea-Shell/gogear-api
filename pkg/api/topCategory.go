@@ -119,10 +119,11 @@ func ListTopCategory(c *gin.Context) {
 	}
 
 	conditions := []string{}
+	params := []interface{}{}
 
 	for _, category := range topCategories {
-		topcat := fmt.Sprintf("gear_top_category.topCategoryId = %s", category)
-		conditions = append(conditions, topcat)
+		conditions = append(conditions, "gear_top_category.topCategoryId = ?")
+		params = append(params, category)
 	}
 
 	whereClause := ""
@@ -134,7 +135,7 @@ func ListTopCategory(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, params...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
