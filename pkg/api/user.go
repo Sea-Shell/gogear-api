@@ -83,19 +83,20 @@ func ListUser(c *gin.Context) {
 
 	conditions := []string{}
 
+	params := []interface{}{}
 	for _, username := range qUserUsername {
-		topcat := fmt.Sprintf("userUsername LIKE '%s'", "%"+username+"%")
-		conditions = append(conditions, topcat)
+		conditions = append(conditions, "userUsername LIKE ?")
+		params = append(params, "%"+username+"%")
 	}
 
 	for _, name := range qUserName {
-		topcat := fmt.Sprintf("userName LIKE '%s'", "%"+name+"%")
-		conditions = append(conditions, topcat)
+		conditions = append(conditions, "userName LIKE ?")
+		params = append(params, "%"+name+"%")
 	}
 
 	for _, email := range qUserEmail {
-		topcat := fmt.Sprintf("userEmail LIKE '%s'", "%"+email+"%")
-		conditions = append(conditions, topcat)
+		conditions = append(conditions, "userEmail LIKE ?")
+		params = append(params, "%"+email+"%")
 	}
 
 	whereClause := ""
@@ -107,7 +108,7 @@ func ListUser(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, params...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -128,13 +129,13 @@ func ListUser(c *gin.Context) {
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM users`, strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
+	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt) // validated beforehand
 
 	query := baseQuery + whereClause + queryLimit
 
-	log.Debugf("Query: %s", query)
+	log.Debugf("Query: %s Params: %#v", query, params)
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, params...)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
