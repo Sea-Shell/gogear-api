@@ -143,7 +143,7 @@ func ListUserGearInContainer(c *gin.Context) {
 
 	baseCountQuery := "SELECT COUNT(*) FROM user_container_registration"
 	countQuery := baseCountQuery + extraSQL + whereClause
-	log.Debugf("countQuery: ", countQuery)
+	log.Debugf("countQuery: %s", countQuery)
 
 	var totalCount int
 	err = db.QueryRow(countQuery).Scan(&totalCount)
