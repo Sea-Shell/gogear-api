@@ -162,7 +162,7 @@ func ListTopCategory(c *gin.Context) {
 
 	log.Debugf("Query: %s", query)
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, params...)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
