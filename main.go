@@ -59,7 +59,6 @@ func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
 			"status", c.Writer.Status(),
 			"url", c.FullPath(),
 			"url-params", c.Request.URL.Query(),
-			"Authorization", c.Request.Header.Get("Authorization"),
 		)
 
 		// Continue processing the request
