@@ -625,7 +625,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Type of searhc method. valid choices are: startswith, contains, endswith",
+                        "description": "Type of search method. valid choices are: startswith, contains, endswith",
                         "name": "searchType",
                         "in": "query",
                         "required": true
