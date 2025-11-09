@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS user_container_registration (
     containerRegistrationId INTEGER PRIMARY KEY AUTOINCREMENT,
     userContainerId INTEGER NOT NULL,
     userGearRegistrationId INTEGER NOT NULL,
-    FOREIGN KEY (userContainerId) REFERENCES user_gear_registrations(userGearRegistrationId),
-    FOREIGN KEY (userGearRegistrationId) REFERENCES user_gear_registrations(userGearRegistrationId)
+    FOREIGN KEY (userContainerId) REFERENCES user_gear_registrations(userGearRegistrationId) ON DELETE CASCADE,
+    FOREIGN KEY (userGearRegistrationId) REFERENCES user_gear_registrations(userGearRegistrationId) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS user_container_registration_container_idx
     ON user_container_registration(userContainerId);
