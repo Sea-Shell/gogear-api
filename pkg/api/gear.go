@@ -20,6 +20,7 @@ import (
 )
 
 // ListGear lists gear in the database
+//
 // @Summary		List gear
 // @Description	Get a list of gear items
 // @Security		BearerAuth
@@ -155,7 +156,7 @@ func ListGear(c *gin.Context) {
 
 	log.Debugf("Query: %s", query)
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, queryParams...)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -224,6 +225,7 @@ func ListGear(c *gin.Context) {
 }
 
 // SearchGear is a function to search for gear items
+//
 // @Summary		Search for gear
 // @Description	Get a list of gear items based on search patterns
 // @Security		BearerAuth
@@ -305,13 +307,12 @@ func SearchGear(c *gin.Context) {
 	if len(conditions) > 0 {
 		whereClause = " WHERE " + strings.Join(conditions, " OR ")
 	}
-	var args []interface{}
 
 	baseCountQuery := "SELECT COUNT(*) FROM gear"
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery, args...).Scan(&totalCount)
+	err = db.QueryRow(countQuery).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -342,7 +343,7 @@ func SearchGear(c *gin.Context) {
 
 	log.Debugf("Query: %s", query)
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.Query(query)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -410,6 +411,8 @@ func SearchGear(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, payload)
 }
 
+// GetGear gets spessific gear based on ID
+//
 // @Summary		Get gear with ID
 // @Description	Get gear spessific to ID
 // @Security		BearerAuth
@@ -449,6 +452,8 @@ func GetGear(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, results)
 }
 
+// InsertGear insert new gear according to spessification
+//
 // @Summary		Insert new gear
 // @Description	Insert new gear with corresponding values
 // @Security		BearerAuth
@@ -482,6 +487,8 @@ func InsertGear(c *gin.Context) {
 	c.JSON(http.StatusOK, createdObject)
 }
 
+// UpdateGear updates existing gear
+//
 // @Summary		Update gear with ID
 // @Description	Update gear identified by ID
 // @Security		BearerAuth
@@ -516,6 +523,8 @@ func UpdateGear(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// DeleteGear delets gear based on ID
+//
 // @Summary		Delete gear with ID
 // @Description	Delete gear with corresponding ID value
 // @Security		BearerAuth
