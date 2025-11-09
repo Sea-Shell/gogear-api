@@ -314,7 +314,7 @@ func SearchGear(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, args...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
