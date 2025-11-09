@@ -249,7 +249,7 @@ func ListUserGearInContainer(c *gin.Context) {
 // @Tags			User container
 // @Accept			json
 // @Produce		json
-// @Param			request	body		models.UserContainerNoID	true	"query params"	test
+// @Param			request	body		models.UserContainerNoID	true	"query params"
 // @Success		200		{object}	models.Status			"status: success when all goes well"
 // @Router			/api/v1/container/insert [put]
 func InsertContainer(c *gin.Context) {
