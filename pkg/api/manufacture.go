@@ -134,10 +134,16 @@ func ListManufacture(c *gin.Context) {
 	}
 
 	conditions := []string{}
+	manufactureParams := []interface{}{}
 
 	for _, manufacture := range manufacturers {
-		topcat := fmt.Sprintf("manufacture.manufactureId = %s", manufacture)
-		conditions = append(conditions, topcat)
+		// Only accept valid integer manufacture IDs
+		if _, err := strconv.Atoi(manufacture); err == nil {
+			conditions = append(conditions, "manufacture.manufactureId = ?")
+			manufactureParams = append(manufactureParams, manufacture)
+		} else {
+			log.Warnf("Skipping invalid manufacture id: %v", manufacture)
+		}
 	}
 
 	whereClause := ""
@@ -149,7 +155,7 @@ func ListManufacture(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, manufactureParams...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -170,13 +176,13 @@ func ListManufacture(c *gin.Context) {
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM manufacture`, strings.Join(fields, ", "))
 
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
+	queryLimit := " LIMIT ?, ?"
 
 	query := baseQuery + whereClause + queryLimit
 
-	log.Debugf("Query: %s", query)
+	log.Debugf("Query: %s | Params: %#v", query, append(manufactureParams, startInt, limitInt))
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, append(manufactureParams, startInt, limitInt)...)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
