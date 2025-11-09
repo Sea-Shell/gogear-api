@@ -199,8 +199,8 @@ func main() {
 
 	// Gear endpoints
 	gearGroup.GET("/list", endpoints.ListGear)
-	gearGroup.GET("/search", utils.JWTMiddleware(), endpoints.SearchGear)
-	gearGroup.GET("/:gear/get", utils.JWTMiddleware(), endpoints.GetGear)
+	gearGroup.GET("/search", endpoints.SearchGear)
+	gearGroup.GET("/:gear/get", endpoints.GetGear)
 	gearGroup.POST("/:gear/update", endpoints.UpdateGear)
 	gearGroup.DELETE("/:gear/delete", endpoints.DeleteGear)
 	gearGroup.PUT("/insert", endpoints.InsertGear)
