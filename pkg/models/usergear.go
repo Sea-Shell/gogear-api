@@ -20,6 +20,9 @@ type UserGear struct {
 	GearLength        int32  `json:"gear_length" db:"gear.gearLength"`
 	GearWidth         int32  `json:"gear_width" db:"gear.gearWidth"`
 	GearStatus        bool   `json:"gear_status" db:"gear.gearStatus"`
+	GearIsContainer   bool   `json:"gear_is_container" db:"gear.gearIsContainer"`
+	ContainerLinkID   *int64 `json:"container_link_id" db:"user_container_registration.containerRegistrationId"`
+	ContainerID       *int64 `json:"container_registration_id" db:"user_container_registration.userContainerId"`
 
 	ManufactureID   int64  `json:"manufacture_id" db:"manufacture.manufactureId"`
 	ManufactureName string `json:"manufacture_name" db:"manufacture.manufactureName"`

@@ -13,6 +13,7 @@ type ResponsePayload struct {
 type Config struct {
 	Database Database `yaml:"database" json:"database"`
 	General  General  `yaml:"general" json:"general"`
+	Auth     Auth     `yaml:"auth" json:"auth"`
 }
 
 type Database struct {
@@ -27,6 +28,17 @@ type General struct {
 	Schemes    []string `yaml:"schemes" json:"schemes"`
 	ListenPort string   `yaml:"listen-port" json:"listen_port"`
 	LogLevel   string   `yaml:"log-level" json:"log-level"`
+}
+
+type Auth struct {
+	JWTSecret          string `yaml:"jwt-secret" json:"jwt_secret"`
+	JWTIssuer          string `yaml:"jwt-issuer" json:"jwt_issuer"`
+	JWTAudience        string `yaml:"jwt-audience" json:"jwt_audience"`
+	JWTAdminAudience   string `yaml:"jwt-admin-audience" json:"jwt_admin_audience"`
+	JWTExpiryMinutes   int    `yaml:"jwt-expiry-minutes" json:"jwt_expiry_minutes"`
+	GoogleClientID     string `yaml:"google-client-id" json:"google_client_id"`
+	GoogleClientSecret string `yaml:"google-client-secret" json:"google_client_secret"`
+	GoogleRedirectURL  string `yaml:"google-redirect-url" json:"google_redirect_url"`
 }
 
 type GoogleCreds struct {

@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: gogear.bateau.cloud
+    - host: gogear-api.sea-shell.no
       http:
         paths:
           - backend:
@@ -35,5 +35,5 @@ spec:
             pathType: Prefix
   tls:
     - hosts:
-        - gogear.bateau.cloud
+        - gogear-api.sea-shell.no
       secretName: gogear-api-certificate
