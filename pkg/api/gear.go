@@ -288,18 +288,19 @@ func SearchGear(c *gin.Context) {
 	}
 
 	conditions := []string{}
+	args := []interface{}{}
 	if searchStringPressent && searchString != "" {
 		if searchTypePressent {
 			switch searchType {
 			case "contains":
-				searchSQL := fmt.Sprintf("gear.gearName LIKE '%s'", "%"+searchString+"%")
-				conditions = append(conditions, searchSQL)
+				conditions = append(conditions, "gear.gearName LIKE ?")
+				args = append(args, "%"+searchString+"%")
 			case "startswith":
-				searchSQL := fmt.Sprintf("gear.gearName LIKE '%s'", searchString+"%")
-				conditions = append(conditions, searchSQL)
+				conditions = append(conditions, "gear.gearName LIKE ?")
+				args = append(args, searchString+"%")
 			case "endswith":
-				searchSQL := fmt.Sprintf("gear.gearName LIKE '%s'", "%"+searchString)
-				conditions = append(conditions, searchSQL)
+				conditions = append(conditions, "gear.gearName LIKE ?")
+				args = append(args, "%"+searchString)
 			}
 		}
 	}
