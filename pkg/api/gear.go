@@ -288,19 +288,15 @@ func SearchGear(c *gin.Context) {
 	}
 
 	conditions := []string{}
-	args := []interface{}{}
 	if searchStringPressent && searchString != "" {
 		if searchTypePressent {
 			switch searchType {
 			case "contains":
 				conditions = append(conditions, "gear.gearName LIKE ?")
-				args = append(args, "%"+searchString+"%")
 			case "startswith":
 				conditions = append(conditions, "gear.gearName LIKE ?")
-				args = append(args, searchString+"%")
 			case "endswith":
 				conditions = append(conditions, "gear.gearName LIKE ?")
-				args = append(args, "%"+searchString)
 			}
 		}
 	}
