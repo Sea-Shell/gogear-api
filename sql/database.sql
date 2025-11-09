@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS user_container_registration (
     `containerRegistrationId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `userContainerId` INTEGER NOT NULL,
     `userGearRegistrationId` INTEGER NOT NULL,
-    FOREIGN KEY (userContainerId) REFERENCES user_gear_registrations(userGearRegistrationId)
+    FOREIGN KEY (userContainerId) REFERENCES user_gear_registrations(userGearRegistrationId),
     FOREIGN KEY (userGearRegistrationId) REFERENCES user_gear_registrations(userGearRegistrationId)
 );
 
