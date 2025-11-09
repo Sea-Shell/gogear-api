@@ -325,8 +325,8 @@ func ensureUserFromGoogle(ctx context.Context, db *sql.DB, email, fullName, subj
 		username = fmt.Sprintf("google_%s", subject)
 	}
 
-	result, err := db.ExecContext(ctx, `INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin) VALUES (?, ?, ?, ?, ?)`,
-		username, "", fullName, email, 0,
+	result, err := db.ExecContext(ctx, `INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES (?, ?, ?, ?, ?, ?)`,
+		username, "", fullName, email, 0, 1,
 	)
 	if err != nil {
 		existing, lookupErr := findUserByEmail(ctx, db, email)
