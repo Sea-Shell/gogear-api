@@ -233,7 +233,7 @@ func ListGear(c *gin.Context) {
 // @Param				page			    query		int			  false	"Page number"				default(1)
 // @Param				limit			    query		int			  false	"Number of items per page"	default(30)
 // @Param				searchString	query		string		true	"String to search for"
-// @Param				searchType		query		string		true  "Type of searhc method. valid choices are: startswith, contains, endswith"
+// @Param				searchType		query		string		true  "Type of search method. valid choices are: startswith, contains, endswith"
 // @Success			200				{object}	models.ResponsePayload{items=[]models.GearListItem}
 // @Failure			default			{object}	models.Error
 // @Router			/api/v1/gear/search [get]
