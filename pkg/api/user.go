@@ -29,7 +29,7 @@ import (
 // @Produce		json
 // @Param			page		  query		  int		false	"Page number"				default(1)
 // @Param			limit		  query		  int		false	"Number of items per page"	default(30)
-// @Param			user		  query		  string	false	"search by users username (this is case insensitive and wildcard)"
+// @Param			user		  query		  string	false	"search by user's username (this is case insensitive and wildcard)"
 // @Param			username	query		  string	false	"search by users full name (this is case insensitive and wildcard)"
 // @Param			email  	  query		  string	false	"search by users email (this is case insensitive and wildcard)"
 // @Success		200			  {object}	models.ResponsePayload{items=[]models.User}
