@@ -26,13 +26,10 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "APIKey": [],
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Insert new category with corresponding values",
+                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience.",
                 "consumes": [
                     "application/json"
                 ],
@@ -72,6 +69,11 @@ const docTemplate = `{
         },
         "/api/v1/category/list": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list of category items",
                 "consumes": [
                     "application/json"
@@ -150,55 +152,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/category/{category}/delete": {
-            "delete": {
+        "/api/v1/category/{categoryID}/get": {
+            "get": {
                 "security": [
                     {
-                        "APIKey": [],
-                        "OAuth2Application": [
-                            "write",
-                            "admin"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Delete category with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "Delete category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of category you want to update",
-                        "name": "category",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/category/{category}/get": {
-            "get": {
                 "description": "Get category spessific to ID",
                 "consumes": [
                     "application/json"
@@ -235,17 +195,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/category/{category}/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete category with corresponding ID value. Requires a JWT issued with the admin audience.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Category"
+                ],
+                "summary": "Delete category with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of category you want to update",
+                        "name": "category",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/category/{category}/update": {
             "post": {
                 "security": [
                     {
-                        "APIKey": [],
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Update category identified by ID",
+                "description": "Update category identified by ID. Requires a JWT issued with the admin audience.",
                 "consumes": [
                     "application/json"
                 ],
@@ -290,13 +290,159 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/container/insert": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Insert user registered gear with corresponding values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User container"
+                ],
+                "summary": "Insert user registered gear",
+                "parameters": [
+                    {
+                        "description": "query params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UserContainerNoID"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/container/{container}/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete user container content with corresponding ID value",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User container"
+                ],
+                "summary": "Delete user container content with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of userGear you want to update",
+                        "name": "container",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/container/{container}/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List all items inside a container registered to a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User container"
+                ],
+                "summary": "List all items inside a container",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 30,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of userGear you want to update",
+                        "name": "container",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.FullGear"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/gear/insert": {
             "put": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Insert new gear with corresponding values",
@@ -341,10 +487,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "APIKey": [],
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get a list of gear items",
@@ -400,6 +543,92 @@ const docTemplate = `{
                         "description": "string collection",
                         "name": "collection",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "string collection",
+                        "name": "container",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.GearListItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/gear/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of gear items based on search patterns",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Gear"
+                ],
+                "summary": "Search for gear",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 30,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "String to search for",
+                        "name": "searchString",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of search method. valid choices are: startswith, contains, endswith",
+                        "name": "searchType",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -437,9 +666,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete gear with corresponding ID value",
@@ -480,6 +707,11 @@ const docTemplate = `{
         },
         "/api/v1/gear/{gear}/get": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get gear spessific to ID",
                 "consumes": [
                     "application/json"
@@ -520,9 +752,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update gear identified by ID",
@@ -574,9 +804,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Insert new manufacture with corresponding values",
@@ -619,6 +847,11 @@ const docTemplate = `{
         },
         "/api/v1/manufacture/list": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list of manufacturers",
                 "consumes": [
                     "application/json"
@@ -693,9 +926,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete manufacture with corresponding ID value",
@@ -736,6 +967,11 @@ const docTemplate = `{
         },
         "/api/v1/manufacture/{manufacture}/get": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get manufacture spessific to ID",
                 "consumes": [
                     "application/json"
@@ -776,9 +1012,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update manufacture identified by ID",
@@ -830,9 +1064,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Insert new top category with corresponding values",
@@ -875,6 +1107,11 @@ const docTemplate = `{
         },
         "/api/v1/topCategory/list": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list of top category items",
                 "consumes": [
                     "application/json"
@@ -947,9 +1184,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete topCategory with corresponding ID value",
@@ -990,6 +1225,11 @@ const docTemplate = `{
         },
         "/api/v1/topCategory/{topCategory}/get": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get top category spessific to ID",
                 "consumes": [
                     "application/json"
@@ -1030,9 +1270,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update top category identified by ID",
@@ -1084,9 +1322,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Insert user registered gear with corresponding values",
@@ -1125,9 +1361,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete userGear with corresponding ID value",
@@ -1170,9 +1404,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get user registeredgear spessific to ID",
@@ -1209,9 +1441,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update user registered gear identified by ID",
@@ -1257,9 +1487,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get a list a users gear",
@@ -1324,6 +1552,13 @@ const docTemplate = `{
                         "description": "manufacturers",
                         "name": "manufacture",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "all",
+                        "description": "show container gear only. valid values are true, false, all",
+                        "name": "container",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1361,9 +1596,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Insert new user with corresponding values",
@@ -1408,9 +1641,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get a list of user items",
@@ -1441,7 +1672,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "search by username (this is case insensitive and wildcard)",
+                        "description": "search by users username (this is case insensitive and wildcard)",
                         "name": "user",
                         "in": "query"
                     },
@@ -1449,6 +1680,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "search by users full name (this is case insensitive and wildcard)",
                         "name": "username",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "search by users email (this is case insensitive and wildcard)",
+                        "name": "email",
                         "in": "query"
                     }
                 ],
@@ -1487,9 +1724,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Delete user with corresponding ID value",
@@ -1532,9 +1767,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Get user spessific to ID",
@@ -1577,9 +1810,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "OAuth2Application": [
-                            "write"
-                        ]
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Update user identified by ID",
@@ -1627,6 +1858,170 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/google/callback": {
+            "get": {
+                "description": "Validates the Google credential and returns a JWT for subsequent API calls",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth callback",
+                "parameters": [
+                    {
+                        "description": "Callback payload",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/endpoints.googleCallbackRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Google ID token",
+                        "name": "id_token",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Validates the Google credential and returns a JWT for subsequent API calls",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth callback",
+                "parameters": [
+                    {
+                        "description": "Callback payload",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/endpoints.googleCallbackRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Google ID token",
+                        "name": "id_token",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Exchanges a valid GoGear JWT for a new token with a fresh expiry",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh service token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Get health status of application",
@@ -1652,6 +2047,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "endpoints.googleCallbackRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "credential": {
+                    "type": "string"
+                },
+                "id_token": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Error": {
             "type": "object",
             "properties": {
@@ -1680,6 +2089,9 @@ const docTemplate = `{
                 },
                 "gear_id": {
                     "type": "integer"
+                },
+                "gear_is_container": {
+                    "type": "boolean"
                 },
                 "gear_length": {
                     "type": "integer"
@@ -1730,6 +2142,9 @@ const docTemplate = `{
                 },
                 "gear_id": {
                     "type": "integer"
+                },
+                "gear_is_container": {
+                    "type": "boolean"
                 },
                 "gear_length": {
                     "type": "integer"
@@ -1788,6 +2203,9 @@ const docTemplate = `{
                 },
                 "gear_id": {
                     "type": "integer"
+                },
+                "gear_is_container": {
+                    "type": "boolean"
                 },
                 "gear_manufacture_id": {
                     "type": "integer"
@@ -1895,11 +2313,25 @@ const docTemplate = `{
                 "user_id": {
                     "type": "integer"
                 },
+                "user_is_admin": {
+                    "type": "boolean"
+                },
                 "user_name": {
                     "type": "string"
                 },
                 "user_username": {
                     "type": "string"
+                }
+            }
+        },
+        "models.UserContainerNoID": {
+            "type": "object",
+            "properties": {
+                "user_container_id": {
+                    "type": "integer"
+                },
+                "user_gear_registration_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1915,6 +2347,12 @@ const docTemplate = `{
                 "category_top_category_id": {
                     "type": "integer"
                 },
+                "container_link_id": {
+                    "type": "integer"
+                },
+                "container_registration_id": {
+                    "type": "integer"
+                },
                 "gear_category_id": {
                     "type": "integer"
                 },
@@ -1923,6 +2361,9 @@ const docTemplate = `{
                 },
                 "gear_id": {
                     "type": "integer"
+                },
+                "gear_is_container": {
+                    "type": "boolean"
                 },
                 "gear_length": {
                     "type": "integer"
@@ -2011,6 +2452,9 @@ const docTemplate = `{
                 "user_id": {
                     "type": "integer"
                 },
+                "user_is_admin": {
+                    "type": "boolean"
+                },
                 "user_name": {
                     "type": "string"
                 },
@@ -2024,21 +2468,11 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "APIKey": {
+        "BearerAuth": {
+            "description": "Include a server-issued JWT as ` + "`" + `Bearer \u003ctoken\u003e` + "`" + `. Endpoints may require either the client or admin audience.",
             "type": "apiKey",
-            "name": "X-API-Key",
+            "name": "Authorization",
             "in": "header"
-        },
-        "OAuth2Application": {
-            "description": "OAuth protects our entity endpoints",
-            "type": "oauth2",
-            "flow": "password",
-            "tokenUrl": "https://oauth2.googleapis.com/token",
-            "scopes": {
-                "admin": "Grants read and write access to administrative information",
-                "read": "Grants read access",
-                "write": "Grants read and write access"
-            }
         }
     }
 }`

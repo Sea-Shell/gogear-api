@@ -1,9 +1,12 @@
+-- DROP TABLE IF EXISTS users;
 CREATE TABLE IF NOT EXISTS users (
-    userId INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    userUsername TEXT NOT NULL,
-    userPassword TEXT NOT NULL,
-    userName TEXT,
-    userEmail TEXT NOT NULL
+    `userId` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `userUsername` TEXT NOT NULL,
+    `userPassword` TEXT NOT NULL,
+    `userName` TEXT,
+    `userEmail` TEXT NOT NULL,
+    `userIsAdmin` INTEGER NOT NULL DEFAULT 0,
+    `userIsExternal` INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS gear (
@@ -11,6 +14,7 @@ CREATE TABLE IF NOT EXISTS gear (
     `gearTopCategoryId` INTEGER NOT NULL,
     `gearCategoryId` INTEGER NOT NULL,
     `gearManufactureId` INTEGER NOT NULL,
+    `gearIsContainer` INTEGER NOT NULL DEFAULT 0,
     `gearSizeDefinition` TEXT,
     `gearName` TEXT NOT NULL,
     `gearWeight` INTEGER,
@@ -27,29 +31,39 @@ CREATE INDEX category_index ON gear(gearCategoryId);
 CREATE INDEX manufacture_index ON gear(gearManufactureId);
 
 CREATE TABLE IF NOT EXISTS manufacture (
-    manufactureId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    manufactureName TEXT NOT NULL
+    `manufactureId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `manufactureName` TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gear_top_category (
-    topCategoryId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    topCategoryName TEXT NOT NULL
+    `topCategoryId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `topCategoryName` TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gear_category (
-    categoryId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    categoryTopCategoryId INTEGER NOT NULL,
-    categoryName TEXT NOT NULL,
+    `categoryId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `categoryTopCategoryId` INTEGER NOT NULL,
+    `categoryName` TEXT NOT NULL,
     FOREIGN KEY (categoryTopCategoryId) REFERENCES gear_top_category(topCategoryId)
 );
 
 CREATE TABLE IF NOT EXISTS user_gear_registrations (
-    userGearRegistrationId INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    gearId INTEGER NOT NULL,
-    userId INTEGER NOT NULL,
+    `userGearRegistrationId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `gearId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
     FOREIGN KEY (gearId) REFERENCES gear(gearId),
     FOREIGN KEY (userId) REFERENCES users(userId)
 );
+
+-- DROP TABLE IF EXISTS user_container_registration;
+CREATE TABLE IF NOT EXISTS user_container_registration (
+    `containerRegistrationId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
+    `userContainerId` INTEGER NOT NULL,
+    `userGearRegistrationId` INTEGER NOT NULL,
+    FOREIGN KEY (userContainerId) REFERENCES user_gear_registrations(userGearRegistrationId) ON DELETE CASCADE,
+    FOREIGN KEY (userGearRegistrationId) REFERENCES user_gear_registrations(userGearRegistrationId) ON DELETE CASCADE
+);
+
 INSERT INTO user_gear_registrations (gearId, userId) VALUES
     (1, 1),
     (2, 1),
@@ -71,8 +85,10 @@ INSERT INTO user_gear_registrations (gearId, userId) VALUES
     (18, 1),
     (19, 1);
 
-INSERT INTO users (userUsername, userPassword, userName, userEmail) VALUES 
-    ("Bateau", "$2a$10$X2BAOJFWXxAudCm9ShaHvucsdv1.dz3pdbBPf6bJerWs7YJB7KV9", "Mats Bøe Bergmann", "mats.bergmann@gmail.com");
+INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES 
+    ("Bateau", "", "Mats Bøe Bergmann", "mats.bergmann@gmail.com", 1, 1),
+    ("Mats", "", "Mats Bøe Bergmann", "mats@mm-ent.no", 0, 1);
+    -- ("Bateau", "$2a$10$X2BAOJFWXxAudCm9ShaHvucsdv1.dz3pdbBPf6bJerWs7YJB7KV9", "Mats Bøe Bergmann", "mats.bergmann@gmail.com", 1, 1);
 
 INSERT INTO gear_top_category (topCategoryName) VALUES 
     ("Footwear"),
@@ -239,86 +255,291 @@ INSERT INTO manufacture (manufactureId, manufactureName) VALUES
     (86, "Icebreaker"),
     (87, "Trangia"),
     (88, "Bergans"),
-    (89, "Crispi");
+    (89, "Crispi"),
+    (90, "Summit Forge"),
+    (91, "Trailblazer Works"),
+    (92, "PeakLine Outfitters"),
+    (93, "Northbound Gear"),
+    (94, "Evercrest Equipment"),
+    (95, "Red Ridge Supply"),
+    (96, "OpenSky Outfitters"),
+    (97, "Stonepath Gear"),
+    (98, "Glacier Trail Co."),
+    (99, "Wild Horizon"),
+    (100, "Alpine Lantern"),
+    (101, "Summit Stitch"),
+    (102, "Outrider Gear"),
+    (103, "Aurora Fieldworks"),
+    (104, "Bright Peak Supply"),
+    (105, "Highline Provisions"),
+    (106, "Stonepine Outfitters"),
+    (107, "Ironwood Gear"),
+    (108, "Cinder Trail Company"),
+    (109, "Emberlight Labs"),
+    (110, "Cascade Workshop"),
+    (111, "SummitCircle"),
+    (112, "Trailstone Collective"),
+    (113, "Wanderforge"),
+    (114, "Blue Spur Gear"),
+    (115, "Lumen Ridge"),
+    (116, "Frostline Outfitters"),
+    (117, "Granite Lantern"),
+    (118, "Cobalt Peak"),
+    (119, "Timberline & Co."),
+    (120, "Ridgecrest Outfitters"),
+    (121, "Starfall Gear"),
+    (122, "Northwind Supply"),
+    (123, "Emberfall Works"),
+    (124, "Summit Compass"),
+    (125, "Traillight Equipment"),
+    (126, "Foxpine Gear"),
+    (127, "Lone Summit Outfitters"),
+    (128, "Brightstone Gear"),
+    (129, "Pioneer Ridge"),
+    (130, "Coppertrail"),
+    (131, "Silver Fir"),
+    (132, "Nomad Forge"),
+    (133, "Emberwild"),
+    (134, "Fjordstone"),
+    (135, "Tidecrest"),
+    (136, "Summit Ember"),
+    (137, "Riverlight"),
+    (138, "Highland Axis"),
+    (139, "Arctic Beacon"),
+    (140, "Pine & Peak"),
+    (141, "Trail & Timber"),
+    (142, "Stellarsky Outfitters"),
+    (143, "Horizon Ridge"),
+    (144, "Cairnline Gear"),
+    (145, "Peak Junction"),
+    (146, "Cloudveil Works"),
+    (147, "Summitstone Outfitters"),
+    (148, "Wildfell Gear"),
+    (149, "Northbound Atelier"),
+    (150, "Everpine Supply"),
+    (151, "Beaconrise"),
+    (152, "Snowforge"),
+    (153, "Highpoint Outfitters"),
+    (154, "Trailcrest Studio"),
+    (155, "Granite Loom"),
+    (156, "Wilderline"),
+    (157, "Moonridge"),
+    (158, "Lodestone Gear"),
+    (159, "Red Ember Outfitters"),
+    (160, "Crosswind Equipment"),
+    (161, "Fieldwake"),
+    (162, "Helios Trail"),
+    (163, "Ironcrest"),
+    (164, "Northspur"),
+    (165, "Quarrylight"),
+    (166, "Silver Timber Gear"),
+    (167, "Summit Loom"),
+    (168, "Tundra Echo"),
+    (169, "Wildspire"),
+    (170, "Alpenglow Forge"),
+    (171, "Boreal Crest"),
+    (172, "Canyonline"),
+    (173, "Driftstone"),
+    (174, "Echo Ridge"),
+    (175, "Foxfire Outfitters"),
+    (176, "Glint Peak"),
+    (177, "High Fjord Gear"),
+    (178, "Icetrail"),
+    (179, "Jasper Summit"),
+    (180, "Kestrel Ridge"),
+    (181, "Lumen Forge"),
+    (182, "Mistral Equipment"),
+    (183, "Northcairn"),
+    (184, "Open Range Gear"),
+    (185, "Pineforge"),
+    (186, "Quartzline"),
+    (187, "Ridgefire"),
+    (188, "Stonehollow"),
+    (189, "Timbercrest"),
+    (190, "Ultralight Labs"),
+    (191, "Valleyforge"),
+    (192, "Windward Gear"),
+    (193, "Xenith Outfitters"),
+    (194, "Yellowstone Works"),
+    (195, "Zephyr Trail"),
+    (196, "Amber Summit"),
+    (197, "Bearcrest Gear"),
+    (198, "Canyon Forge"),
+    (199, "Denali Outfitters"),
+    (200, "Embercrest Supply");
 
-INSERT INTO gear (gearTopCategoryId,gearCategoryId,gearManufactureId,gearName,gearSizeDefinition,gearWeight,gearHeight,gearLength,gearWidth,gearStatus) VALUES
-    (1, 1, 1, 'Salomon X Ultra 4 Mid GTX', "L", 1000, 100, 300, 150, TRUE),
-    (1, 1, 2, 'Merrell Moab 2 Vent', "L", 500, 50, 150, 100, TRUE),
-    (1, 1, 3, 'Altra Lone Peak 6', "L", 750, 75, 225, 125, TRUE),
-    (1, 2, 4, 'Prana Zion Stretch Pant', "L", 500, 100, 75, 50, TRUE),
-    (1, 2, 5, 'Patagonia Capilene Cool Trail Shirt', "L", 250, 50, 50, 25, TRUE),
-    (1, 2, 6, 'Arc teryx Cerium LT Hoody', "L", 500, 100, 75, 50, TRUE),
-    (1, 3, 7, 'Gregory Baltoro 85', "L", 2000, 600, 300, 150, TRUE),
-    (1, 3, 8, 'Deuter Aircontact Pro', "L", 2100, 650, 310, 160, TRUE),
-    (1, 4, 9, 'National Geographic Trails Illustrated Maps', "L", 100, 25, 15, 10, TRUE),
-    (1, 4, 10, 'Suunto A-3 Compass', "L", 50, 25, 15, 10, TRUE),
-    (1, 4, 11, 'Garmin Fenix 7 GPS Watch', "L", 100, 25, 15, 10, TRUE),
-    (1, 5, 12, 'MSR Elixir 2', "L", 2100, 310, 200, 160, TRUE),
-    (1, 6, 13, 'REI Co-op Stratus Sleeping Bag', "L", 1100, 210, 160, 110, TRUE),
-    (1, 7, 14, 'Jetboil Flash', "L", 500, 100, 75, 50, TRUE),
-    (1, 8, 15, 'Katadyn BeFree 3L Water Filter', "L", 300, 55, 140, 75, TRUE),
-    (1, 9, 16, 'Adventure Medical Kits Ultralight & Watertight 10 First Aid Kit', "L", 600, 120, 85, 60, TRUE),
-    (1, 10, 17, 'Nite Ize SpotLit Dog Tag Light', "L", 50, 25, 15, 10, TRUE),
-    (1, 10, 18, 'Petzl Activa Headlamp', "L", 110, 25, 15, 10, TRUE),
-    (2, 1, 19, 'La Sportiva TX5 GTX', "L", 800, 150, 250, 130, TRUE),
-    (2, 1, 20, 'Hoka One One Speedgoat 5', "L", 700, 140, 240, 120, TRUE),
-    (1, 1, 21, 'La Sportiva TX5 GTX', "L", 800, 150, 250, 130, TRUE),
-    (1, 1, 22, 'Hoka One One Speedgoat 5', "L", 700, 140, 240, 120, TRUE),
-    (1, 1, 23, 'Altra Torin 6 Plush', "L", 900, 160, 260, 140, TRUE),
-    (1, 1, 24, 'Saucony Peregrine 12', "L", 650, 130, 230, 110, TRUE),
-    (1, 1, 25, 'Salomon Speedcross 6', "L", 700, 140, 240, 120, TRUE),
-    (1, 2, 26, 'Darn Tough Vermont Hiker Micro Crew Socks', "L", 100, 10, 10, 5, TRUE),
-    (1, 2, 27, 'Smartwool PhD Outdoor Light Crew Socks', "L", 110, 10, 11, 5, TRUE),
-    (1, 2, 28, 'Icebreaker Merino Wool Cool-Lite Hike+ Crew Socks', "L", 120, 11, 12, 6, TRUE),
-    (1, 2, 29, 'Injinji Trail Midweight Crew Socks', "L", 130, 12, 13, 6, TRUE),
-    (1, 2, 30, 'Woolrich Mens Wool Boot Liner Socks', "L", 140, 13, 14, 7, TRUE),
-    (2, 3, 31, 'Prana Brion Pant', "L", 600, 110, 80, 55, TRUE),
-    (2, 3, 32, 'Patagonia Quandary Pants', "L", 700, 120, 85, 60, TRUE),
-    (2, 3, 33, 'Arcteryx Gamma AR Pant', "L", 800, 130, 90, 65, TRUE),
-    (2, 3, 34, 'REI Co-op Activator Pants', "L", 900, 140, 95, 70, TRUE),
-    (2, 3, 35, 'Columbia Silver Ridge Cargo Pants', "L", 1000, 150, 100, 75, TRUE),
-    (3, 4, 36, 'Osprey Atmos AG 65', "L", 2000, 600, 300, 150, TRUE),
-    (3, 4, 37, 'Gregory Baltoro 85', "L", 2100, 650, 310, 160, TRUE),
-    (3, 4, 38, 'Deuter Aircontact Pro', "L", 2200, 700, 320, 170, TRUE),
-    (3, 4, 39, 'REI Co-op Trail 45', "L", 1900, 550, 290, 145, TRUE),
-    (3, 4, 40, 'Kelty Coyote 65', "L", 1800, 500, 280, 140, TRUE),
-    (1, 1, 1, 'Salomon X Ultra 4 Mid GTX', "L", 1000, 100, 300, 150, TRUE),
-    (1, 1, 2, 'Merrell Moab 2 Vent', "L", 500, 50, 150, 100, TRUE),
-    (1, 1, 3, 'Altra Lone Peak 6', "L", 750, 75, 225, 125, TRUE),
-    (2, 2, 4, 'Osprey Atmos AG 65', "L", 2000, 600, 300, 150, TRUE),
-    (2, 2, 5, 'REI Co-op Magma 15', "L", 1000, 200, 150, 100, TRUE),
-    (2, 2, 6, 'Therm-a-Rest NeoAir XLite', "L", 500, 100, 75, 50, TRUE),
-    (3, 3, 7, 'Big Agnes Copper Spur HV UL 2', "L", 2000, 300, 200, 150, TRUE),
-    (3, 3, 8, 'MSR PocketRocket 2', "L", 500, 100, 75, 50, TRUE),
-    (3, 3, 9, 'Sawyer Mini Water Filter', "L", 250, 50, 50, 25, TRUE),
-    (4, 4, 10, 'Prana Zion Stretch Pant', "L", 500, 100, 75, 50, TRUE),
-    (4, 4, 11, 'Patagonia Capilene Cool Trail Shirt', "L", 250, 50, 50, 25, TRUE),
-    (4, 4, 12, 'Arc teryx Cerium LT Hoody', "L", 500, 100, 75, 50, TRUE),
-    (5, 5, 13, 'National Geographic Trails Illustrated Maps', "L", 100, 25, 15, 10, TRUE),
-    (5, 5, 14, 'Suunto A-3 Compass', "L", 50, 25, 15, 10, TRUE),
-    (5, 5, 15, 'Garmin Fenix 7 GPS Watch', "L", 100, 25, 15, 10, TRUE),
-    (6, 6, 16, 'Adventure Medical Kits Ultralight 7 First Aid Kit', "L", 500, 100, 75, 50, TRUE),
-    (6, 6, 17, 'Supergoop! Unseen Sunscreen SPF 40', "L", 250, 50, 50, 25, TRUE),
-    (6, 6, 18, 'Sawyer Picaridin Insect Repellent', "L", 100, 25, 15, 10, TRUE),
-    (6, 6, 19, 'Fox 40 Classic Whistle', "L", 50, 25, 15, 10, TRUE),
-    (6, 6, 20, 'Petzl Tikka Headlamp', "L", 100, 25, 15, 10, TRUE),
-    (1, 1, 21, 'La Sportiva TX5 GTX', "L", 800, 150, 250, 130, TRUE),
-    (1, 1, 22, 'Hoka One One Speedgoat 5', "L", 700, 140, 240, 120, TRUE),
-    (1, 1, 23, 'Altra Torin 6 Plush', "L", 900, 160, 260, 140, TRUE),
-    (2, 2, 24, 'Osprey Ariel AG 65', "L", 2100, 650, 310, 160, TRUE),
-    (2, 2, 25, 'REI Co-op Stratus Sleeping Bag', "L", 1100, 210, 160, 110, TRUE),
-    (2, 2, 26, 'Therm-a-Rest NeoAir XTherm', "L", 600, 110, 76, 51, TRUE),
-    (3, 3, 27, 'MSR Elixir 2', "L", 2100, 310, 200, 160, TRUE),
-    (3, 3, 28, 'Jetboil Flash', "L", 500, 100, 75, 50, TRUE),
-    (3, 3, 29, 'Katadyn BeFree 3L Water Filter', "L", 300, 55, 140, 75, TRUE),
-    (4, 4, 30, 'Prana Brion Pant', "L", 600, 110, 80, 55, TRUE),
-    (4, 4, 31, 'Patagonia Capilene Cool Daily Graphic Shirt', "L", 300, 60, 60, 40, TRUE),
-    (4, 4, 32, 'Arc teryx Gamma AR Pant', "L", 700, 120, 85, 60, TRUE),
-    (5, 5, 33, 'Gaia GPS App', "L", 100, 25, 15, 10, TRUE),
-    (5, 5, 34, 'Silva Expedition 4 Compass', "L", 60, 25, 15, 10, TRUE),
-    (5, 5, 35, 'Garmin inReach Mini', "L", 150, 30, 30, 20, TRUE),
-    (6, 6, 36, 'Adventure Medical Kits Ultralight & Watertight 10 First Aid Kit', "L", 600, 120, 85, 60, TRUE),
-    (6, 6, 37, 'Supergoop! Unseen Sunscreen SPF 50', "L", 300, 60, 60, 40, TRUE),
-    (6, 6, 38, 'REI Co-op Insect Repellent Spray', "L", 200, 50, 50, 35, TRUE),
-    (6, 6, 39, 'Nite Ize SpotLit Dog Tag Light', "L", 50, 25, 15, 10, TRUE),
-    (6, 6, 40, 'Petzl Activa Headlamp', "L", 110, 25, 15, 10, TRUE);
+WITH RECURSIVE gear_items(n) AS (
+    SELECT 1
+    UNION ALL
+    SELECT n + 1 FROM gear_items WHERE n < 100
+),
+adjective(idx, word) AS (
+    VALUES
+        (1, 'Summit'),
+        (2, 'Cascade'),
+        (3, 'Frontier'),
+        (4, 'Granite'),
+        (5, 'Highline'),
+        (6, 'Aurora'),
+        (7, 'Ember'),
+        (8, 'Timberline'),
+        (9, 'Wildland'),
+        (10, 'Glacier'),
+        (11, 'Stonepath'),
+        (12, 'Windward'),
+        (13, 'Ridgecrest'),
+        (14, 'Trailbound'),
+        (15, 'Brightstar'),
+        (16, 'Northshore'),
+        (17, 'Blue Ridge'),
+        (18, 'Copperleaf'),
+        (19, 'Starlight'),
+        (20, 'Evervale')
+),
+terrain(idx, word) AS (
+    VALUES
+        (1, 'Explorer'),
+        (2, 'Trail'),
+        (3, 'Range'),
+        (4, 'Expedition'),
+        (5, 'Voyager'),
+        (6, 'Highland'),
+        (7, 'Traverse'),
+        (8, 'Wilderness'),
+        (9, 'Alpine'),
+        (10, 'Coastal'),
+        (11, 'Peak'),
+        (12, 'Forest'),
+        (13, 'Ridgeline'),
+        (14, 'Backcountry'),
+        (15, 'Scout'),
+        (16, 'Nomad'),
+        (17, 'Pathfinder'),
+        (18, 'Field'),
+        (19, 'Outpost'),
+        (20, 'Expanse')
+),
+descriptor(idx, word) AS (
+    VALUES
+        (1, 'Pro'),
+        (2, 'Elite'),
+        (3, 'Classic'),
+        (4, 'Lite'),
+        (5, 'Max'),
+        (6, 'Ultra'),
+        (7, 'Heritage'),
+        (8, 'Prime'),
+        (9, 'Advance'),
+        (10, 'Performance'),
+        (11, 'Motion'),
+        (12, 'Shield'),
+        (13, 'Forge'),
+        (14, 'Quest'),
+        (15, 'Core'),
+        (16, 'Venture'),
+        (17, 'Flex'),
+        (18, 'Edge'),
+        (19, 'Signature'),
+        (20, 'Edition')
+),
+category_label AS (
+    SELECT
+        categoryId,
+        CASE categoryName
+            WHEN 'Hiking boots' THEN 'Hiking Boots'
+            WHEN 'Trail shoes' THEN 'Trail Shoes'
+            WHEN 'Hiking socks' THEN 'Hiking Socks'
+            WHEN 'Moisture-wicking base layers' THEN 'Moisture-Wicking Base Layers'
+            WHEN 'Moisture-wicking shirts' THEN 'Moisture-Wicking Shirts'
+            WHEN 'Hiking pants' THEN 'Hiking Pants'
+            WHEN 'shorts' THEN 'Shorts'
+            WHEN 'Rain jacket' THEN 'Rain Jacket'
+            WHEN 'Rain pants' THEN 'Rain Pants'
+            WHEN 'Sun hat' THEN 'Sun Hat'
+            WHEN 'Hiking backpack' THEN 'Hiking Backpack'
+            WHEN 'Hydration backpack' THEN 'Hydration Backpack'
+            WHEN 'First aid kit' THEN 'First Aid Kit'
+            WHEN 'Multi-tool' THEN 'Multi-Tool'
+            WHEN 'knife' THEN 'Knife'
+            WHEN 'Emergency space blanket' THEN 'Emergency Space Blanket'
+            WHEN 'Bivy sack' THEN 'Bivy Sack'
+            WHEN 'Ground tarp' THEN 'Ground Tarp'
+            WHEN 'Sleeping bag' THEN 'Sleeping Bag'
+            WHEN 'Sleeping pad' THEN 'Sleeping Pad'
+            WHEN 'Air mattress' THEN 'Air Mattress'
+            WHEN 'Lightweight food' THEN 'Lightweight Food'
+            WHEN 'Water bottle' THEN 'Water Bottle'
+            WHEN 'Water purification system' THEN 'Water Purification System'
+            WHEN 'Bear canister' THEN 'Bear Canister'
+            WHEN 'Trekking poles' THEN 'Trekking Poles'
+            WHEN 'Insect repellent' THEN 'Insect Repellent'
+            WHEN 'Satellite communicator' THEN 'Satellite Communicator'
+            WHEN 'Two-way radios' THEN 'Two-Way Radios'
+            WHEN 'Neck gaiter' THEN 'Neck Gaiter'
+            WHEN 'gloves' THEN 'Gloves'
+            ELSE CASE
+                WHEN categoryName LIKE '% %' THEN
+                    TRIM(
+                        REPLACE(
+                            REPLACE(
+                                REPLACE(
+                                    REPLACE(
+                                        REPLACE(categoryName,
+                                            ' backpack', ' Backpack'),
+                                        ' jacket', ' Jacket'),
+                                    ' pants', ' Pants'),
+                                ' hat', ' Hat'),
+                            ' kit', ' Kit')
+                    )
+                ELSE UPPER(SUBSTR(categoryName, 1, 1)) || SUBSTR(categoryName, 2)
+            END
+        END AS label
+    FROM gear_category
+),
+counts AS (
+    SELECT
+        (SELECT COUNT(*) FROM adjective) AS adjective_total,
+        (SELECT COUNT(*) FROM terrain) AS terrain_total,
+        (SELECT COUNT(*) FROM descriptor) AS descriptor_total
+),
+backpack_top AS (
+    SELECT topCategoryId AS id FROM gear_top_category WHERE topCategoryName = 'Backpacks' LIMIT 1
+)
+INSERT INTO gear (
+    gearTopCategoryId,
+    gearCategoryId,
+    gearManufactureId,
+    gearIsContainer,
+    gearName,
+    gearSizeDefinition,
+    gearWeight,
+    gearHeight,
+    gearLength,
+    gearWidth,
+    gearStatus
+)
+SELECT
+    gc.categoryTopCategoryId,
+    gc.categoryId,
+    (( (gc.categoryId - 1) * 100 + gear_items.n - 1) % (SELECT COUNT(*) FROM manufacture)) + 1 AS gearManufactureId,
+    CASE WHEN gc.categoryTopCategoryId = bt.id THEN 1 ELSE 0 END AS gearIsContainer,
+    adj.word || ' ' || terrain.word || ' ' || descriptor.word || ' ' || cl.label AS gearName,
+    CASE ((gear_items.n - 1) % 3)
+        WHEN 0 THEN 'Size S'
+        WHEN 1 THEN 'Size M'
+        ELSE 'Size L'
+    END AS gearSizeDefinition,
+    250 + ((gear_items.n - 1) % 50) * 15 + ((gc.categoryId - 1) % 12) AS gearWeight,
+    40 + ((gear_items.n - 1) % 60) AS gearHeight,
+    90 + ((gc.categoryId - 1) % 40) AS gearLength,
+    30 + ((gear_items.n - 1) % 25) AS gearWidth,
+    CASE WHEN (gear_items.n % 11) = 0 THEN 0 ELSE 1 END AS gearStatus
+FROM gear_category AS gc
+CROSS JOIN gear_items
+CROSS JOIN counts
+JOIN backpack_top AS bt
+JOIN adjective AS adj ON adj.idx = (( (gc.categoryId - 1) * 100 + gear_items.n - 1) % counts.adjective_total) + 1
+JOIN terrain ON terrain.idx = (( (gear_items.n - 1) + (gc.categoryTopCategoryId - 1) * 7) % counts.terrain_total) + 1
+JOIN descriptor ON descriptor.idx = (( (gc.categoryId - 1) * 37 + gear_items.n - 1) % counts.descriptor_total) + 1
+JOIN category_label AS cl ON cl.categoryId = gc.categoryId
+ORDER BY gc.categoryId, gear_items.n;

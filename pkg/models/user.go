@@ -7,6 +7,7 @@ type UserWithPass struct {
 	UserPassword string `json:"user_password" db:"userPassword"`
 	UserName     string `json:"user_name" db:"userName"`
 	UserEmail    string `json:"user_email" db:"userEmail"`
+	UserIsAdmin  bool   `json:"user_is_admin" db:"userIsAdmin"`
 }
 
 // User represents a user.
@@ -16,6 +17,7 @@ type User struct {
 	UserUsername string `json:"user_username" db:"userUsername"`
 	UserName     string `json:"user_name" db:"userName"`
 	UserEmail    string `json:"user_email" db:"userEmail"`
+	UserIsAdmin  bool   `json:"user_is_admin" db:"userIsAdmin"`
 }
 
 // type UserGear struct {
