@@ -8,6 +8,24 @@ ALTER TABLE users ADD COLUMN userIsExternal INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE gear ADD COLUMN gearIsContainer INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE gear ADD COLUMN gearSizeDefinition TEXT;
 
+-- Add icon metadata to top categories when migrating existing databases.
+ALTER TABLE gear_top_category ADD COLUMN topCategoryIcon TEXT DEFAULT 'spark';
+UPDATE gear_top_category
+SET topCategoryIcon = CASE topCategoryName
+    WHEN 'Footwear' THEN 'boot'
+    WHEN 'Clothing' THEN 'layers'
+    WHEN 'Backpacks' THEN 'pack'
+    WHEN 'Navigation and Safety' THEN 'compass'
+    WHEN 'Shelter' THEN 'tent'
+    WHEN 'Sleeping Gear' THEN 'sleep'
+    WHEN 'Cooking' THEN 'cook'
+    WHEN 'Hiking Accessories' THEN 'accessory'
+    WHEN 'Emergency and Communication' THEN 'beacon'
+    WHEN 'Apparel Accessories' THEN 'apparel-accessory'
+    ELSE COALESCE(topCategoryIcon, 'spark')
+END
+WHERE topCategoryIcon IS NULL OR topCategoryIcon = '';
+
 -- Create table for registering contained gear.
 CREATE TABLE IF NOT EXISTS user_container_registration (
     containerRegistrationId INTEGER PRIMARY KEY AUTOINCREMENT,

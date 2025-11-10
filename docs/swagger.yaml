@@ -53,6 +53,12 @@ definitions:
         type: integer
       top_category_name:
         type: string
+      top_category_icon:
+        type: string
+      top_category_icon:
+        type: string
+      top_category_icon:
+        type: string
     type: object
   models.Gear:
     properties:
@@ -126,6 +132,8 @@ definitions:
       top_category_id:
         type: integer
       top_category_name:
+        type: string
+      top_category_icon:
         type: string
     type: object
   models.Health:
