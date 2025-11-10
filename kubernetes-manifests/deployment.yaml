@@ -20,7 +20,7 @@ spec:
           env:
             - name: TZ
               value: "Europe/Oslo"
-          image: docker.io/bateau/gogear-api:v1.1.5
+          image: docker.io/bateau/gogear-api:v2.0.0@sha256:ef2711187f057cfa9260223783f49b5657dbbd052b7391683120884ca02d25ee
           imagePullPolicy: Always
           name: gogear-api
           ports:
