@@ -12,4 +12,5 @@ type GearCategoryListItem struct {
 	CategoryName          string `json:"category_name" db:"categoryName"`
 	TopCategoryID         int64  `json:"top_category_id" db:"topCategoryId"`
 	TopCategoryName       string `json:"top_category_name" db:"topCategoryName"`
+	TopCategoryIcon       string `json:"top_category_icon" db:"topCategoryIcon"`
 }

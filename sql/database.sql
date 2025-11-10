@@ -1,4 +1,4 @@
--- DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users;
 CREATE TABLE IF NOT EXISTS users (
     `userId` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `userUsername` TEXT NOT NULL,
@@ -9,13 +9,14 @@ CREATE TABLE IF NOT EXISTS users (
     `userIsExternal` INTEGER NOT NULL DEFAULT 0
 );
 
+DROP TABLE IF EXISTS gear;
 CREATE TABLE IF NOT EXISTS gear (
     `gearId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `gearTopCategoryId` INTEGER NOT NULL,
     `gearCategoryId` INTEGER NOT NULL,
     `gearManufactureId` INTEGER NOT NULL,
     `gearIsContainer` INTEGER NOT NULL DEFAULT 0,
-    `gearSizeDefinition` TEXT,
+    `gearSizeDefinition` TEXT DEFAULT "",
     `gearName` TEXT NOT NULL,
     `gearWeight` INTEGER,
     `gearHeight` INTEGER,
@@ -30,16 +31,20 @@ CREATE INDEX topCategory_index ON gear(gearTopCategoryId);
 CREATE INDEX category_index ON gear(gearCategoryId);
 CREATE INDEX manufacture_index ON gear(gearManufactureId);
 
+DROP TABLE IF EXISTS manufacture;
 CREATE TABLE IF NOT EXISTS manufacture (
     `manufactureId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `manufactureName` TEXT NOT NULL
 );
 
+DROP TABLE IF EXISTS gear_top_category;
 CREATE TABLE IF NOT EXISTS gear_top_category (
     `topCategoryId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
-    `topCategoryName` TEXT NOT NULL
+    `topCategoryName` TEXT NOT NULL,
+    `topCategoryIcon` TEXT NOT NULL DEFAULT 'spark'
 );
 
+DROP TABLE IF EXISTS gear_category;
 CREATE TABLE IF NOT EXISTS gear_category (
     `categoryId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `categoryTopCategoryId` INTEGER NOT NULL,
@@ -90,17 +95,17 @@ INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin,
     ("Mats", "", "Mats Bøe Bergmann", "mats@mm-ent.no", 0, 1);
     -- ("Bateau", "$2a$10$X2BAOJFWXxAudCm9ShaHvucsdv1.dz3pdbBPf6bJerWs7YJB7KV9", "Mats Bøe Bergmann", "mats.bergmann@gmail.com", 1, 1);
 
-INSERT INTO gear_top_category (topCategoryName) VALUES 
-    ("Footwear"),
-    ("Clothing"),
-    ("Backpacks"),
-    ("Navigation and Safety"),
-    ("Shelter"),
-    ("Sleeping Gear"),
-    ("Cooking"),
-    ("Hiking Accessories"),
-    ("Emergency and Communication"),
-    ("Apparel Accessories");
+INSERT INTO gear_top_category (topCategoryName, topCategoryIcon) VALUES 
+    ("Footwear", "boot"),
+    ("Clothing", "layers"),
+    ("Backpacks", "pack"),
+    ("Navigation and Safety", "compass"),
+    ("Shelter", "tent"),
+    ("Sleeping Gear", "sleep"),
+    ("Cooking", "cook"),
+    ("Hiking Accessories", "accessory"),
+    ("Emergency and Communication", "beacon"),
+    ("Apparel Accessories", "apparel-accessory");
 
 INSERT INTO gear_category (categoryName, categoryTopCategoryId) VALUES 
     ("Hiking boots", 1),

@@ -1,2470 +1,2482 @@
 {
-    "swagger": "2.0",
-    "info": {
-        "description": "This is the API of GoGear",
-        "title": "GoGear API",
-        "contact": {
-            "name": "API Support",
-            "email": "support@sea-shell.no"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
+  "swagger": "2.0",
+  "info": {
+    "description": "This is the API of GoGear",
+    "title": "GoGear API",
+    "contact": {
+      "name": "API Support",
+      "email": "support@sea-shell.no"
     },
-    "paths": {
-        "/api/v1/category/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "Insert new category",
-                "parameters": [
-                    {
-                        "description": "Request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/category/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Category"
+        ],
+        "summary": "Insert new category",
+        "parameters": [
+          {
+            "description": "Request body",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.GearCategory"
             }
-        },
-        "/api/v1/category/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of category items",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "List categories",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "Top category",
-                        "name": "category",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "Top gear category",
-                        "name": "topCategory",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.GearCategory"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.GearCategory"
             }
-        },
-        "/api/v1/category/{categoryID}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get category spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "Get category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of category you want to get",
-                        "name": "categoryID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
             }
-        },
-        "/api/v1/category/{category}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete category with corresponding ID value. Requires a JWT issued with the admin audience.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "Delete category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of category you want to update",
-                        "name": "category",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/category/{category}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update category identified by ID. Requires a JWT issued with the admin audience.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "Update category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of category you want to update",
-                        "name": "categoryID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/container/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert user registered gear with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User container"
-                ],
-                "summary": "Insert user registered gear",
-                "parameters": [
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UserContainerNoID"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/container/{container}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete user container content with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User container"
-                ],
-                "summary": "Delete user container content with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of userGear you want to update",
-                        "name": "container",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/container/{container}/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List all items inside a container registered to a user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User container"
-                ],
-                "summary": "List all items inside a container",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of userGear you want to update",
-                        "name": "container",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.FullGear"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert new gear with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "Insert new gear",
-                "parameters": [
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Gear"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Gear"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of gear items",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "List gear",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Gear category",
-                        "name": "category",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Top gear category",
-                        "name": "topCategory",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Gear manufacturer",
-                        "name": "manufacturer",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "string collection",
-                        "name": "collection",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "string collection",
-                        "name": "container",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.GearListItem"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/search": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of gear items based on search patterns",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "Search for gear",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "String to search for",
-                        "name": "searchString",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Type of searhc method. valid choices are: startswith, contains, endswith",
-                        "name": "searchType",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.GearListItem"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/{gear}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete gear with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "Delete gear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of gear you want to delete",
-                        "name": "gear",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/{gear}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get gear spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "Get gear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of Gear you want to get",
-                        "name": "gear",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.FullGear"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/gear/{gear}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update gear identified by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Gear"
-                ],
-                "summary": "Update gear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of Gear you want to get",
-                        "name": "gear",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Gear"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/manufacture/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert new manufacture with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Manufacture"
-                ],
-                "summary": "Insert new manufacture",
-                "parameters": [
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Manufacture"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Manufacture"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/manufacture/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of manufacturers",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Manufacture"
-                ],
-                "summary": "List manufacture",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by manufacturename (this is case insensitive and wildcard)",
-                        "name": "manufacture",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by manufactures full name (this is case insensitive and wildcard)",
-                        "name": "manufacturename",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.Manufacture"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/manufacture/{manufacture}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete manufacture with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Manufacture"
-                ],
-                "summary": "Delete manufacture with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of manufacture you want to update",
-                        "name": "manufacture",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/manufacture/{manufacture}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get manufacture spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Manufacture"
-                ],
-                "summary": "Get manufacture by ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of manufacture you want to get",
-                        "name": "manufacture",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.Manufacture"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/manufacture/{manufacture}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update manufacture identified by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Manufacture"
-                ],
-                "summary": "Update manufacture with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of manufacture you want to update",
-                        "name": "manufacture",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Manufacture"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/topCategory/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert new top category with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Top Category"
-                ],
-                "summary": "Insert new top category",
-                "parameters": [
-                    {
-                        "description": "Request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.GearTopCategory"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/topCategory/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of top category items",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Top Category"
-                ],
-                "summary": "List top categories",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "top categories",
-                        "name": "topCategory",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.GearTopCategory"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/topCategory/{topCategory}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete topCategory with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Top Category"
-                ],
-                "summary": "Delete topCategory with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of topCategory you want to update",
-                        "name": "topCategory",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/topCategory/{topCategory}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get top category spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Top Category"
-                ],
-                "summary": "Get top category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of top category you want to get",
-                        "name": "topCategoryID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.GearTopCategory"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/topCategory/{topCategory}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update top category identified by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Top Category"
-                ],
-                "summary": "Update top category with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of top category you want to update",
-                        "name": "topCategoryID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.GearTopCategory"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/usergear/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert user registered gear with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User gear"
-                ],
-                "summary": "Insert user registered gear",
-                "parameters": [
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UserGearLinkNoID"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/usergear/registration/{usergear}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete userGear with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User gear"
-                ],
-                "summary": "Delete userGear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of userGear you want to update",
-                        "name": "userGear",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/usergear/registration/{usergear}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get user registeredgear spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User gear"
-                ],
-                "summary": "Get user registered gear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user registered gear you want to get",
-                        "name": "usergear",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.UserGear"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/usergear/registration/{usergear}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update user registered gear identified by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User gear"
-                ],
-                "summary": "Update user registered gear with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user registered gear you want to get",
-                        "name": "usergear",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UserGearLink"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/usergear/{user}/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list a users gear",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User gear"
-                ],
-                "summary": "List users gear",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user you want to get the Gear of",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "top categories",
-                        "name": "topCategory",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "sub categories",
-                        "name": "category",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "manufacturers",
-                        "name": "manufacture",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "default": "all",
-                        "description": "show container gear only. valid values are true, false, all",
-                        "name": "container",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.UserGear"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/users/insert": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Insert new user with corresponding values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Insert new user",
-                "parameters": [
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UserWithPass"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/users/list": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get a list of user items",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "List user",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 30,
-                        "description": "Number of items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by users username (this is case insensitive and wildcard)",
-                        "name": "user",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by users full name (this is case insensitive and wildcard)",
-                        "name": "username",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "search by users email (this is case insensitive and wildcard)",
-                        "name": "email",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/models.ResponsePayload"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "items": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.User"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/users/{user}/delete": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete user with corresponding ID value",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Delete user with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user you want to update",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/users/{user}/get": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get user spessific to ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Get user with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user you want to get",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.User"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/users/{user}/update": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update user identified by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "User"
-                ],
-                "summary": "Update user with ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Unique ID of user you want to update",
-                        "name": "user",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "query params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.User"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "status: success when all goes well",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "default": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/google/callback": {
-            "get": {
-                "description": "Validates the Google credential and returns a JWT for subsequent API calls",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Google OAuth callback",
-                "parameters": [
-                    {
-                        "description": "Callback payload",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/endpoints.googleCallbackRequest"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Authorization code",
-                        "name": "code",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Google ID token",
-                        "name": "id_token",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
+          }
+        }
+      }
+    },
+    "/api/v1/category/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of category items",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Category"
+        ],
+        "summary": "List categories",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
             },
-            "post": {
-                "description": "Validates the Google credential and returns a JWT for subsequent API calls",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Google OAuth callback",
-                "parameters": [
-                    {
-                        "description": "Callback payload",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/endpoints.googleCallbackRequest"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Authorization code",
-                        "name": "code",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Google ID token",
-                        "name": "id_token",
-                        "in": "query"
+            "collectionFormat": "multi",
+            "description": "Top category",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "multi",
+            "description": "Top gear category",
+            "name": "topCategory",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.GearCategory"
+                      }
                     }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
+                  }
                 }
+              ]
             }
-        },
-        "/auth/refresh": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Exchanges a valid GoGear JWT for a new token with a fresh expiry",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Refresh service token",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
             }
-        },
-        "/health": {
-            "get": {
-                "description": "Get health status of application",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Health"
-                ],
-                "summary": "Get application health",
-                "responses": {
-                    "200": {
-                        "description": "desc",
-                        "schema": {
-                            "$ref": "#/definitions/models.Health"
-                        }
-                    }
-                }
-            }
+          }
         }
+      }
     },
-    "definitions": {
-        "endpoints.googleCallbackRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "credential": {
-                    "type": "string"
-                },
-                "id_token": {
-                    "type": "string"
-                }
+    "/api/v1/category/{categoryID}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get category spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Category"
+        ],
+        "summary": "Get category with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of category you want to get",
+            "name": "categoryID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.GearCategory"
             }
-        },
-        "models.Error": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
             }
-        },
-        "models.FullGear": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "integer"
-                },
-                "category_name": {
-                    "type": "string"
-                },
-                "category_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_height": {
-                    "type": "integer"
-                },
-                "gear_id": {
-                    "type": "integer"
-                },
-                "gear_is_container": {
-                    "type": "boolean"
-                },
-                "gear_length": {
-                    "type": "integer"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_size_definition": {
-                    "type": "string"
-                },
-                "gear_status": {
-                    "type": "boolean"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_weight": {
-                    "type": "integer"
-                },
-                "gear_width": {
-                    "type": "integer"
-                },
-                "manufacture_id": {
-                    "type": "integer"
-                },
-                "manufacture_name": {
-                    "type": "string"
-                },
-                "top_category_id": {
-                    "type": "integer"
-                },
-                "top_category_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Gear": {
-            "type": "object",
-            "properties": {
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_height": {
-                    "type": "integer"
-                },
-                "gear_id": {
-                    "type": "integer"
-                },
-                "gear_is_container": {
-                    "type": "boolean"
-                },
-                "gear_length": {
-                    "type": "integer"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_size_definition": {
-                    "type": "string"
-                },
-                "gear_status": {
-                    "type": "boolean"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_weight": {
-                    "type": "integer"
-                },
-                "gear_width": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.GearCategory": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "integer"
-                },
-                "category_name": {
-                    "type": "string"
-                },
-                "category_top_category_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.GearListItem": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "integer"
-                },
-                "category_name": {
-                    "type": "string"
-                },
-                "category_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_id": {
-                    "type": "integer"
-                },
-                "gear_is_container": {
-                    "type": "boolean"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_size_definition": {
-                    "type": "string"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "manufacture_id": {
-                    "type": "integer"
-                },
-                "manufacture_name": {
-                    "type": "string"
-                },
-                "top_category_id": {
-                    "type": "integer"
-                },
-                "top_category_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.GearTopCategory": {
-            "type": "object",
-            "properties": {
-                "top_category_id": {
-                    "type": "integer"
-                },
-                "top_category_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Health": {
-            "type": "object",
-            "properties": {
-                "documentation": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updated": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Manufacture": {
-            "type": "object",
-            "properties": {
-                "manufacture_id": {
-                    "type": "integer"
-                },
-                "manufacture_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.ResponsePayload": {
-            "type": "object",
-            "properties": {
-                "current_page": {
-                    "type": "integer"
-                },
-                "item_limit": {
-                    "type": "integer"
-                },
-                "items": {},
-                "next_page": {
-                    "type": "string"
-                },
-                "prev_page": {
-                    "type": "string"
-                },
-                "total_item_count": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.Status": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.User": {
-            "type": "object",
-            "properties": {
-                "user_email": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_is_admin": {
-                    "type": "boolean"
-                },
-                "user_name": {
-                    "type": "string"
-                },
-                "user_username": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.UserContainerNoID": {
-            "type": "object",
-            "properties": {
-                "user_container_id": {
-                    "type": "integer"
-                },
-                "user_gear_registration_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.UserGear": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "integer"
-                },
-                "category_name": {
-                    "type": "string"
-                },
-                "category_top_category_id": {
-                    "type": "integer"
-                },
-                "container_link_id": {
-                    "type": "integer"
-                },
-                "container_registration_id": {
-                    "type": "integer"
-                },
-                "gear_category_id": {
-                    "type": "integer"
-                },
-                "gear_height": {
-                    "type": "integer"
-                },
-                "gear_id": {
-                    "type": "integer"
-                },
-                "gear_is_container": {
-                    "type": "boolean"
-                },
-                "gear_length": {
-                    "type": "integer"
-                },
-                "gear_manufacture_id": {
-                    "type": "integer"
-                },
-                "gear_name": {
-                    "type": "string"
-                },
-                "gear_status": {
-                    "type": "boolean"
-                },
-                "gear_top_category_id": {
-                    "type": "integer"
-                },
-                "gear_weight": {
-                    "type": "integer"
-                },
-                "gear_width": {
-                    "type": "integer"
-                },
-                "manufacture_id": {
-                    "type": "integer"
-                },
-                "manufacture_name": {
-                    "type": "string"
-                },
-                "top_category_id": {
-                    "type": "integer"
-                },
-                "top_category_name": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_name": {
-                    "type": "string"
-                },
-                "user_username": {
-                    "type": "string"
-                },
-                "usergear_gear_id": {
-                    "type": "integer"
-                },
-                "usergear_registration_id": {
-                    "type": "integer"
-                },
-                "usergear_user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.UserGearLink": {
-            "type": "object",
-            "properties": {
-                "usergear_gear_id": {
-                    "type": "integer"
-                },
-                "usergear_registration_id": {
-                    "type": "integer"
-                },
-                "usergear_user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.UserGearLinkNoID": {
-            "type": "object",
-            "properties": {
-                "usergear_gear_id": {
-                    "type": "integer"
-                },
-                "usergear_user_id": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.UserWithPass": {
-            "type": "object",
-            "properties": {
-                "user_email": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_is_admin": {
-                    "type": "boolean"
-                },
-                "user_name": {
-                    "type": "string"
-                },
-                "user_password": {
-                    "type": "string"
-                },
-                "user_username": {
-                    "type": "string"
-                }
-            }
+          }
         }
+      }
     },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "Include a server-issued JWT as `Bearer \u003ctoken\u003e`. Endpoints may require either the client or admin audience.",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+    "/api/v1/category/{category}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete category with corresponding ID value. Requires a JWT issued with the admin audience.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Category"
+        ],
+        "summary": "Delete category with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of category you want to update",
+            "name": "category",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
         }
+      }
+    },
+    "/api/v1/category/{category}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update category identified by ID. Requires a JWT issued with the admin audience.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Category"
+        ],
+        "summary": "Update category with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of category you want to update",
+            "name": "categoryID",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Request body",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.GearCategory"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/container/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert user registered gear with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User container"
+        ],
+        "summary": "Insert user registered gear",
+        "parameters": [
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.UserContainerNoID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/container/{container}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete user container content with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User container"
+        ],
+        "summary": "Delete user container content with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of userGear you want to update",
+            "name": "container",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/container/{container}/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "List all items inside a container registered to a user",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User container"
+        ],
+        "summary": "List all items inside a container",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "Unique ID of userGear you want to update",
+            "name": "container",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.FullGear"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert new gear with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "Insert new gear",
+        "parameters": [
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.Gear"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Gear"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of gear items",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "List gear",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Gear category",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Top gear category",
+            "name": "topCategory",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Gear manufacturer",
+            "name": "manufacturer",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "string collection",
+            "name": "collection",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "default": false,
+            "description": "string collection",
+            "name": "container",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.GearListItem"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/search": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of gear items based on search patterns",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "Search for gear",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "String to search for",
+            "name": "searchString",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Type of searhc method. valid choices are: startswith, contains, endswith",
+            "name": "searchType",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.GearListItem"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/{gear}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete gear with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "Delete gear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of gear you want to delete",
+            "name": "gear",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/{gear}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get gear spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "Get gear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of Gear you want to get",
+            "name": "gear",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.FullGear"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/gear/{gear}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update gear identified by ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Gear"
+        ],
+        "summary": "Update gear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of Gear you want to get",
+            "name": "gear",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.Gear"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manufacture/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert new manufacture with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Manufacture"
+        ],
+        "summary": "Insert new manufacture",
+        "parameters": [
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.Manufacture"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Manufacture"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manufacture/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of manufacturers",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Manufacture"
+        ],
+        "summary": "List manufacture",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search by manufacturename (this is case insensitive and wildcard)",
+            "name": "manufacture",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search by manufactures full name (this is case insensitive and wildcard)",
+            "name": "manufacturename",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.Manufacture"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manufacture/{manufacture}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete manufacture with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Manufacture"
+        ],
+        "summary": "Delete manufacture with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of manufacture you want to update",
+            "name": "manufacture",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manufacture/{manufacture}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get manufacture spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Manufacture"
+        ],
+        "summary": "Get manufacture by ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of manufacture you want to get",
+            "name": "manufacture",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.Manufacture"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/manufacture/{manufacture}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update manufacture identified by ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Manufacture"
+        ],
+        "summary": "Update manufacture with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of manufacture you want to update",
+            "name": "manufacture",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.Manufacture"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topCategory/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert new top category with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Top Category"
+        ],
+        "summary": "Insert new top category",
+        "parameters": [
+          {
+            "description": "Request body",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.GearTopCategory"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topCategory/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of top category items",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Top Category"
+        ],
+        "summary": "List top categories",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "multi",
+            "description": "top categories",
+            "name": "topCategory",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.GearTopCategory"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topCategory/{topCategory}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete topCategory with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Top Category"
+        ],
+        "summary": "Delete topCategory with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of topCategory you want to update",
+            "name": "topCategory",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topCategory/{topCategory}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get top category spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Top Category"
+        ],
+        "summary": "Get top category with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of top category you want to get",
+            "name": "topCategoryID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/models.GearTopCategory"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topCategory/{topCategory}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update top category identified by ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Top Category"
+        ],
+        "summary": "Update top category with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of top category you want to update",
+            "name": "topCategoryID",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Request body",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.GearTopCategory"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usergear/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert user registered gear with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User gear"
+        ],
+        "summary": "Insert user registered gear",
+        "parameters": [
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.UserGearLinkNoID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usergear/registration/{usergear}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete userGear with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User gear"
+        ],
+        "summary": "Delete userGear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of userGear you want to update",
+            "name": "userGear",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usergear/registration/{usergear}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get user registeredgear spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User gear"
+        ],
+        "summary": "Get user registered gear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user registered gear you want to get",
+            "name": "usergear",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.UserGear"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usergear/registration/{usergear}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update user registered gear identified by ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User gear"
+        ],
+        "summary": "Update user registered gear with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user registered gear you want to get",
+            "name": "usergear",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.UserGearLink"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usergear/{user}/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list a users gear",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User gear"
+        ],
+        "summary": "List users gear",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user you want to get the Gear of",
+            "name": "user",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "multi",
+            "description": "top categories",
+            "name": "topCategory",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "multi",
+            "description": "sub categories",
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "collectionFormat": "multi",
+            "description": "manufacturers",
+            "name": "manufacture",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "default": "all",
+            "description": "show container gear only. valid values are true, false, all",
+            "name": "container",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.UserGear"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/insert": {
+      "put": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Insert new user with corresponding values",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User"
+        ],
+        "summary": "Insert new user",
+        "parameters": [
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.UserWithPass"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/list": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get a list of user items",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User"
+        ],
+        "summary": "List user",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 1,
+            "description": "Page number",
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "default": 30,
+            "description": "Number of items per page",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search by users username (this is case insensitive and wildcard)",
+            "name": "user",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search by users full name (this is case insensitive and wildcard)",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search by users email (this is case insensitive and wildcard)",
+            "name": "email",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/models.ResponsePayload"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/models.User"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user}/delete": {
+      "delete": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Delete user with corresponding ID value",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User"
+        ],
+        "summary": "Delete user with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user you want to update",
+            "name": "user",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user}/get": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Get user spessific to ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User"
+        ],
+        "summary": "Get user with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user you want to get",
+            "name": "user",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.User"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user}/update": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Update user identified by ID",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "User"
+        ],
+        "summary": "Update user with ID",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Unique ID of user you want to update",
+            "name": "user",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "query params",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/models.User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "status: success when all goes well",
+            "schema": {
+              "$ref": "#/definitions/models.Status"
+            }
+          },
+          "default": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "description": "Validates the Google credential and returns a JWT for subsequent API calls",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Google OAuth callback",
+        "parameters": [
+          {
+            "description": "Callback payload",
+            "name": "request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/endpoints.googleCallbackRequest"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Authorization code",
+            "name": "code",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google ID token",
+            "name": "id_token",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Validates the Google credential and returns a JWT for subsequent API calls",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Google OAuth callback",
+        "parameters": [
+          {
+            "description": "Callback payload",
+            "name": "request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/endpoints.googleCallbackRequest"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Authorization code",
+            "name": "code",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google ID token",
+            "name": "id_token",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Exchanges a valid GoGear JWT for a new token with a fresh expiry",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh service token",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/models.Error"
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Get health status of application",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Health"
+        ],
+        "summary": "Get application health",
+        "responses": {
+          "200": {
+            "description": "desc",
+            "schema": {
+              "$ref": "#/definitions/models.Health"
+            }
+          }
+        }
+      }
     }
+  },
+  "definitions": {
+    "endpoints.googleCallbackRequest": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "credential": {
+          "type": "string"
+        },
+        "id_token": {
+          "type": "string"
+        }
+      }
+    },
+    "models.Error": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "models.FullGear": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "integer"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "category_top_category_id": {
+          "type": "integer"
+        },
+        "gear_category_id": {
+          "type": "integer"
+        },
+        "gear_height": {
+          "type": "integer"
+        },
+        "gear_id": {
+          "type": "integer"
+        },
+        "gear_is_container": {
+          "type": "boolean"
+        },
+        "gear_length": {
+          "type": "integer"
+        },
+        "gear_manufacture_id": {
+          "type": "integer"
+        },
+        "gear_name": {
+          "type": "string"
+        },
+        "gear_size_definition": {
+          "type": "string"
+        },
+        "gear_status": {
+          "type": "boolean"
+        },
+        "gear_top_category_id": {
+          "type": "integer"
+        },
+        "gear_weight": {
+          "type": "integer"
+        },
+        "gear_width": {
+          "type": "integer"
+        },
+        "manufacture_id": {
+          "type": "integer"
+        },
+        "manufacture_name": {
+          "type": "string"
+        },
+        "top_category_id": {
+          "type": "integer"
+        },
+        "top_category_name": {
+          "type": "string"
+        },
+        "top_category_icon": {
+          "type": "string"
+        }
+      }
+    },
+    "models.Gear": {
+      "type": "object",
+      "properties": {
+        "gear_category_id": {
+          "type": "integer"
+        },
+        "gear_height": {
+          "type": "integer"
+        },
+        "gear_id": {
+          "type": "integer"
+        },
+        "gear_is_container": {
+          "type": "boolean"
+        },
+        "gear_length": {
+          "type": "integer"
+        },
+        "gear_manufacture_id": {
+          "type": "integer"
+        },
+        "gear_name": {
+          "type": "string"
+        },
+        "gear_size_definition": {
+          "type": "string"
+        },
+        "gear_status": {
+          "type": "boolean"
+        },
+        "gear_top_category_id": {
+          "type": "integer"
+        },
+        "gear_weight": {
+          "type": "integer"
+        },
+        "gear_width": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.GearCategory": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "integer"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "category_top_category_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.GearListItem": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "integer"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "category_top_category_id": {
+          "type": "integer"
+        },
+        "gear_category_id": {
+          "type": "integer"
+        },
+        "gear_id": {
+          "type": "integer"
+        },
+        "gear_is_container": {
+          "type": "boolean"
+        },
+        "gear_manufacture_id": {
+          "type": "integer"
+        },
+        "gear_name": {
+          "type": "string"
+        },
+        "gear_size_definition": {
+          "type": "string"
+        },
+        "gear_top_category_id": {
+          "type": "integer"
+        },
+        "manufacture_id": {
+          "type": "integer"
+        },
+        "manufacture_name": {
+          "type": "string"
+        },
+        "top_category_id": {
+          "type": "integer"
+        },
+        "top_category_name": {
+          "type": "string"
+        },
+        "top_category_icon": {
+          "type": "string"
+        }
+      }
+    },
+    "models.GearTopCategory": {
+      "type": "object",
+      "properties": {
+        "top_category_id": {
+          "type": "integer"
+        },
+        "top_category_name": {
+          "type": "string"
+        },
+        "top_category_icon": {
+          "type": "string"
+        }
+      }
+    },
+    "models.Health": {
+      "type": "object",
+      "properties": {
+        "documentation": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "updated": {
+          "type": "string"
+        }
+      }
+    },
+    "models.Manufacture": {
+      "type": "object",
+      "properties": {
+        "manufacture_id": {
+          "type": "integer"
+        },
+        "manufacture_name": {
+          "type": "string"
+        }
+      }
+    },
+    "models.ResponsePayload": {
+      "type": "object",
+      "properties": {
+        "current_page": {
+          "type": "integer"
+        },
+        "item_limit": {
+          "type": "integer"
+        },
+        "items": {},
+        "next_page": {
+          "type": "string"
+        },
+        "prev_page": {
+          "type": "string"
+        },
+        "total_item_count": {
+          "type": "integer"
+        },
+        "total_pages": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.Status": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "models.User": {
+      "type": "object",
+      "properties": {
+        "user_email": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "integer"
+        },
+        "user_is_admin": {
+          "type": "boolean"
+        },
+        "user_name": {
+          "type": "string"
+        },
+        "user_username": {
+          "type": "string"
+        }
+      }
+    },
+    "models.UserContainerNoID": {
+      "type": "object",
+      "properties": {
+        "user_container_id": {
+          "type": "integer"
+        },
+        "user_gear_registration_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.UserGear": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "integer"
+        },
+        "category_name": {
+          "type": "string"
+        },
+        "category_top_category_id": {
+          "type": "integer"
+        },
+        "container_link_id": {
+          "type": "integer"
+        },
+        "container_registration_id": {
+          "type": "integer"
+        },
+        "gear_category_id": {
+          "type": "integer"
+        },
+        "gear_height": {
+          "type": "integer"
+        },
+        "gear_id": {
+          "type": "integer"
+        },
+        "gear_is_container": {
+          "type": "boolean"
+        },
+        "gear_length": {
+          "type": "integer"
+        },
+        "gear_manufacture_id": {
+          "type": "integer"
+        },
+        "gear_name": {
+          "type": "string"
+        },
+        "gear_status": {
+          "type": "boolean"
+        },
+        "gear_top_category_id": {
+          "type": "integer"
+        },
+        "gear_weight": {
+          "type": "integer"
+        },
+        "gear_width": {
+          "type": "integer"
+        },
+        "manufacture_id": {
+          "type": "integer"
+        },
+        "manufacture_name": {
+          "type": "string"
+        },
+        "top_category_id": {
+          "type": "integer"
+        },
+        "top_category_name": {
+          "type": "string"
+        },
+        "top_category_icon": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "integer"
+        },
+        "user_name": {
+          "type": "string"
+        },
+        "user_username": {
+          "type": "string"
+        },
+        "usergear_gear_id": {
+          "type": "integer"
+        },
+        "usergear_registration_id": {
+          "type": "integer"
+        },
+        "usergear_user_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.UserGearLink": {
+      "type": "object",
+      "properties": {
+        "usergear_gear_id": {
+          "type": "integer"
+        },
+        "usergear_registration_id": {
+          "type": "integer"
+        },
+        "usergear_user_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.UserGearLinkNoID": {
+      "type": "object",
+      "properties": {
+        "usergear_gear_id": {
+          "type": "integer"
+        },
+        "usergear_user_id": {
+          "type": "integer"
+        }
+      }
+    },
+    "models.UserWithPass": {
+      "type": "object",
+      "properties": {
+        "user_email": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "integer"
+        },
+        "user_is_admin": {
+          "type": "boolean"
+        },
+        "user_name": {
+          "type": "string"
+        },
+        "user_password": {
+          "type": "string"
+        },
+        "user_username": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "BearerAuth": {
+      "description": "Include a server-issued JWT as `Bearer \u003ctoken\u003e`. Endpoints may require either the client or admin audience.",
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    }
+  }
 }

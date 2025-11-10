@@ -2128,6 +2128,9 @@ const docTemplate = `{
                 },
                 "top_category_name": {
                     "type": "string"
+                },
+                "top_category_icon": {
+                    "type": "string"
                 }
             }
         },
@@ -2230,6 +2233,9 @@ const docTemplate = `{
                 },
                 "top_category_name": {
                     "type": "string"
+                },
+                "top_category_icon": {
+                    "type": "string"
                 }
             }
         },
@@ -2240,6 +2246,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "top_category_name": {
+                    "type": "string"
+                },
+                "top_category_icon": {
                     "type": "string"
                 }
             }
@@ -2396,6 +2405,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "top_category_name": {
+                    "type": "string"
+                },
+                "top_category_icon": {
                     "type": "string"
                 },
                 "user_id": {

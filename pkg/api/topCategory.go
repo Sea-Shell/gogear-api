@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -18,6 +19,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	zap "go.uber.org/zap"
 )
+
+const defaultTopCategoryIcon = "spark"
+
+func normalizeTopCategoryIcon(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return defaultTopCategoryIcon
+	}
+	return trimmed
+}
 
 // @Summary		Get top category with ID
 // @Description	Get top category spessific to ID
@@ -168,6 +179,7 @@ func ListTopCategory(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
+	defer rows.Close()
 
 	dest, err := utils.GetScanFields(paramTopCategory)
 	if err != nil {
@@ -196,6 +208,12 @@ func ListTopCategory(c *gin.Context) {
 		}
 
 		gearTopCategoryList = append(gearTopCategoryList, paramTopCategory)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Errorf("Row iteration error: %#v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
 	}
 
 	payload := models.ResponsePayload{
@@ -253,7 +271,47 @@ func UpdateTopCategory(c *gin.Context) {
 		return
 	}
 
-	err = utils.GenericUpdate[models.GearTopCategory]("gear_top_category", data, db)
+	var payload models.GearTopCategory
+	if err := json.Unmarshal(data, &payload); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	if payload.TopCategoryID == nil {
+		err := fmt.Errorf("top_category_id is required")
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	if _, iconProvided := raw["top_category_icon"]; iconProvided {
+		payload.TopCategoryIcon = normalizeTopCategoryIcon(payload.TopCategoryIcon)
+	} else {
+		existing, err := utils.GenericGet[models.GearTopCategory]("gear_top_category", int(*payload.TopCategoryID), nil, db)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+			log.Error(err.Error())
+			return
+		}
+		payload.TopCategoryIcon = existing.TopCategoryIcon
+	}
+
+	normalizedPayload, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	err = utils.GenericUpdate[models.GearTopCategory]("gear_top_category", normalizedPayload, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		log.Error(err.Error())
@@ -286,7 +344,23 @@ func InsertTopCategory(c *gin.Context) {
 		return
 	}
 
-	_, err = utils.GenericInsert[models.GearTopCategory]("gear_top_category", data, db)
+	var payload models.GearTopCategory
+	if err := json.Unmarshal(data, &payload); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	payload.TopCategoryIcon = normalizeTopCategoryIcon(payload.TopCategoryIcon)
+
+	normalizedPayload, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	_, err = utils.GenericInsert[models.GearTopCategory]("gear_top_category", normalizedPayload, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		log.Error(err.Error())

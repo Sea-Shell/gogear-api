@@ -162,6 +162,7 @@ func ListGear(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
+	defer rows.Close()
 
 	dest, err := utils.GetScanFields(paramGear)
 	if err != nil {
@@ -190,6 +191,12 @@ func ListGear(c *gin.Context) {
 		}
 
 		gearList = append(gearList, paramGear)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Errorf("Row iteration error: %#v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
 	}
 
 	payload := models.ResponsePayload{
@@ -290,17 +297,29 @@ func SearchGear(c *gin.Context) {
 	}
 
 	conditions := []string{}
-	if searchStringPressent && searchString != "" {
-		if searchTypePressent {
-			switch searchType {
-			case "contains":
-				conditions = append(conditions, "gear.gearName LIKE ?")
-			case "startswith":
-				conditions = append(conditions, "gear.gearName LIKE ?")
-			case "endswith":
-				conditions = append(conditions, "gear.gearName LIKE ?")
-			}
+	queryArgs := []interface{}{}
+
+	if searchStringPressent && strings.TrimSpace(searchString) != "" {
+		normalizedSearchType := strings.TrimSpace(strings.ToLower(searchType))
+		if !searchTypePressent || normalizedSearchType == "" {
+			normalizedSearchType = "contains"
 		}
+
+		var likePattern string
+		switch normalizedSearchType {
+		case "contains":
+			likePattern = "%" + searchString + "%"
+		case "startswith":
+			likePattern = searchString + "%"
+		case "endswith":
+			likePattern = "%" + searchString
+		default:
+			c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid searchType. Use contains, startswith, or endswith."})
+			return
+		}
+
+		conditions = append(conditions, "gear.gearName LIKE ?")
+		queryArgs = append(queryArgs, likePattern)
 	}
 
 	whereClause := ""
@@ -312,7 +331,7 @@ func SearchGear(c *gin.Context) {
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
+	err = db.QueryRow(countQuery, queryArgs...).Scan(&totalCount)
 	if err != nil {
 		log.Errorf("Error getting GearCount database: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
@@ -343,12 +362,13 @@ func SearchGear(c *gin.Context) {
 
 	log.Debugf("Query: %s", query)
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
 		log.Errorf("Query error: %#v", err.Error())
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
+	defer rows.Close()
 
 	dest, err := utils.GetScanFields(paramGear)
 	if err != nil {
@@ -377,6 +397,12 @@ func SearchGear(c *gin.Context) {
 		}
 
 		gearList = append(gearList, paramGear)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Errorf("Row iteration error: %#v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
 	}
 
 	payload := models.ResponsePayload{

@@ -29,6 +29,7 @@ type UserGear struct {
 
 	TopCategoryID   int64  `json:"top_category_id" db:"gear_top_category.topCategoryId"`
 	TopCategoryName string `json:"top_category_name" db:"gear_top_category.topCategoryName"`
+	TopCategoryIcon string `json:"top_category_icon" db:"gear_top_category.topCategoryIcon"`
 
 	CategoryID            int64  `json:"category_id" db:"gear_category.categoryId"`
 	CategoryName          string `json:"category_name" db:"gear_category.categoryName"`

@@ -226,6 +226,7 @@ func ListUserGear(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
 	}
+	defer rows.Close()
 
 	dest, err := utils.GetScanFields(paramTopCategory)
 	if err != nil {
@@ -254,6 +255,12 @@ func ListUserGear(c *gin.Context) {
 		}
 
 		gearTopCategoryList = append(gearTopCategoryList, paramTopCategory)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Errorf("Row iteration error: %#v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
 	}
 
 	payload := models.ResponsePayload{
