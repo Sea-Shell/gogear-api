@@ -49,15 +49,19 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            import * as fs from 'fs';
-            import * as github from 'github';
+            const fs = require('fs');
 
-            const context = github.context;
-            const prNumber = context.payload.pull_request.number;
+            const prNumber = context.payload.pull_request?.number;
+            if (!prNumber) {
+              core.warning('No pull request context available to post a comment.');
+              return;
+            }
+
             const commentBody = fs.existsSync('semantic-release-check.log')
               ? fs.readFileSync('semantic-release-check.log', 'utf8')
               : 'Semantic release check failed';
-            github.issues.createComment({
+
+            await github.rest.issues.createComment({
               issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
