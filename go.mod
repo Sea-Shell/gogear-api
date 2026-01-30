@@ -11,7 +11,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/zap v1.27.1
 	golang.org/x/oauth2 v0.34.0
-	google.golang.org/api v0.263.0
+	google.golang.org/api v0.264.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
