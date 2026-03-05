@@ -3,7 +3,7 @@
     "semantic-release-dry-run": "npx semantic-release --dry-run"
   },
   "dependencies": {
-    "conventional-changelog-conventionalcommits": "^9.2.0",
+    "conventional-changelog-conventionalcommits": "^9.3.0",
     "semantic-release": "^25.0.3",
     "semantic-release-tags": "^2.0.0"
   },
