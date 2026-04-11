@@ -208,6 +208,40 @@ func GenericGet[model any](table string, id int, sql []string, db *sql.DB) (*mod
 	return &params, nil
 }
 
+func EnsureColumn(db *sql.DB, table string, column string, definition string) error {
+	pragmaQuery := fmt.Sprintf("PRAGMA table_info(%s)", table)
+	rows, err := db.Query(pragmaQuery)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var columnType string
+		var notNull int
+		var defaultValue sql.NullString
+		var primaryKey int
+
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return err
+		}
+
+		if name == column {
+			return nil
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition)
+	_, err = db.Exec(alterQuery)
+	return err
+}
+
 func GenericDelete[model any](table string, id int, db *sql.DB) (*model, error) {
 
 	var params model

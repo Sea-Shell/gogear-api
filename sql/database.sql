@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS user_gear_registrations (
     `userGearRegistrationId` INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
     `gearId` INTEGER NOT NULL,
     `userId` INTEGER NOT NULL,
+    `maxContainerWeight` INTEGER,
     FOREIGN KEY (gearId) REFERENCES gear(gearId),
     FOREIGN KEY (userId) REFERENCES users(userId)
 );

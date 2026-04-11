@@ -8,6 +8,9 @@ ALTER TABLE users ADD COLUMN userIsExternal INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE gear ADD COLUMN gearIsContainer INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE gear ADD COLUMN gearSizeDefinition TEXT;
 
+-- Persist per-container load limits on user registrations.
+ALTER TABLE user_gear_registrations ADD COLUMN maxContainerWeight INTEGER;
+
 -- Add icon metadata to top categories when migrating existing databases.
 ALTER TABLE gear_top_category ADD COLUMN topCategoryIcon TEXT DEFAULT 'spark';
 UPDATE gear_top_category

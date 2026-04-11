@@ -5,6 +5,7 @@ type UserGear struct {
 	UserGearRegistrationID *int64 `json:"usergear_registration_id" db:"user_gear_registrations.userGearRegistrationId"`
 	UserGearGearID         int64  `json:"usergear_gear_id" db:"user_gear_registrations.gearId"`
 	UserGearUserID         int64  `json:"usergear_user_id" db:"user_gear_registrations.userId"`
+	MaxContainerWeight     *int32 `json:"max_container_weight" db:"user_gear_registrations.maxContainerWeight"`
 
 	UserID       int64  `json:"user_id" db:"users.userId"`
 	UserUsername string `json:"user_username" db:"users.userUsername"`
@@ -41,10 +42,12 @@ type UserGearLink struct {
 	UserGearRegistrationID *int64 `json:"usergear_registration_id" db:"userGearRegistrationId"`
 	UserGearGearID         int64  `json:"usergear_gear_id" db:"gearId"`
 	UserGearUserID         int64  `json:"usergear_user_id" db:"userId"`
+	MaxContainerWeight     *int32 `json:"max_container_weight" db:"maxContainerWeight"`
 }
 
 // UserGearLinkNoID represents the link between a user and their gear without an ID.
 type UserGearLinkNoID struct {
-	UserGearGearID int64 `json:"usergear_gear_id" db:"gearId"`
-	UserGearUserID int64 `json:"usergear_user_id" db:"userId"`
+	UserGearGearID     int64  `json:"usergear_gear_id" db:"gearId"`
+	UserGearUserID     int64  `json:"usergear_user_id" db:"userId"`
+	MaxContainerWeight *int32 `json:"max_container_weight" db:"maxContainerWeight"`
 }
