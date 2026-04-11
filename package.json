@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "check:blocked-deps": "node ./scripts/check-blocked-packages.mjs",
     "semantic-release-dry-run": "npx semantic-release --dry-run"
   },
   "dependencies": {

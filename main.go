@@ -123,6 +123,10 @@ func main() {
 		log.Error(err)
 	}
 
+	if err := utils.EnsureColumn(db, "user_gear_registrations", "maxContainerWeight", "INTEGER"); err != nil {
+		log.Fatalf("Failed to ensure user_gear_registrations.maxContainerWeight exists: %v", err)
+	}
+
 	log.Infoln("Connected to database")
 	defer db.Close()
 

@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -410,6 +411,12 @@ func UpdateUserGear(c *gin.Context) {
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+	registrationID, err := strconv.Atoi(c.Param("usergear"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -418,7 +425,78 @@ func UpdateUserGear(c *gin.Context) {
 		return
 	}
 
-	err = utils.GenericUpdate[models.UserGearLink]("user_gear_registrations", data, db)
+	var payload models.UserGearLink
+	if err := json.Unmarshal(data, &payload); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	if payload.UserGearRegistrationID != nil && *payload.UserGearRegistrationID != int64(registrationID) {
+		c.JSON(http.StatusBadRequest, models.Error{Error: "request body registration ID does not match route parameter"})
+		return
+	}
+
+	existing, err := utils.GenericGet[models.UserGearLink]("user_gear_registrations", registrationID, nil, db)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if err == sql.ErrNoRows {
+			statusCode = http.StatusNotFound
+		}
+		c.JSON(statusCode, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	subjectAny, hasSubject := c.Get("user_id")
+	if !hasSubject {
+		c.JSON(http.StatusUnauthorized, models.Error{Error: "authentication context missing"})
+		log.Error("authentication context missing")
+		return
+	}
+
+	subject, _ := subjectAny.(string)
+	subject = strings.TrimSpace(subject)
+
+	isAdmin := false
+	if adminAny, ok := c.Get("user_is_admin"); ok {
+		if adminFlag, ok := adminAny.(bool); ok {
+			isAdmin = adminFlag
+		}
+	}
+
+	if !isAdmin {
+		subjectID, parseErr := strconv.Atoi(subject)
+		if parseErr != nil || subjectID != int(existing.UserGearUserID) {
+			c.JSON(http.StatusForbidden, models.Error{Error: "not allowed to update this registration"})
+			log.Error("not allowed to update this registration")
+			return
+		}
+	}
+
+	var rawPayload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &rawPayload); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	payload.UserGearRegistrationID = new(int64)
+	*payload.UserGearRegistrationID = int64(registrationID)
+	payload.UserGearGearID = existing.UserGearGearID
+	payload.UserGearUserID = existing.UserGearUserID
+	if _, hasMaxContainerWeight := rawPayload["max_container_weight"]; !hasMaxContainerWeight {
+		payload.MaxContainerWeight = existing.MaxContainerWeight
+	}
+
+	updatedData, err := json.Marshal(payload)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		log.Error(err.Error())
+		return
+	}
+
+	err = utils.GenericUpdate[models.UserGearLink]("user_gear_registrations", updatedData, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		log.Error(err.Error())

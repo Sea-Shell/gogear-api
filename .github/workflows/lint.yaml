@@ -28,6 +28,9 @@ jobs:
         with:
           node-version: latest
 
+      - name: Check blocked package versions
+        run: npm run check:blocked-deps
+
       - uses: actions/cache@v5.0.4
         with:
           path: |
