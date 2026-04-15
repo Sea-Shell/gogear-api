@@ -82,7 +82,7 @@ jobs:
           oauth-client-id: ${{ secrets.TS_ACTION_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_ACTION_CLIENT_SECRET }}
           tags: tag:github
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
         with:
           version: 'v1.33.4'
       # Do the deploy on K8s cluster set in the above context
