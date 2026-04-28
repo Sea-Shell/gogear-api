@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"strings"
 
+	yaml "github.com/goccy/go-yaml"
 	zap "go.uber.org/zap"
 	zapcore "go.uber.org/zap/zapcore"
-	yaml "gopkg.in/yaml.v3"
 )
 
 func GetLogLevel(level string) zapcore.Level {
