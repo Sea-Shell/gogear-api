@@ -11,7 +11,7 @@ import (
 
 	zap "go.uber.org/zap"
 	zapcore "go.uber.org/zap/zapcore"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 func GetLogLevel(level string) zapcore.Level {
