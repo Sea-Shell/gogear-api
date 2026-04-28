@@ -27,7 +27,7 @@ const (
 	configFile = "config.yaml"
 )
 
-var GoogleConf *oauth2.Config
+var googleConf *oauth2.Config
 
 func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
 	customCallerEncoder := func(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
@@ -51,6 +51,7 @@ func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
 	return zap.Must(cfg.Build()).Sugar()
 }
 
+// LogRequestsMiddleware is a Gin middleware that logs incoming HTTP requests using the provided logger.
 func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Log the request details
@@ -152,7 +153,7 @@ func main() {
 
 	router.Use(LogRequestsMiddleware(log))
 	router.Use(databaseMiddleware(db))
-	GoogleConf = &oauth2.Config{
+	googleConf = &oauth2.Config{
 		ClientID:     config.Auth.GoogleClientID,
 		ClientSecret: config.Auth.GoogleClientSecret,
 		RedirectURL:  config.Auth.GoogleRedirectURL,
@@ -163,12 +164,12 @@ func main() {
 	if strings.TrimSpace(config.Auth.JWTSecret) == "" {
 		log.Warn("JWT secret is empty; authentication will fail until configured")
 	}
-	if GoogleConf.ClientID == "" || GoogleConf.RedirectURL == "" {
-		log.Warnw("Google OAuth configuration incomplete", "client_id_set", GoogleConf.ClientID != "", "redirect_url", GoogleConf.RedirectURL)
+	if googleConf.ClientID == "" || googleConf.RedirectURL == "" {
+		log.Warnw("Google OAuth configuration incomplete", "client_id_set", googleConf.ClientID != "", "redirect_url", googleConf.RedirectURL)
 	}
 
 	router.Use(configMiddleware(config))
-	router.Use(oauthConfigMiddleware(GoogleConf))
+	router.Use(oauthConfigMiddleware(googleConf))
 
 	// API v1
 	swagger := router.Group("/swagger")
