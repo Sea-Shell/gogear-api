@@ -27,15 +27,15 @@ type googleCallbackRequest struct {
 
 // RefreshToken reissues a GoGear JWT using the current authenticated session.
 //
-//	@Summary  Refresh service token
-//	@Description  Exchanges a valid GoGear JWT for a new token with a fresh expiry
-//	@Tags     Auth
-//	@Produce  json
-//	@Security  BearerAuth
-//	@Success  200  {object}  map[string]interface{}
-//	@Failure  401  {object}  models.Error
-//	@Failure  500  {object}  models.Error
-//	@Router   /auth/refresh [post]
+//	@Summary		Refresh service token
+//	@Description	Exchanges a valid GoGear JWT for a new token with a fresh expiry
+//	@Tags			Auth
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	map[string]interface{}
+//	@Failure		401	{object}	models.Error
+//	@Failure		500	{object}	models.Error
+//	@Router			/auth/refresh [post]
 func RefreshToken(c *gin.Context) {
 	logger := c.MustGet("logger").(*zap.SugaredLogger)
 
@@ -118,20 +118,20 @@ func RefreshToken(c *gin.Context) {
 
 // GoogleAuthCallback handles Google OAuth callbacks and issues a JWT for the API.
 //
-//	@Summary  Google OAuth callback
-//	@Description  Validates the Google credential and returns a JWT for subsequent API calls
-//	@Tags     Auth
-//	@Accept   json
-//	@Produce  json
-//	@Param    request  body      googleCallbackRequest  false  "Callback payload"
-//	@Param    code     query     string                 false  "Authorization code"
-//	@Param    id_token query     string                 false  "Google ID token"
-//	@Success  200      {object}  map[string]interface{}
-//	@Failure  400      {object}  models.Error
-//	@Failure  401      {object}  models.Error
-//	@Failure  500      {object}  models.Error
-//	@Router   /auth/google/callback [post]
-//	@Router   /auth/google/callback [get]
+//	@Summary		Google OAuth callback
+//	@Description	Validates the Google credential and returns a JWT for subsequent API calls
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request		body		googleCallbackRequest	false	"Callback payload"
+//	@Param			code		query		string					false	"Authorization code"
+//	@Param			id_token	query		string					false	"Google ID token"
+//	@Success		200			{object}	map[string]interface{}
+//	@Failure		400			{object}	models.Error
+//	@Failure		401			{object}	models.Error
+//	@Failure		500			{object}	models.Error
+//	@Router			/auth/google/callback [post]
+//	@Router			/auth/google/callback [get]
 func GoogleAuthCallback(c *gin.Context) {
 	logger := c.MustGet("logger").(*zap.SugaredLogger)
 
@@ -442,12 +442,10 @@ func issueServiceToken(authConfig *models.Auth, user *models.User) (string, time
 
 	expiresAt := time.Now().Add(time.Duration(expiryMinutes) * time.Minute)
 
-	subject := ""
-	if user.UserID != nil {
-		subject = strconv.FormatInt(*user.UserID, 10)
-	} else if user.UserEmail != "" {
-		subject = user.UserEmail
+	if user == nil || user.UserID == nil {
+		return "", time.Time{}, errors.New("user ID required for JWT subject")
 	}
+	subject := strconv.FormatInt(*user.UserID, 10)
 
 	claims := jwt.RegisteredClaims{
 		Subject:   subject,

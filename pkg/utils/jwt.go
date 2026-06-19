@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Sea-Shell/gogear-api/pkg/models"
@@ -138,8 +139,16 @@ func JWTMiddleware() gin.HandlerFunc {
 			}
 		}
 
+		userID, err := strconv.ParseInt(claims.Subject, 10, 64)
+		if err != nil {
+			logger.Warnw("invalid subject in JWT", "subject", claims.Subject, "error", err)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, models.Error{Error: "invalid token: subject must be a numeric user ID"})
+			return
+		}
+
 		c.Set("jwt_claims", claims)
 		c.Set("user_id", claims.Subject)
+		c.Set("user_id_int64", userID)
 		c.Set("user_is_admin", userIsAdmin)
 		c.Next()
 	}
