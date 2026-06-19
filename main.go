@@ -4,6 +4,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -14,6 +15,9 @@ import (
 	utils "github.com/Sea-Shell/gogear-api/pkg/utils"
 
 	gin "github.com/gin-gonic/gin"
+	migrate "github.com/golang-migrate/migrate/v4"
+	sqlite3 "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -91,18 +95,43 @@ func oauthConfigMiddleware(oauth *oauth2.Config) gin.HandlerFunc {
 	}
 }
 
-// @title									GoGear API
-// @version								1.0
-// @description							This is the API of GoGear
-// @contact.name							API Support
-// @contact.email							support@sea-shell.no
-// @license.name							Apache 2.0
-// @license.url							http://www.apache.org/licenses/LICENSE-2.0.html
+// runMigrations applies pending golang-migrate migrations from the given directory.
+// Uses the already-open *sql.DB so the same SQLite connection is used.
+func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) error {
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("migration driver init: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationsPath,
+		"sqlite3",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("migration instance init: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration up: %w", err)
+	}
+
+	log.Infoln("Database migrations applied successfully")
+	return nil
+}
+
+// @title						GoGear API
+// @version					1.0
+// @description				This is the API of GoGear
+// @contact.name				API Support
+// @contact.email				support@sea-shell.no
+// @license.name				Apache 2.0
+// @license.url				http://www.apache.org/licenses/LICENSE-2.0.html
 //
 // @securityDefinitions.apikey	BearerAuth
 // @in							header
 // @name						Authorization
-// @description					Include a server-issued JWT as `Bearer <token>`. Endpoints may require either the client or admin audience.
+// @description				Include a server-issued JWT as `Bearer <token>`. Endpoints may require either the client or admin audience.
 func main() {
 	configFile := flag.String("config", configFile, "Config file")
 
@@ -124,6 +153,12 @@ func main() {
 		log.Error(err)
 	}
 
+	if err := runMigrations(db, "migrations", log); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
+	// Legacy bootstrap: ensure columns that migrations do not manage.
+	// Keep for backward compatibility with databases created before golang-migrate.
 	if err := utils.EnsureColumn(db, "user_gear_registrations", "maxContainerWeight", "INTEGER"); err != nil {
 		log.Fatalf("Failed to ensure user_gear_registrations.maxContainerWeight exists: %v", err)
 	}
@@ -194,6 +229,11 @@ func main() {
 	authGroup.POST("/google/callback", endpoints.GoogleAuthCallback)
 	authGroup.POST("/refresh", utils.JWTMiddleware(), endpoints.RefreshToken)
 
+	// Public loadout routes (no JWT required)
+	publicLoadoutGroup := router.Group("/api/v1/public")
+	publicLoadoutGroup.GET("/loadout/:slug", endpoints.GetPublicLoadout)
+	publicLoadoutGroup.GET("/loadout/:slug/items", endpoints.GetPublicLoadoutItems)
+
 	// User endpoints
 	userGroup.GET("/list", endpoints.ListUser)
 	userGroup.GET("/:user/get", endpoints.GetUser)
@@ -242,6 +282,21 @@ func main() {
 	manufactureGroup.POST("/:manufacture/update", endpoints.UpdateManufacture)
 	manufactureGroup.DELETE("/:manufacture/delete", endpoints.DeleteManufature)
 	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
+
+	// Loadout endpoints (protected)
+	loadoutGroup := v1.Group("/loadout")
+	loadoutGroup.PUT("/insert", endpoints.InsertLoadout)
+	loadoutGroup.GET("/list", endpoints.ListLoadouts)
+	loadoutGroup.GET("/:loadout/get", endpoints.GetLoadout)
+	loadoutGroup.POST("/:loadout/update", endpoints.UpdateLoadout)
+	loadoutGroup.DELETE("/:loadout/delete", endpoints.DeleteLoadout)
+	loadoutGroup.POST("/:loadout/import", endpoints.ImportLoadout)
+
+	// Loadout Item endpoints (protected, nested under loadout)
+	loadoutGroup.PUT("/:loadout/item/insert", endpoints.InsertLoadoutItem)
+	loadoutGroup.GET("/:loadout/item/list", endpoints.ListLoadoutItems)
+	loadoutGroup.POST("/:loadout/item/:item/update", endpoints.UpdateLoadoutItem)
+	loadoutGroup.DELETE("/:loadout/item/:item/delete", endpoints.DeleteLoadoutItem)
 
 	// Swagger API documentation
 	swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

@@ -22,22 +22,22 @@ import (
 
 // ListUserGear list the users registered gear
 //
-// @Summary		List users gear
-// @Description	Get a list a users gear
-// @Security		BearerAuth
-// @Tags			User gear
-// @Accept			json
-// @Produce		json
-// @Param			user		path		int		true	"Unique ID of user you want to get the Gear of"
-// @Param			page		query		int		false	"Page number"				default(1)
-// @Param			limit		query		int		false	"Number of items per page"	default(30)
-// @Param			topCategory	query		[]int	false	"top categories"			collectionFormat(multi)
-// @Param			category	query		[]int	false	"sub categories"			collectionFormat(multi)
-// @Param			manufacture	query		[]int	false	"manufacturers"				collectionFormat(multi)
-// @Param			container			query		string		false		"show container gear only. valid values are true, false, all"	default(all)
-// @Success		200			{object}	models.ResponsePayload{items=[]models.UserGear}
-// @Failure		default		{object}	models.Error
-// @Router			/api/v1/usergear/{user}/list [get]
+//	@Summary		List users gear
+//	@Description	Get a list a users gear
+//	@Security		BearerAuth
+//	@Tags			User gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			user		path		int		true	"Unique ID of user you want to get the Gear of"
+//	@Param			page		query		int		false	"Page number"													default(1)
+//	@Param			limit		query		int		false	"Number of items per page"										default(30)
+//	@Param			topCategory	query		[]int	false	"top categories"												collectionFormat(multi)
+//	@Param			category	query		[]int	false	"sub categories"												collectionFormat(multi)
+//	@Param			manufacture	query		[]int	false	"manufacturers"													collectionFormat(multi)
+//	@Param			container	query		string	false	"show container gear only. valid values are true, false, all"	default(all)
+//	@Success		200			{object}	models.ResponsePayload{items=[]models.UserGear}
+//	@Failure		default		{object}	models.Error
+//	@Router			/api/v1/usergear/{user}/list [get]
 func ListUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -297,15 +297,15 @@ func ListUserGear(c *gin.Context) {
 
 // GetUserGear retrives the users full gear list
 //
-// @Summary		Get user registered gear with ID
-// @Description	Get user registeredgear spessific to ID
-// @Security		BearerAuth
-// @Tags			User gear
-// @Accept			json
-// @Produce		json
-// @Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
-// @Success		200			{object}	models.UserGear	"desc"
-// @Router			/api/v1/usergear/registration/{usergear}/get [get]
+//	@Summary		Get user registered gear with ID
+//	@Description	Get user registeredgear spessific to ID
+//	@Security		BearerAuth
+//	@Tags			User gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			usergear	path		int				true	"Unique ID of user registered gear you want to get"
+//	@Success		200			{object}	models.UserGear	"desc"
+//	@Router			/api/v1/usergear/registration/{usergear}/get [get]
 func GetUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -362,15 +362,15 @@ func GetUserGear(c *gin.Context) {
 
 // InsertUserGear puts gear on the users gear list
 //
-// @Summary		Insert user registered gear
-// @Description	Insert user registered gear with corresponding values
-// @Security		BearerAuth
-// @Tags			User gear
-// @Accept			json
-// @Produce		json
-// @Param			request	body		models.UserGearLinkNoID	true	"query params"
-// @Success		200		{object}	models.Status			"status: success when all goes well"
-// @Router			/api/v1/usergear/insert [put]
+//	@Summary		Insert user registered gear
+//	@Description	Insert user registered gear with corresponding values
+//	@Security		BearerAuth
+//	@Tags			User gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.UserGearLinkNoID	true	"query params"
+//	@Success		200		{object}	models.Status			"status: success when all goes well"
+//	@Router			/api/v1/usergear/insert [put]
 func InsertUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -396,16 +396,16 @@ func InsertUserGear(c *gin.Context) {
 
 // UpdateUserGear updates a record of user registered gear
 //
-// @Summary		Update user registered gear with ID
-// @Description	Update user registered gear identified by ID
-// @Security		BearerAuth
-// @Tags			User gear
-// @Accept			json
-// @Produce		json
-// @Param			usergear	path		int					true	"Unique ID of user registered gear you want to get"
-// @Param			request		body		models.UserGearLink	true	"query params"
-// @Success		200			{object}	models.Status		"status: success when all goes well"
-// @Router			/api/v1/usergear/registration/{usergear}/update [post]
+//	@Summary		Update user registered gear with ID
+//	@Description	Update user registered gear identified by ID
+//	@Security		BearerAuth
+//	@Tags			User gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			usergear	path		int					true	"Unique ID of user registered gear you want to get"
+//	@Param			request		body		models.UserGearLink	true	"query params"
+//	@Success		200			{object}	models.Status		"status: success when all goes well"
+//	@Router			/api/v1/usergear/registration/{usergear}/update [post]
 func UpdateUserGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -508,16 +508,16 @@ func UpdateUserGear(c *gin.Context) {
 
 // DeleteUserGearRegistration deletes a registered gear item from users list
 //
-// @Summary		Delete userGear with ID
-// @Description	Delete userGear with corresponding ID value
-// @Security		BearerAuth
-// @Tags			User gear
-// @Accept			json
-// @Produce		json
-// @Param			userGear	path		int				true	"Unique ID of userGear you want to update"
-// @Success		200			{object}	models.Status	"status: success when all goes well"
-// @Failure		default		{object}	models.Error
-// @Router			/api/v1/usergear/registration/{usergear}/delete [delete]
+//	@Summary		Delete userGear with ID
+//	@Description	Delete userGear with corresponding ID value
+//	@Security		BearerAuth
+//	@Tags			User gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			userGear	path		int				true	"Unique ID of userGear you want to update"
+//	@Success		200			{object}	models.Status	"status: success when all goes well"
+//	@Failure		default		{object}	models.Error
+//	@Router			/api/v1/usergear/registration/{usergear}/delete [delete]
 func DeleteUserGearRegistration(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

@@ -49,15 +49,11 @@ definitions:
         type: integer
       manufacture_name:
         type: string
+      top_category_icon:
+        type: string
       top_category_id:
         type: integer
       top_category_name:
-        type: string
-      top_category_icon:
-        type: string
-      top_category_icon:
-        type: string
-      top_category_icon:
         type: string
     type: object
   models.Gear:
@@ -122,6 +118,8 @@ definitions:
         type: integer
       manufacture_name:
         type: string
+      top_category_icon:
+        type: string
       top_category_id:
         type: integer
       top_category_name:
@@ -129,11 +127,11 @@ definitions:
     type: object
   models.GearTopCategory:
     properties:
+      top_category_icon:
+        type: string
       top_category_id:
         type: integer
       top_category_name:
-        type: string
-      top_category_icon:
         type: string
     type: object
   models.Health:
@@ -145,6 +143,103 @@ definitions:
       status:
         type: string
       updated:
+        type: string
+    type: object
+  models.Loadout:
+    properties:
+      created_at:
+        type: string
+      loadout_description:
+        type: string
+      loadout_id:
+        type: integer
+      loadout_is_public:
+        type: boolean
+      loadout_name:
+        type: string
+      loadout_slug:
+        type: string
+      total_weight:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.LoadoutItem:
+    properties:
+      gear_id:
+        type: integer
+      loadout_id:
+        type: integer
+      loadout_item_id:
+        type: integer
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  models.LoadoutItemNoID:
+    properties:
+      gear_id:
+        type: integer
+      loadout_id:
+        type: integer
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  models.LoadoutItemUpdate:
+    properties:
+      loadout_item_id:
+        type: integer
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  models.LoadoutNoID:
+    properties:
+      loadout_description:
+        type: string
+      loadout_is_public:
+        type: boolean
+      loadout_name:
+        type: string
+      loadout_slug:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.LoadoutPublic:
+    properties:
+      created_at:
+        type: string
+      loadout_description:
+        type: string
+      loadout_id:
+        type: integer
+      loadout_name:
+        type: string
+      loadout_slug:
+        type: string
+      total_weight:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.LoadoutUpdate:
+    properties:
+      loadout_description:
+        type: string
+      loadout_id:
+        type: integer
+      loadout_is_public:
+        type: boolean
+      loadout_name:
+        type: string
+      loadout_slug:
         type: string
     type: object
   models.Manufacture:
@@ -233,6 +328,10 @@ definitions:
         type: integer
       manufacture_name:
         type: string
+      max_container_weight:
+        type: integer
+      top_category_icon:
+        type: string
       top_category_id:
         type: integer
       top_category_name:
@@ -252,6 +351,8 @@ definitions:
     type: object
   models.UserGearLink:
     properties:
+      max_container_weight:
+        type: integer
       usergear_gear_id:
         type: integer
       usergear_registration_id:
@@ -261,6 +362,8 @@ definitions:
     type: object
   models.UserGearLinkNoID:
     properties:
+      max_container_weight:
+        type: integer
       usergear_gear_id:
         type: integer
       usergear_user_id:
@@ -320,6 +423,33 @@ paths:
       summary: Delete category with ID
       tags:
       - Category
+  /api/v1/category/{category}/get:
+    get:
+      consumes:
+      - application/json
+      description: Get category spessific to ID
+      parameters:
+      - description: Unique ID of category you want to get
+        in: path
+        name: category
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: desc
+          schema:
+            $ref: '#/definitions/models.GearCategory'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Get category with ID
+      tags:
+      - Category
   /api/v1/category/{category}/update:
     post:
       consumes:
@@ -352,33 +482,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update category with ID
-      tags:
-      - Category
-  /api/v1/category/{categoryID}/get:
-    get:
-      consumes:
-      - application/json
-      description: Get category spessific to ID
-      parameters:
-      - description: Unique ID of category you want to get
-        in: path
-        name: categoryID
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: desc
-          schema:
-            $ref: '#/definitions/models.GearCategory'
-        default:
-          description: ""
-          schema:
-            $ref: '#/definitions/models.Error'
-      security:
-      - BearerAuth: []
-      summary: Get category with ID
       tags:
       - Category
   /api/v1/category/insert:
@@ -753,7 +856,7 @@ paths:
         name: searchString
         required: true
         type: string
-      - description: 'Type of searhc method. valid choices are: startswith, contains,
+      - description: 'Type of search method. valid choices are: startswith, contains,
           endswith'
         in: query
         name: searchType
@@ -782,6 +885,382 @@ paths:
       summary: Search for gear
       tags:
       - Gear
+  /api/v1/loadout/{loadout}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a loadout by ID
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Status'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete loadout
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/get:
+    get:
+      consumes:
+      - application/json
+      description: Get a single loadout by ID
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Loadout'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Get loadout
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/import:
+    post:
+      consumes:
+      - application/json
+      description: Import gear items into a loadout
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Gear IDs to import
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            items:
+              format: int64
+              type: integer
+            type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Import gear into loadout
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/item/{item}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Remove an item from a loadout
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Item ID
+        in: path
+        name: item
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete loadout item
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/item/{item}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update a loadout item
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Item ID
+        in: path
+        name: item
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutItemUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Update loadout item
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/item/insert:
+    put:
+      consumes:
+      - application/json
+      description: Add gear to a loadout
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Item data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutItemNoID'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoadoutItem'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Insert loadout item
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/item/list:
+    get:
+      consumes:
+      - application/json
+      description: List all items in a loadout
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoadoutItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: List loadout items
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/update:
+    post:
+      consumes:
+      - application/json
+      description: Update an existing loadout
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Updated loadout data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Status'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Update loadout
+      tags:
+      - Loadouts
+  /api/v1/loadout/insert:
+    put:
+      consumes:
+      - application/json
+      description: Create a new loadout for the authenticated user
+      parameters:
+      - description: Loadout data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutNoID'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Loadout'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Insert loadout
+      tags:
+      - Loadouts
+  /api/v1/loadout/list:
+    get:
+      consumes:
+      - application/json
+      description: Get all loadouts for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Loadout'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: List loadouts
+      tags:
+      - Loadouts
   /api/v1/manufacture/{manufacture}/delete:
     delete:
       consumes:
@@ -945,6 +1424,75 @@ paths:
       summary: List manufacture
       tags:
       - Manufacture
+  /api/v1/public/loadout/{slug}:
+    get:
+      consumes:
+      - application/json
+      description: Get a public loadout by slug. Only returns loadouts with loadout_is_public=true.
+        No authentication required.
+      parameters:
+      - description: Loadout slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoadoutPublic'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: Get public loadout
+      tags:
+      - Loadouts
+  /api/v1/public/loadout/{slug}/items:
+    get:
+      consumes:
+      - application/json
+      description: List items for a public loadout by slug. No authentication required.
+      parameters:
+      - description: Loadout slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoadoutItem'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      summary: List public loadout items
+      tags:
+      - Loadouts
   /api/v1/topCategory/{topCategory}/delete:
     delete:
       consumes:
@@ -1410,7 +1958,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: search by users username (this is case insensitive and wildcard)
+      - description: search by user's username (this is case insensitive and wildcard)
         in: query
         name: user
         type: string
