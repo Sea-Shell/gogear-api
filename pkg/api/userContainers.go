@@ -21,17 +21,17 @@ import (
 
 // ListUserGearInContainer list all gear items registered to a user inside a container
 //
-// @Summary List all items inside a container
-// @Description List all items inside a container registered to a user
-// @Security 	BearerAuth
-// @Tags			User container
-// @Accept 		json
-// @Produce 	json
-// @Param			page										query		int		false	"Page number"				default(1)
-// @Param			limit										query		int		false	"Number of items per page"	default(30)
-// @Param			container	path		int				true	"Unique ID of userGear you want to update"
-// @Success		200			{object}	models.ResponsePayload{items=[]models.FullGear}
-// @Router /api/v1/container/{container}/list [get]
+//	@Summary		List all items inside a container
+//	@Description	List all items inside a container registered to a user
+//	@Security		BearerAuth
+//	@Tags			User container
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int	false	"Page number"				default(1)
+//	@Param			limit		query		int	false	"Number of items per page"	default(30)
+//	@Param			container	path		int	true	"Unique ID of userGear you want to update"
+//	@Success		200			{object}	models.ResponsePayload{items=[]models.FullGear}
+//	@Router			/api/v1/container/{container}/list [get]
 func ListUserGearInContainer(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -250,15 +250,15 @@ func ListUserGearInContainer(c *gin.Context) {
 
 // InsertContainer puts gear on the users gear list
 //
-// @Summary		Insert user registered gear
-// @Description	Insert user registered gear with corresponding values
-// @Security		BearerAuth
-// @Tags			User container
-// @Accept			json
-// @Produce		json
-// @Param			request	body		models.UserContainerNoID	true	"query params"
-// @Success		200		{object}	models.Status			"status: success when all goes well"
-// @Router			/api/v1/container/insert [put]
+//	@Summary		Insert user registered gear
+//	@Description	Insert user registered gear with corresponding values
+//	@Security		BearerAuth
+//	@Tags			User container
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.UserContainerNoID	true	"query params"
+//	@Success		200		{object}	models.Status				"status: success when all goes well"
+//	@Router			/api/v1/container/insert [put]
 func InsertContainer(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -284,16 +284,16 @@ func InsertContainer(c *gin.Context) {
 
 // DeleteContainerRegistration deletes a registered container gear item from users container gear
 //
-// @Summary		Delete user container content with ID
-// @Description	Delete user container content with corresponding ID value
-// @Security		BearerAuth
-// @Tags			User container
-// @Accept			json
-// @Produce		json
-// @Param			container	path		int				true	"Unique ID of userGear you want to update"
-// @Success		200			{object}	models.Status	"status: success when all goes well"
-// @Failure		default		{object}	models.Error
-// @Router			/api/v1/container/{container}/delete [delete]
+//	@Summary		Delete user container content with ID
+//	@Description	Delete user container content with corresponding ID value
+//	@Security		BearerAuth
+//	@Tags			User container
+//	@Accept			json
+//	@Produce		json
+//	@Param			container	path		int				true	"Unique ID of userGear you want to update"
+//	@Success		200			{object}	models.Status	"status: success when all goes well"
+//	@Failure		default		{object}	models.Error
+//	@Router			/api/v1/container/{container}/delete [delete]
 func DeleteContainerRegistration(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 

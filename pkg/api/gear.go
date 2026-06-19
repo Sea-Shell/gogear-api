@@ -21,22 +21,22 @@ import (
 
 // ListGear lists gear in the database
 //
-// @Summary		List gear
-// @Description	Get a list of gear items
-// @Security		BearerAuth
-// @Tags			Gear
-// @Accept			json
-// @Produce		json
-// @Param			page			    query		int			  false	"Page number"				default(1)
-// @Param			limit			    query		int			  false	"Number of items per page"	default(30)
-// @Param			category		  query		string		false	"Gear category"
-// @Param			topCategory		query		string		false	"Top gear category"
-// @Param			manufacturer	query		string		false	"Gear manufacturer"
-// @Param			collection		query		[]string	false	"string collection"	collectionFormat(multi)
-// @Param			container			query	  bool      false	"string collection"	default(false)
-// @Success		200				{object}	models.ResponsePayload{items=[]models.GearListItem}
-// @Failure		default			{object}	models.Error
-// @Router			/api/v1/gear/list [get]
+//	@Summary		List gear
+//	@Description	Get a list of gear items
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			page			query		int			false	"Page number"				default(1)
+//	@Param			limit			query		int			false	"Number of items per page"	default(30)
+//	@Param			category		query		string		false	"Gear category"
+//	@Param			topCategory		query		string		false	"Top gear category"
+//	@Param			manufacturer	query		string		false	"Gear manufacturer"
+//	@Param			collection		query		[]string	false	"string collection"	collectionFormat(multi)
+//	@Param			container		query		bool		false	"string collection"	default(false)
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearListItem}
+//	@Failure		default			{object}	models.Error
+//	@Router			/api/v1/gear/list [get]
 func ListGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -233,19 +233,19 @@ func ListGear(c *gin.Context) {
 
 // SearchGear is a function to search for gear items
 //
-// @Summary		Search for gear
-// @Description	Get a list of gear items based on search patterns
-// @Security		BearerAuth
-// @Tags				Gear
-// @Accept			json
-// @Produce			json
-// @Param				page			    query		int			  false	"Page number"				default(1)
-// @Param				limit			    query		int			  false	"Number of items per page"	default(30)
-// @Param				searchString	query		string		true	"String to search for"
-// @Param				searchType		query		string		true  "Type of search method. valid choices are: startswith, contains, endswith"
-// @Success			200				{object}	models.ResponsePayload{items=[]models.GearListItem}
-// @Failure			default			{object}	models.Error
-// @Router			/api/v1/gear/search [get]
+//	@Summary		Search for gear
+//	@Description	Get a list of gear items based on search patterns
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			page			query		int		false	"Page number"				default(1)
+//	@Param			limit			query		int		false	"Number of items per page"	default(30)
+//	@Param			searchString	query		string	true	"String to search for"
+//	@Param			searchType		query		string	true	"Type of search method. valid choices are: startswith, contains, endswith"
+//	@Success		200				{object}	models.ResponsePayload{items=[]models.GearListItem}
+//	@Failure		default			{object}	models.Error
+//	@Router			/api/v1/gear/search [get]
 func SearchGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -439,16 +439,16 @@ func SearchGear(c *gin.Context) {
 
 // GetGear gets spessific gear based on ID
 //
-// @Summary		Get gear with ID
-// @Description	Get gear spessific to ID
-// @Security		BearerAuth
-// @Tags			Gear
-// @Accept			json
-// @Produce		json
-// @Param			gear	path		int				true	"Unique ID of Gear you want to get"
-// @Success		200		{object}	models.FullGear	"desc"
-// @Failure		default	{object}	models.Error
-// @Router			/api/v1/gear/{gear}/get [get]
+//	@Summary		Get gear with ID
+//	@Description	Get gear spessific to ID
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
+//	@Success		200		{object}	models.FullGear	"desc"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/gear/{gear}/get [get]
 func GetGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -480,16 +480,16 @@ func GetGear(c *gin.Context) {
 
 // InsertGear insert new gear according to spessification
 //
-// @Summary		Insert new gear
-// @Description	Insert new gear with corresponding values
-// @Security		BearerAuth
-// @Tags			Gear
-// @Accept			json
-// @Produce		json
-// @Param			request	body		models.Gear	true	"query params"	test
-// @Success		200		{object}	models.Gear	"status: success when all goes well"
-// @Failure		default	{object}	models.Error
-// @Router			/api/v1/gear/insert [put]
+//	@Summary		Insert new gear
+//	@Description	Insert new gear with corresponding values
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.Gear	true	"query params"	test
+//	@Success		200		{object}	models.Gear	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/gear/insert [put]
 func InsertGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -515,17 +515,17 @@ func InsertGear(c *gin.Context) {
 
 // UpdateGear updates existing gear
 //
-// @Summary		Update gear with ID
-// @Description	Update gear identified by ID
-// @Security		BearerAuth
-// @Tags			Gear
-// @Accept			json
-// @Produce		json
-// @Param			gear	path		int				true	"Unique ID of Gear you want to get"
-// @Param			request	body		models.Gear		true	"query params"	test
-// @Success		200		{object}	models.Status	"status: success when all goes well"
-// @Failure		default	{object}	models.Error
-// @Router			/api/v1/gear/{gear}/update [post]
+//	@Summary		Update gear with ID
+//	@Description	Update gear identified by ID
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
+//	@Param			request	body		models.Gear		true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/gear/{gear}/update [post]
 func UpdateGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
@@ -551,16 +551,16 @@ func UpdateGear(c *gin.Context) {
 
 // DeleteGear delets gear based on ID
 //
-// @Summary		Delete gear with ID
-// @Description	Delete gear with corresponding ID value
-// @Security		BearerAuth
-// @Tags			Gear
-// @Accept			json
-// @Produce		json
-// @Param			gear	path		int				true	"Unique ID of gear you want to delete"
-// @Success		200		{object}	models.Status	"status: success when all goes well"
-// @Failure		default	{object}	models.Error
-// @Router			/api/v1/gear/{gear}/delete [delete]
+//	@Summary		Delete gear with ID
+//	@Description	Delete gear with corresponding ID value
+//	@Security		BearerAuth
+//	@Tags			Gear
+//	@Accept			json
+//	@Produce		json
+//	@Param			gear	path		int				true	"Unique ID of gear you want to delete"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/gear/{gear}/delete [delete]
 func DeleteGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
