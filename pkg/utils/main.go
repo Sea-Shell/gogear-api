@@ -141,11 +141,20 @@ func GenericInsert[model any](table string, data []byte, db *sql.DB) (*model, er
 	}
 
 	var params model
-	fields := GetDBFieldNames(reflect.TypeOf(params))
+	paramsType := reflect.TypeOf(params)
+	fields := GetDBFieldNames(paramsType)
 	values := GetStructFieldValues(body)
 
-	fields = append(fields[:0], fields[1:]...)
-	values = append(values[:0], values[1:]...)
+	// Only skip the first field if it is a pointer type.
+	// In this codebase auto-increment primary-key fields are *int64 (pointer)
+	// while regular relational fields (userId, loadoutId etc.) are int64 (value).
+	// Models such as LoadoutNoID and LoadoutItemNoID intentionally omit the
+	// auto-increment field, so their first field is a regular value — it must NOT
+	// be removed from the INSERT.
+	if paramsType.Field(0).Type.Kind() == reflect.Ptr {
+		fields = append(fields[:0], fields[1:]...)
+		values = append(values[:0], values[1:]...)
+	}
 
 	fieldString := strings.Join(fields, ",")
 	valuePlaceHolders := strings.Repeat("?, ", len(values)-1) + "?"
