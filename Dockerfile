@@ -54,6 +54,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo                /usr/share/zoneinfo
 COPY --from=builder /app/gogear-api                    /app/gogear-api
 COPY --from=builder /bin/sh                            /bin/sh
+COPY migrations                                         /app/migrations
 
 USER abc:abc
 
