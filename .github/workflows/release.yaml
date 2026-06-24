@@ -72,7 +72,7 @@ jobs:
           ref: refs/tags/${{ needs.release.outputs.git-tag }}
           fetch-depth: 0
       - name: Kubeconfig context
-        uses: azure/k8s-set-context@89b837d75b40a7bd2ddafde837473c212db8b313 # v5
+        uses: azure/k8s-set-context@8698eba2499e9012f0d5085f8798077cce4bc526 # v5
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.K8S_KONFIG }}
