@@ -3,10 +3,19 @@ type: Log
 title: Requirements change log
 description: Chronological record of changes to the GoGear API requirements bundle.
 tags: [log]
-timestamp: 2026-11-21T00:00:00Z
+timestamp: 2026-11-22T00:00:00Z
 ---
 
 # Requirements change log
+
+## 2026-11-22
+
+- **Amendment:** The product owner stated that the category or sub-category, not the gear item, decides whether something is a container ([anchor decision D11](/docs/anchors/access-control-and-identity.md); detailed rules adopted on General's proposal, open to owner change). Requirement text changed; nothing of it is implemented yet:
+  - New [BR-021](/docs/requirements/requirements/br-021-container-capability-from-category.md): admins set container capability on top categories and sub-categories; a sub-category inherits its top category's setting unless it has its own; gear container status is derived from its sub-category. Provisional defaults P-13 to P-16.
+  - [BR-020](/docs/requirements/requirements/br-020-container-nesting-consistency.md): AC-1 now allows new contents only in registrations of container-capable gear (409 otherwise, P-17); AC-5 orders that 409 after the self-link 400 and before the other 409s; statement, terms, AC-2 example, AC-8 and verification updated. **P-11 is superseded**: it read D9 as "anything can be a container", which the owner says was a misunderstanding.
+  - [BR-001](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md): new AC-6, the container settings are admin-only catalog data.
+  - [BR-013](/docs/requirements/requirements/br-013-container-links-owner-scoped.md): terms point to BR-021.
+  - [Index](/docs/requirements/index.md): BR-021 row, terms, P-11 marked superseded, P-13 to P-17 added, Q-4 and wave 7 notes updated.
 
 ## 2026-11-21
 

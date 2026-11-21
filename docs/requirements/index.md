@@ -6,9 +6,9 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, BR-001 (admin-only catalog) as of wave 4, and BR-003 to BR-005 (Google identity binding) as of wave 5; BR-002 is planned, not implemented. The follow-up decisions D6 to D10 of the same day add BR-019 (permanent first admin) and BR-020 (container nesting), and amend BR-004, BR-006, BR-008 to BR-010, BR-012, BR-013 and BR-018. Wave 7 implements BR-019, BR-020 and the amended parts of BR-004 (AC-9), BR-008 to BR-010 and BR-018. Wave 6 adds the database integrity that backs these rules (foreign keys, container-link and quantity constraints) and a required Go CI gate. The engineering review of revision `6fb972b` found most of them violated. Performance and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, BR-001 (admin-only catalog) as of wave 4, and BR-003 to BR-005 (Google identity binding) as of wave 5; BR-002 is planned, not implemented. The follow-up decisions D6 to D10 of the same day add BR-019 (permanent first admin) and BR-020 (container nesting), and amend BR-004, BR-006, BR-008 to BR-010, BR-012, BR-013 and BR-018. Wave 7 implements BR-019, BR-020 and the amended parts of BR-004 (AC-9), BR-008 to BR-010 and BR-018. Decision D11 of 2026-11-22 adds BR-021 (the catalog category decides whether gear can be a container) and amends BR-020 AC-1 and AC-5 and BR-001 (AC-6); these changes are not implemented. Wave 6 adds the database integrity that backs these rules (foreign keys, container-link and quantity constraints) and a required Go CI gate. The engineering review of revision `6fb972b` found most of them violated. Performance and API redesign findings from the same review are out of scope.
 
-**Choices the product owner may still change:** the provisional defaults P-1 to P-12 below, and the edited-email rule of BR-004 AC-8 and AC-9, which was adopted on General's recommendation without an explicit owner choice.
+**Choices the product owner may still change:** the provisional defaults P-1 to P-10 and P-12 to P-17 below (P-11 is superseded), the D11 container rules adopted on General's proposal, and the edited-email rule of BR-004 AC-8 and AC-9, which was adopted on General's recommendation without an explicit owner choice.
 
 **Context, not a requirement:** At the time of writing there are two registered users, and Google OAuth is limited to test users, so there is no live exposure. All stored data is generated test data, not real user data, so preserving existing data is not a product obligation (anchor context note). This adds no requirement.
 
@@ -22,13 +22,15 @@
 - **Google subject (`sub`):** Google's stable account identifier in a validated ID token.
 - **Service token:** the GoGear JWT the API issues at sign-in and refresh. It is not a Google token.
 - **Permanent admin:** the one account designated as the first admin in BR-019. It can never lose admin status or be deleted through the API.
+- **Top category, sub-category:** the two levels of catalog classification (`gear_top_category`, `gear_category`). Every sub-category belongs to one top category; every gear item names one of each.
+- **Container-capable gear:** gear whose sub-category is a container category, directly or inherited from its top category (BR-021). Only registrations of such gear can receive new contents (BR-020).
 - **Email:** profile data only. It identifies an account only in the one-time backfill match of BR-004 (anchor decision D7).
 
 ## Behavioral requirements
 
 | ID | Requirement | Decision | Review finding |
 |---|---|---|---|
-| BR-001 | [Catalog changes are admin-only](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md) | D1 | SEC-10 |
+| BR-001 | [Catalog changes are admin-only](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md) — AC-6 (container settings, D11) not implemented | D1, D11 | SEC-10 |
 | BR-002 | [Catalog contributions require admin approval — **planned, not implemented**](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md) | D1 | — |
 | BR-003 | [Google sign-in identifies accounts by Google subject only](/docs/requirements/requirements/br-003-google-sign-in-resolves-by-subject.md) | D2 | SEC-08 |
 | BR-004 | [Legacy accounts get their Google subject filled in once, by verified email](/docs/requirements/requirements/br-004-legacy-account-subject-backfill.md) | D2 | SEC-08 |
@@ -47,7 +49,8 @@
 | BR-017 | [Identity and privilege values in request bodies never take effect](/docs/requirements/requirements/br-017-client-identity-fields-never-take-effect.md) | D3, D4 | SEC-01, SEC-03, SEC-05 |
 | BR-018 | [Refused requests change nothing and use a defined status](/docs/requirements/requirements/br-018-denial-outcomes.md) | D3, D4 | — |
 | BR-019 | [The first admin is a permanent admin](/docs/requirements/requirements/br-019-permanent-first-admin.md) — **implemented (wave 7)** | D6 | — |
-| BR-020 | [Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — **implemented (wave 7)** | D9 | SEC-06 |
+| BR-020 | [Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — **implemented (wave 7); AC-1 and AC-5 amended by D11, not implemented** | D9, D11 | SEC-06 |
+| BR-021 | [The catalog category decides whether gear can be a container](/docs/requirements/requirements/br-021-container-capability-from-category.md) — **not implemented** | D11, D1 | — |
 
 ## Obligation contracts
 
@@ -110,10 +113,10 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - **Permanent admin (BR-019):** migration 000007 adds `permanent_admin`, a single-row table with no foreign key. It is filled with the lowest-ID admin when the migration runs, and by triggers with the first account that becomes admin if there was none. The designation never moves, and an account removed outside the API is not replaced. `POST /users/{user}/admin` and `DELETE /users/{user}/delete` check it in the same transaction as the change: revoking is 403 for every caller, granting is a no-op 200, deleting is 403. Other admins have no protection (P-10).
   - **Clearing the edited-email mark (BR-004 AC-9):** `POST /api/v1/users/{user}/email-edited/clear`, admin only. It logs the acting admin and the target.
   - **Profile update (BR-008):** the existing statement already met AC-4 to AC-6; wave 7 only adds tests.
-  - **Containers (BR-020):** any registration may hold any other (the catalog flag gates nothing; it stays the `container` list filter). A second container or a cycle at any depth is 409, a self-link stays 400 and is checked first, and ownership (404) comes before both. The checks run in the insert transaction, and the database repeats them (unique index on the content column, cycle trigger), so concurrent requests cannot break them.
+  - **Containers (BR-020):** any registration may hold any other (the catalog flag gates nothing; it stays the `container` list filter). *Superseded on 2026-11-22 by D11: only registrations of container-capable gear may receive contents (BR-020 AC-1, BR-021); not yet implemented.* A second container or a cycle at any depth is 409, a self-link stays 400 and is checked first, and ownership (404) comes before both. The checks run in the insert transaction, and the database repeats them (unique index on the content column, cycle trigger), so concurrent requests cannot break them.
   - **Migration 000008 data cleanup (BR-020 AC-8):** removes self-links, links with a missing container or content registration, links across owners, every container of a registration except the oldest link, and one link per ring (the link that puts the ring's lowest-numbered member into its container). Registrations are never deleted. The down migration restores the 000005 indexes but not the removed links.
   - **Existing tests changed:** tests that seeded two-way links or a registration in two containers now seed states the database refuses (`integrity_constraints_test.go`, `usergear_authz_test.go`); `fkstartup_test.go` no longer expects the orphan container link that 000008 removes.
-- **Not yet implemented:** BR-002 (planned); repair of pre-existing orphan rows other than container links (registrations, loadouts and loadout items that point at missing parents are still only reported at startup).
+- **Not yet implemented:** BR-021 and the D11 amendments of BR-020 (AC-1, AC-5) and BR-001 (AC-6); BR-002 (planned); repair of pre-existing orphan rows other than container links (registrations, loadouts and loadout items that point at missing parents are still only reported at startup).
 
 ## Provisional defaults (open to product-owner change)
 
@@ -129,17 +132,22 @@ Where the decisions were silent, the requirements author chose the least-privile
 - **P-8** — The **permanent admin** is the admin with the **lowest user ID when BR-019 takes effect**, or, if there is no admin then, the first account to become admin afterwards. The designation never moves (BR-019 AC-1). The product owner should confirm that this selects their own account.
 - **P-9** — Revoking the permanent admin's status, or the permanent admin **deleting their own account**, is **refused with 403** for every caller and changes nothing. Granting admin status to the permanent admin succeeds and changes nothing (BR-019 AC-4, AC-5).
 - **P-10** — Admins other than the permanent admin get **no protection**: any admin may revoke them, and they may revoke **their own** status (BR-019 AC-7).
-- **P-11** — **Any registration can act as a container**, whatever the catalog `gear_is_container` flag says (BR-020 AC-1). "A container can store anything" could also mean "only container gear holds items, but it holds any gear". This reading was chosen because the owner also said that a gear item in a container can itself hold items.
+- **P-11 (superseded 2026-11-22 by D11)** — ~~Any registration can act as a container, whatever the catalog `gear_is_container` flag says.~~ The owner clarified that "a container can store anything" meant what a container may hold, not what may be a container. The reading was a misunderstanding. Now only registrations of container-capable gear can receive contents (BR-020 AC-1, BR-021). Kept here so the history stays traceable; do not implement.
 - **P-12** — A registration has **at most one direct container**. Linking it into a second container, or creating a cycle longer than a self-link, is **refused with 409**. A self-link stays 400 (BR-020 AC-3, AC-4).
+- **P-13** — Gear whose sub-category does not exist (only possible for rows stored before foreign keys were enforced) is **not container-capable** (BR-021 AC-4).
+- **P-14** — **Starting values:** new and existing top categories are not container categories, and sub-categories have no explicit setting, unless an admin sets them. When BR-021 takes effect, no gear is container-capable until an admin marks categories; old per-gear flag values are not carried over (BR-021 AC-5). An alternative the owner may prefer: seed the settings from the old gear flags.
+- **P-15** — When a catalog change makes gear no longer container-capable, the change **is allowed, and existing container links stay**. Such a registration keeps its contents but receives no new ones. The same holds for links that exist when BR-021 takes effect (BR-021 AC-6). Chosen over refusing the change (any user's link would block catalog work, and admins cannot remove other users' links, P-3) and over removing links (it would change user data without the user's request).
+- **P-16** — The list filter `container=true|false` on the gear list and the registration list **keeps working**, now from the derived container status (BR-021 AC-7).
+- **P-17** — Linking into a registration whose gear is not container-capable is **refused with 409**, after the ownership 404 and the self-link 400, and before the 409s for a second container or a cycle (BR-020 AC-1, AC-5).
 
 ## Open questions
 
-None are open. The product owner answered all five on 2026-11-21 (anchor decisions D6 to D10):
+None are open. The product owner answered all five on 2026-11-21 (anchor decisions D6 to D10), and refined Q-4 on 2026-11-22 (D11):
 
 - **Q-1 (answered, D6)** — Can an admin remove admin status, including their own or the last admin's? The first admin is permanent and can never lose admin status (BR-019). Other admins can be demoted, also by themselves (P-10). Because the permanent admin always stays, at least one admin always exists.
 - **Q-2 (answered, D7)** — Should the stored profile email follow a changed Google email? There is no requirement either way. Email is profile data only and never identifies a user, except in the one-time backfill match (BR-004 AC-10, BR-008 AC-6).
 - **Q-3 (answered, D10; accepted, not provisional)** — Must GoGear service JWTs issued at sign-in or refresh stop working before they expire after a demotion or account deletion? (Google tokens were never the subject.) No. They keep their role until they expire, 60 minutes by default. No revocation and no per-request role check is required (BR-006 AC-5, BR-009 AC-7).
-- **Q-4 (answered, D9)** — Container rules. Anything can be stored in a container, at unlimited depth (BR-020, with provisional defaults P-11 and P-12).
+- **Q-4 (answered, D9; refined by D11)** — Container rules. Anything can be stored in a container, at unlimited depth (BR-020, P-12). Only registrations of gear in a container category can hold items; admins set this on categories (D11, BR-021, P-13 to P-17). P-11 is superseded.
 - **Q-5 (answered, D8)** — Which profile fields may a user edit? All of them (username, name, email) except the Google subject, admin status and user ID (BR-008 AC-4, AC-5). The edited-email rule that protects the backfill is BR-004 AC-8 and AC-9.
 
 ## Bundle files

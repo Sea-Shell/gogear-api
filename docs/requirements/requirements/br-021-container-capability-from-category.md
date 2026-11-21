@@ -1,0 +1,47 @@
+---
+type: Behavioral Requirement
+title: BR-021 The catalog category decides whether gear can be a container
+description: Admins mark top categories and sub-categories as container categories; a sub-category inherits its top category's setting unless it has its own; every gear item's container status follows from its sub-category, never from a mark on the gear itself.
+tags: [containers, catalog, inventory, admin]
+timestamp: 2026-11-22T00:00:00Z
+---
+
+# BR-021 — The catalog category decides whether gear can be a container
+
+**Implementation:** not implemented. Today every registration can be a container (wave 7, superseded P-11), and the per-gear flag `gear_is_container` is set directly on gear. **Status:** Accepted with provisional conditions. **Priority:** P1 (data model needed before users add gear, BR-002). **Basis:** the statement, AC-1 and AC-2 come from anchor decision D11, which records the owner's statement and the rules adopted on General's proposal (open to owner change). AC-3 is derived from D11: without it the gear mark would still be a second source of truth. AC-4 to AC-8 are provisional defaults or specified choices of the requirements author, marked where they apply.
+
+**Terms:**
+- *Top category* and *sub-category*: the owner's "category" and "sub-category". In the catalog they are the top category record (`gear_top_category`) and the category record (`gear_category`). Every sub-category belongs to exactly one top category.
+- *Classification* of a gear item: the sub-category the gear item names. Every gear item names one top category and one sub-category; both are required and must exist when gear is created or updated (BR-001, wave 6). Nothing requires the gear's top category to be the same as its sub-category's top category.
+- *Container setting*: a catalog value that says whether a category is a container category. A top category always has a setting: container or not container. A sub-category has an explicit setting (container or not container) or has none.
+- *Effective setting* of a sub-category: its explicit setting if it has one, otherwise its top category's setting.
+- *Container-capable gear*: gear whose sub-category's effective setting is "container".
+
+**Statement:**
+The API shall decide whether a gear item can be a container only from its sub-category's effective setting, which admins maintain on top categories and sub-categories.
+
+**Acceptance criteria:**
+
+- AC-1: Every top category has a container setting. Every sub-category either has an explicit container setting or inherits its top category's setting. Example: top category "Bags" is a container category and its sub-category "Backpacks" has no explicit setting, so gear in "Backpacks" is container-capable. Sub-category "Bag straps" under "Bags" is explicitly not a container category, so gear in "Bag straps" is not container-capable. Top category "Clothing" is not a container category, but its sub-category "Stuff sacks" is explicitly one, so gear in "Stuff sacks" is container-capable.
+- AC-2: Only admins can set or change a top category's container setting, and set, change or remove a sub-category's explicit setting. These are catalog changes under [BR-001](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md); a non-admin is refused as BR-001 says. Every authenticated user can read the settings, as for any catalog read (BR-001 AC-4).
+- AC-3: A gear item's container status is always its sub-category's effective setting. No request to create or update gear can give a gear item a different status. Wherever the API reports a gear item's container status (for gear or for a registration of it), the reported value is the effective setting at the time of the read. The gear's own top-category reference does not affect it. Gear added by anyone gets its status this way, including gear contributed by users once [BR-002](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md) exists. A change of a top category's setting, of a sub-category's explicit setting, of a sub-category's top category, or of a gear item's sub-category changes the reported status of every affected gear item at once. (Whether the API still exposes a gear container field, and whether it is read-only, is a realization choice.)
+- AC-4: Gear whose sub-category does not exist (possible only for rows stored before foreign keys were enforced) is not container-capable. **[Provisional default P-13 — open to product-owner change]**
+- AC-5: A new top category is not a container category unless the admin creating it says so. A new sub-category has no explicit setting unless the admin creating it gives one. When this requirement takes effect, every existing top category is not a container category and no sub-category has an explicit setting, so no gear is container-capable until an admin marks categories. The old per-gear flag values are not carried over. **[Provisional default P-14 — open to product-owner change; the data is test data (anchor context note)]**
+- AC-6: A catalog change that makes gear no longer container-capable is allowed and never removes or changes container links. A registration of that gear keeps the contents it already holds, and they are listed as before. It cannot receive new contents ([BR-020](/docs/requirements/requirements/br-020-container-nesting-consistency.md) AC-1) until its gear is container-capable again. The same applies to links that exist when this requirement takes effect. Example: R1 (a backpack) holds R2; the admin marks "Backpacks" as not a container category; R2 is still listed in R1, removing R2 from R1 succeeds, and linking R2 (or anything else) into R1 is then refused. **[Provisional default P-15 — open to product-owner change. Chosen because admins cannot touch other users' links (P-3): refusing the catalog change would let any user's link block catalog work, and removing links would change user data without the user's request.]**
+- AC-7: The list filter `container=true|false` keeps working on the gear list and on the registration list. It now selects by the gear's container status of AC-3: `true` returns exactly the container-capable gear (or registrations of it), `false` exactly the rest. Its handling of other values is unchanged (gear list: 400; registration list: ignored). **[Provisional default P-16 — open to product-owner change]**
+- AC-8: Once an admin's change of a setting has been answered with success, every link request decided after that uses the new setting. A link request that runs at the same time as the change is decided entirely under the old setting or entirely under the new one. Example: the admin marks "Backpacks" as not a container category while a user links an item into a backpack. Either the link is stored and the change succeeds afterwards (the link stays, AC-6), or the link is refused. A link into a not-capable container is never stored after the change was answered. (Derived: otherwise AC-1 of BR-020 could be bypassed by timing.)
+
+**Out of scope:** what a container may hold (anything, D9 and BR-020) and whether contents physically fit, for example against a registration's maximum container weight. Whether a gear item's top category must match its sub-category's top category is not decided here; it is not needed for this rule, because the sub-category alone decides.
+
+**Verification semantics:**
+Use real request handling and stored data. Build the three examples of AC-1 and check the reported status of gear in each sub-category. As a non-admin, try to change each kind of setting: refused, and nothing changes. Send a gear create or update that asks for a container status different from its sub-category's: the reported status still equals the effective setting. Change a top category's setting, then a sub-category's explicit setting, remove it again, move a sub-category to another top category, and move a gear item to another sub-category: after each step the reported status of the affected gear, and the results of `container=true` and `container=false`, match the effective settings. Check that the gear's top-category reference has no effect by giving a gear item a top category whose setting differs from its sub-category's effective setting. Run the AC-6 example. Race a setting change against link requests many times: a link into a not-capable container stored after the change was answered falsifies AC-8. Any reported container status that differs from the effective setting falsifies AC-3.
+
+## Derived from
+
+- [Access control and identity decisions — D11, D9, D1](/docs/anchors/access-control-and-identity.md)
+
+## Related
+
+- [BR-020 Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — uses this rule to decide which registrations may hold others.
+- [BR-001 Catalog changes are admin-only](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md)
+- [BR-002 Catalog contributions require admin approval (planned)](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md)

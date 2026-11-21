@@ -1,14 +1,14 @@
 ---
 type: Anchor
 title: Access control and identity decisions (security remediation)
-description: Product-owner decisions on catalog editing rights, Google identity binding, user directory visibility, ownership of user data, token refresh roles and lifetime, the permanent first admin, email as profile data, editable profile fields and container nesting for the GoGear API security remediation.
+description: Product-owner decisions on catalog editing rights, Google identity binding, user directory visibility, ownership of user data, token refresh roles and lifetime, the permanent first admin, email as profile data, editable profile fields, container nesting and category-based container capability for the GoGear API security remediation.
 tags: [access-control, identity, authorization, security-remediation, product-decision]
-timestamp: 2026-11-21T00:00:00Z
+timestamp: 2026-11-22T00:00:00Z
 ---
 
 # Access control and identity decisions
 
-**Status:** Accepted by the product owner on 2026-11-21 (D1–D5, and the follow-up decisions D6–D10 the same day). Relayed to the requirements author by the orchestrating session for the review-mitigation work.
+**Status:** Accepted by the product owner on 2026-11-21 (D1–D5, and the follow-up decisions D6–D10 the same day). D11 was added on 2026-11-22: the owner's statement is accepted, and its detailed rules were adopted on General's proposal and stay open to owner change. Relayed to the requirements author by the orchestrating session for the review-mitigation work.
 
 **Why this exists:** The engineering review of 2026-11-12 (revision `6fb972b`, sections 3, 9 and 10) found that ordinary users can make themselves admin, change or delete other users' data, and link Google identities by email. Fixing these defects needs explicit rules about who may do what. This document records the rules the product owner decided. The requirements in `/docs/requirements/` derive from it.
 
@@ -52,11 +52,23 @@ Users may edit every field of their own profile except the binding to their Goog
 
 ### D9 — Containers can store anything (answers Q-4)
 
-A container can store anything, including other containers. Nesting depth is unlimited. A gear item inside one container can itself hold items. The physical-consistency rules this needs are in BR-020.
+A container can store anything, including other containers. Nesting depth is unlimited. Which registrations can be containers is refined by D11. A gear item inside one container can itself hold items. The physical-consistency rules this needs are in BR-020.
 
 ### D10 — Issued service tokens are not revoked early (answers Q-3)
 
 This concerns the GoGear service JWTs that the API issues at sign-in and refresh, not Google tokens. After a user is demoted or deletes their account, service tokens issued before that keep their role and stay valid until they expire (60 minutes by default). No server-side revocation and no per-request check of the stored role is required. Refresh already issues only the current stored role and refuses deleted accounts (D5, BR-006). This is an accepted decision, not a provisional default.
+
+### D11 — The category decides what can be a container (2026-11-22, refines D9)
+
+Owner's statement: "it should be the category or sub-category that dictates if an item is a container… now it's the item itself that needs to be marked as a container, which does not scale well if users are going to add items." The owner confirmed that D9's "a container can store anything" means a container can hold anything. It does not mean that anything can be a container. The earlier reading "any registration can act as a container" (provisional default P-11) was a misunderstanding and is superseded.
+
+Adopted on General's proposal, open to owner change:
+
+- A registration can hold other registrations only if its gear's catalog classification is a container classification. What a container holds stays unrestricted: any registration, including other containers, at unlimited depth (D9). One direct container per registration and no cycles stay (BR-020).
+- Admins set container capability on catalog categories, as part of the admin-only catalog (D1). A sub-category inherits its top category's setting unless the sub-category has its own explicit value.
+- A gear item's own container mark is no longer the source of truth. Gear gets its container status from its classification, so gear added later by users gets it automatically.
+
+The resulting requirements are BR-021 and the amended BR-020 and BR-001.
 
 ## Context (not a requirement)
 

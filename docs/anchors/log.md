@@ -3,10 +3,14 @@ type: Log
 title: Anchors change log
 description: Chronological record of changes to the anchors bundle.
 tags: [log]
-timestamp: 2026-11-21T00:00:00Z
+timestamp: 2026-11-22T00:00:00Z
 ---
 
 # Anchors change log
+
+## 2026-11-22
+
+- **Amendment:** [Access control and identity decisions](/docs/anchors/access-control-and-identity.md) gains decision D11: the category or sub-category decides whether gear can be a container, and D9's "a container can store anything" is about what a container holds. The owner's statement is recorded verbatim; the detailed rules were adopted on General's proposal and stay open to owner change. Supersedes requirements provisional default P-11.
 
 ## 2026-11-21
 
