@@ -15,3 +15,5 @@ timestamp: 2026-11-21T00:00:00Z
   - Obligation contract [OC-001](/docs/requirements/obligation-contracts/oc-001-owner-scoped-data-operations.md).
   - Provisional defaults P-1 to P-7 and open questions Q-1 to Q-5 are recorded in the [index](/docs/requirements/index.md).
 - **Creation:** Bundle [index](/docs/requirements/index.md) and this log.
+
+- **Implementation status:** Wave 1 implements [BR-006](/docs/requirements/requirements/br-006-issued-roles-reflect-current-state.md) to [BR-011](/docs/requirements/requirements/br-011-direct-user-creation-admin-only.md) and the user, role and refresh parts of BR-017 and BR-018. Status notes were added to those requirements and an implementation-status section to the [index](/docs/requirements/index.md). Requirement text is unchanged.

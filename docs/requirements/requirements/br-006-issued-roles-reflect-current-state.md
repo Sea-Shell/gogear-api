@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-006 — Issued tokens carry only the role the account currently has
 
-**Status:** Accepted. **Priority:** P1 (review SEC-09, and the refresh step of SEC-01). **Basis:** sourced from anchor decision D5. AC-2 to AC-4 are necessary consequences of it.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted. **Priority:** P1 (review SEC-09, and the refresh step of SEC-01). **Basis:** sourced from anchor decision D5. AC-2 to AC-4 are necessary consequences of it.
 
 **Statement:**
 Whenever the API issues a service token, at Google sign-in or at token refresh, the token shall grant admin capability if and only if the account's stored admin status is true at the moment of issuance.

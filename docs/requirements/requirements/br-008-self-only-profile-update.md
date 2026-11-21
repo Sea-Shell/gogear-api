@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-008 — Users update only their own profile
 
-**Status:** Accepted. **Priority:** P0 (review SEC-01, SEC-02). **Basis:** the statement and AC-1 are sourced from anchor decision D3. AC-3 is derived from it. AC-2 is a provisional default.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted. **Priority:** P0 (review SEC-01, SEC-02). **Basis:** the statement and AC-1 are sourced from anchor decision D3. AC-3 is derived from it. AC-2 is a provisional default.
 
 **Statement:**
 When an authenticated user asks to update a user profile, the API shall apply the update only if the profile addressed by the request path is the caller's own account. The update shall never change any account's admin status.

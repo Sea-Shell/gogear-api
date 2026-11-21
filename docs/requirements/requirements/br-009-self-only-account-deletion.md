@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-009 — Users delete only their own account, and deletion removes all their data or nothing
 
-**Status:** Accepted with provisional cascade behavior. **Priority:** P0 (review SEC-02). **Basis:** the statement and AC-1 are sourced from anchor decision D3. AC-2, AC-3 and AC-4 are provisional defaults. AC-5 is derived from D4.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted with provisional cascade behavior. **Priority:** P0 (review SEC-02). **Basis:** the statement and AC-1 are sourced from anchor decision D3. AC-2, AC-3 and AC-4 are provisional defaults. AC-5 is derived from D4.
 
 **Statement:**
 When an authenticated user asks to delete a user account, the API shall delete it only if the account addressed by the request path is the caller's own.

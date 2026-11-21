@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-007 — Other users' email and admin status are hidden from non-admins
 
-**Status:** Accepted. **Priority:** P0 (review SEC-02, disclosure part). **Basis:** sourced from anchor decision D3. AC-5 keeps existing behavior unchanged.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted. **Priority:** P0 (review SEC-02, disclosure part). **Basis:** sourced from anchor decision D3. AC-5 keeps existing behavior unchanged.
 
 **Statement:**
 The API shall let any authenticated user list user profiles and view a single user profile. When the caller is not an admin, the response shall not reveal the email address or admin status of any user other than the caller.

@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-018 — Refused requests change nothing and use a defined status
 
-**Status:** Accepted with provisional status choices. **Priority:** P0 (needed for every access-control requirement). **Basis:** the no-effect and no-disclosure rules (AC-1, AC-2) are derived from anchor decisions D3 and D4. The status classes are specified choices of the requirements author, and the 404 rule is provisional default P-1.
+**Implementation:** partly implemented in wave 1 (user, role and refresh refusals); other operations are later waves. **Status:** Accepted with provisional status choices. **Priority:** P0 (needed for every access-control requirement). **Basis:** the no-effect and no-disclosure rules (AC-1, AC-2) are derived from anchor decisions D3 and D4. The status classes are specified choices of the requirements author, and the 404 rule is provisional default P-1.
 
 **Statement:**
 When the API refuses a request for an authentication or authorization reason, it shall change no stored data, reveal no data the caller may not see, and respond with the status that matches the reason below.

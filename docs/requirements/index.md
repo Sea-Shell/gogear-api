@@ -6,7 +6,7 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). They are not yet implemented: the engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
 
 **Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
 
@@ -51,6 +51,16 @@
 ## Quality scenarios
 
 None. The decisions contain no measurable quality target. The adversarial and concurrent cases are covered as behavior by OC-001 and the BR acceptance criteria.
+
+## Implementation status
+
+- **Wave 1 (implemented):** BR-006, BR-007, BR-008, BR-009, BR-010, BR-011, and the user, role and refresh parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
+  - Admin-status changes use `POST /api/v1/users/{user}/admin` with `{"user_is_admin": true|false}` (admin only; 404 for an unknown user).
+  - Profile update changes only the fields present in the body (username, name, email). Omitted fields and the password are never touched.
+  - A non-admin search by email in the user directory is refused with 403, because it would reveal other users' emails (BR-007). Searches by username and name only match what the response shows.
+  - Where a username or name contains the user's email (Google sign-in does this), it is blanked for non-admin viewers of other users.
+  - Startup refuses empty or equal `jwt-audience` and `jwt-admin-audience`.
+- **Not yet implemented:** BR-001 to BR-005, BR-012 to BR-016, OC-001, and the non-user parts of BR-017 and BR-018.
 
 ## Provisional defaults (open to product-owner change)
 

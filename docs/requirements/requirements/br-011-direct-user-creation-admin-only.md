@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-011 — Direct user creation is admin-only and creates non-admin accounts
 
-**Status:** Accepted with a provisional caller restriction. **Priority:** P0 (review SEC-01). **Basis:** AC-2 is sourced from anchor decision D3 ("no client can set the admin flag through profile create"). The statement's admin-only restriction is a provisional default.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted with a provisional caller restriction. **Priority:** P0 (review SEC-01). **Basis:** AC-2 is sourced from anchor decision D3 ("no client can set the admin flag through profile create"). The statement's admin-only restriction is a provisional default.
 
 **Statement:**
 When an authenticated user asks the API to create a user account directly, the API shall create it only if the caller is an admin. **[Provisional default P-5 — open to product-owner change]** Google sign-in is a separate path, governed by [BR-005](/docs/requirements/requirements/br-005-first-google-sign-in.md).
