@@ -508,6 +508,41 @@ func TestUserDirectory_AnyEmailLikeNameIsHiddenAndNotSearchable(t *testing.T) {
 	}
 }
 
+// The search and the response must hide exactly the same values. A stored
+// email without '@' and with non-ASCII capitals used to be hidden by the
+// response (Go folds case with Unicode rules) but not by the search (SQLite's
+// lower() folds ASCII only), so a name could be found by a search while the
+// response blanked it. Both sides now hide a value only when it contains '@'.
+func TestUserDirectory_SearchAndResponseAgreeOnNonASCIIText(t *testing.T) {
+	env := newAuthzEnv(t)
+	a := env.SeedUser("alice", "alice@example.com", false)
+	d := env.SeedUser("\u00e5sa", "\u00c5SA", false) // username "åsa", stored email "ÅSA": no '@'
+	if _, err := env.DB.Exec(`UPDATE users SET userName = ? WHERE userId = ?`, "\u00e5sa", d); err != nil {
+		t.Fatal(err)
+	}
+	tok := env.Token(a, false)
+
+	for _, q := range []string{"username=sa", "user=sa", "username=%C3%A5sa", "user=%C3%A5sa"} {
+		w := env.Do(http.MethodGet, "/api/v1/users/list?"+q, tok, nil)
+		expectStatus(t, w, http.StatusOK)
+		var list struct {
+			TotalItemCount int `json:"total_item_count"`
+		}
+		decodeJSON(t, w, &list)
+		shown := strings.Contains(w.Body.String(), "\u00e5sa")
+		if matched := list.TotalItemCount > 0; matched != shown {
+			t.Errorf("search %q: matched=%v but response shows the value=%v; body: %s", q, matched, shown, w.Body.String())
+		}
+	}
+	// A value with '@' stays hidden on both sides.
+	e := env.SeedUser("erik@mail.test", "erik@mail.test", false)
+	w := env.Do(http.MethodGet, "/api/v1/users/list?username=erik", tok, nil)
+	expectStatus(t, w, http.StatusOK)
+	if strings.Contains(w.Body.String(), "erik") {
+		t.Errorf("email-like username disclosed (user %d): %s", e, w.Body.String())
+	}
+}
+
 // An admin-status change is attributable: the log entry names the acting
 // admin and the target.
 func TestSetUserAdmin_LogNamesActingAdmin(t *testing.T) {

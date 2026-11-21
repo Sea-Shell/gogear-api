@@ -58,7 +58,7 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Admin-status changes use `POST /api/v1/users/{user}/admin` with `{"user_is_admin": true|false}` (admin only; 404 for an unknown user).
   - Profile update changes only the fields present in the body (username, name, email); a JSON `null` is treated as absent. Omitted fields and the password are never touched.
   - A non-admin search by email in the user directory is refused with 403, because it would reveal other users' emails (BR-007). Searches by username and name only match what the response shows.
-  - Where a username or name contains the user's email (Google sign-in does this), it is blanked for non-admin viewers of other users.
+  - Where a username or name contains `@` (Google sign-in stores the email there), it is blanked for non-admin viewers of other users, and a non-admin search cannot match it. The rule uses `@` only, in the response and in the SQL search, so the two cannot disagree.
   - Startup refuses empty or equal `jwt-audience` and `jwt-admin-audience`.
 - **Wave 2 (implemented):** BR-014, BR-015, BR-016, OC-001 for loadouts and items, and the loadout parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
   - Loadout update changes only the fields present in the body (name, description, public flag, slug); a JSON `null` is treated as absent. The update maintains `updatedAt`. An update with no fields is 400.

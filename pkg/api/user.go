@@ -98,7 +98,7 @@ func ListUser(c *gin.Context) {
 	// Google-created accounts use the email as username and name. Non-admins
 	// must not be able to match (or see) such values on other users, so the
 	// search applies to exactly what the response will show (see
-	// emailLikeFor and hiddenFromOthers, which must agree).
+	// emailLike and hiddenFromOthers, which must agree).
 	for _, username := range qUserUsername {
 		if callerIsAdmin {
 			conditions = append(conditions, "userUsername LIKE ?")
@@ -304,22 +304,23 @@ func callerIdentity(c *gin.Context) (id int64, isAdmin bool) {
 	return id, isAdmin
 }
 
-// emailLikeFor reports whether value must be hidden from other users of the
-// account u: it contains '@' (it looks like an email address) or embeds the
-// stored email. Google sign-in uses the email for both username and name.
-func emailLikeFor(u models.User, value string) bool {
-	if strings.Contains(value, "@") {
-		return true
-	}
-	email := strings.ToLower(u.UserEmail)
-	return email != "" && strings.Contains(strings.ToLower(value), email)
+// emailLike reports whether value must be hidden from other users: it
+// contains '@', so it looks like an email address. Google sign-in uses the
+// email for both username and name, and a value that embeds a real address
+// always contains '@', so the check needs no comparison with the stored
+// email. Such a comparison would need the same case folding in Go and SQL
+// (SQLite's lower() folds ASCII only), and the two disagreed for non-ASCII
+// text.
+func emailLike(value string) bool {
+	return strings.Contains(value, "@")
 }
 
-// hiddenFromOthers is the SQL form of emailLikeFor for a users column: 1 when
-// the column value is hidden from other users, 0 otherwise. The user search
-// uses it so a search cannot match what the response redacts.
+// hiddenFromOthers is the SQL form of emailLike for a users column: true when
+// the column value is hidden from other users. The user search uses it so a
+// search cannot match what the response redacts. Both sides test the same
+// byte, so they cannot disagree.
 func hiddenFromOthers(column string) string {
-	return "(instr(" + column + ", '@') > 0 OR (userEmail <> '' AND instr(lower(" + column + "), lower(userEmail)) > 0))"
+	return "(instr(" + column + ", '@') > 0)"
 }
 
 // viewUserFor builds the profile response for a caller. Admins and the user
@@ -332,10 +333,10 @@ func viewUserFor(u models.User, callerID int64, callerIsAdmin bool) userView {
 		v.UserEmail, v.UserIsAdmin = &email, &admin
 		return v
 	}
-	if emailLikeFor(u, v.UserUsername) {
+	if emailLike(v.UserUsername) {
 		v.UserUsername = ""
 	}
-	if emailLikeFor(u, v.UserName) {
+	if emailLike(v.UserName) {
 		v.UserName = ""
 	}
 	return v
