@@ -358,17 +358,45 @@ func GenericList[model any](table string, field string, id int, db *sql.DB) (*[]
 // begins instead of failing with SQLITE_BUSY when it first writes, and a
 // busy timeout, so concurrent writers wait instead of failing. It also turns
 // foreign-key enforcement on: the setting belongs to one connection, so it
-// must be part of the DSN to reach every pooled connection. Options already
-// present in the configured value (including its query string) are kept.
+// must be part of the DSN to reach every pooled connection.
+//
+// For a database file it selects the WAL journal (_journal_mode=WAL): readers
+// and a writer no longer block each other, which removes "database is locked"
+// under concurrent requests. WAL keeps -wal and -shm files next to the
+// database file and needs a local disk. An in-memory database has no WAL, so
+// none is added there.
+//
+// Options already present in the configured value (including its query
+// string) are kept. The file must not be empty; callers validate that.
 func SQLiteDSN(file string) string {
 	base, query, _ := strings.Cut(file, "?")
-	for _, opt := range [][2]string{{"_txlock", "immediate"}, {"_busy_timeout", "5000"}, {"_foreign_keys", "on"}} {
-		if !strings.Contains("&"+query, "&"+opt[0]+"=") && !(opt[0] == "_foreign_keys" && strings.Contains("&"+query, "&_fk=")) {
-			if query != "" {
-				query += "&"
+	has := func(names ...string) bool {
+		for _, n := range names {
+			if strings.Contains("&"+query, "&"+n+"=") {
+				return true
 			}
-			query += opt[0] + "=" + opt[1]
 		}
+		return false
+	}
+	add := func(name, value string) {
+		if query != "" {
+			query += "&"
+		}
+		query += name + "=" + value
+	}
+	inMemory := base == ":memory:" || strings.HasPrefix(base, "file::memory:") || strings.Contains("&"+query, "&mode=memory")
+
+	if !has("_txlock") {
+		add("_txlock", "immediate")
+	}
+	if !has("_busy_timeout", "_timeout") {
+		add("_busy_timeout", "5000")
+	}
+	if !has("_foreign_keys", "_fk") {
+		add("_foreign_keys", "on")
+	}
+	if !inMemory && !has("_journal_mode", "_journal") {
+		add("_journal_mode", "WAL")
 	}
 	return base + "?" + query
 }
