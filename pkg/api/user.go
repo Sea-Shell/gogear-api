@@ -2,6 +2,8 @@ package endpoints
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -49,6 +51,13 @@ func ListUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
+	callerID, callerIsAdmin := callerIdentity(c)
+	if len(qUserEmail) > 0 && !callerIsAdmin {
+		// An email search is an oracle for other users' addresses (BR-007).
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required to search by email"})
+		return
+	}
+
 	if limit == "" {
 		limit = "30"
 	}
@@ -86,14 +95,27 @@ func ListUser(c *gin.Context) {
 	conditions := []string{}
 
 	params := []interface{}{}
+	// Google-created accounts use the email as username and name. Non-admins
+	// must not be able to match (or see) such values on other users, so the
+	// search applies to exactly what the response will show.
 	for _, username := range qUserUsername {
-		conditions = append(conditions, "userUsername LIKE ?")
-		params = append(params, "%"+username+"%")
+		if callerIsAdmin {
+			conditions = append(conditions, "userUsername LIKE ?")
+			params = append(params, "%"+username+"%")
+		} else {
+			conditions = append(conditions, "(userUsername LIKE ? AND (userId = ? OR userEmail = '' OR instr(lower(userUsername), lower(userEmail)) = 0))")
+			params = append(params, "%"+username+"%", callerID)
+		}
 	}
 
 	for _, name := range qUserName {
-		conditions = append(conditions, "userName LIKE ?")
-		params = append(params, "%"+name+"%")
+		if callerIsAdmin {
+			conditions = append(conditions, "userName LIKE ?")
+			params = append(params, "%"+name+"%")
+		} else {
+			conditions = append(conditions, "(userName LIKE ? AND (userId = ? OR userEmail = '' OR instr(lower(userName), lower(userEmail)) = 0))")
+			params = append(params, "%"+name+"%", callerID)
+		}
 	}
 
 	for _, email := range qUserEmail {
@@ -152,7 +174,7 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	var users []models.User
+	users := []userView{}
 
 	for rows.Next() {
 		err = rows.Scan(dest...)
@@ -171,7 +193,7 @@ func ListUser(c *gin.Context) {
 			reflect.ValueOf(&paramUser).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		users = append(users, paramUser)
+		users = append(users, viewUserFor(paramUser, callerID, callerIsAdmin))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -234,7 +256,10 @@ func GetUser(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
+
+	callerID, callerIsAdmin := callerIdentity(c)
 
 	var extraSQL []string
 	// extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
@@ -243,25 +268,103 @@ func GetUser(c *gin.Context) {
 
 	results, err := utils.GenericGet[models.User]("users", urlParameter, extraSQL, db)
 	if err != nil {
-		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			c.IndentedJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		log.Errorf("Unable to get %s with id: %d. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 		return
 	}
 
-	log.Infof("Successfully fetched %s with ID %s", function, urlParameter)
-	c.IndentedJSON(http.StatusOK, results)
+	log.Infof("Successfully fetched %s with ID %d", function, urlParameter)
+	c.IndentedJSON(http.StatusOK, viewUserFor(*results, callerID, callerIsAdmin))
+}
+
+// userView is the response shape for a user profile. Email and admin status
+// are pointers with omitempty so that they are absent, not just blank, when
+// the caller may not see them (BR-007). The password is never part of it.
+type userView struct {
+	UserID       *int64  `json:"user_id"`
+	UserUsername string  `json:"user_username"`
+	UserName     string  `json:"user_name"`
+	UserEmail    *string `json:"user_email,omitempty"`
+	UserIsAdmin  *bool   `json:"user_is_admin,omitempty"`
+}
+
+// callerIdentity returns the authenticated user and admin role set by the JWT middleware.
+func callerIdentity(c *gin.Context) (id int64, isAdmin bool) {
+	if v, ok := c.Get("user_id_int64"); ok {
+		id, _ = v.(int64)
+	}
+	if v, ok := c.Get("user_is_admin"); ok {
+		isAdmin, _ = v.(bool)
+	}
+	return id, isAdmin
+}
+
+// viewUserFor builds the profile response for a caller. Admins and the user
+// themself see email and admin status. For anyone else, a name or username that
+// embeds the user's email (Google sign-in uses the email for both) is blanked.
+func viewUserFor(u models.User, callerID int64, callerIsAdmin bool) userView {
+	v := userView{UserID: u.UserID, UserUsername: u.UserUsername, UserName: u.UserName}
+	if callerIsAdmin || (u.UserID != nil && *u.UserID == callerID) {
+		email, admin := u.UserEmail, u.UserIsAdmin
+		v.UserEmail, v.UserIsAdmin = &email, &admin
+		return v
+	}
+	if email := strings.ToLower(u.UserEmail); email != "" {
+		if strings.Contains(strings.ToLower(v.UserUsername), email) {
+			v.UserUsername = ""
+		}
+		if strings.Contains(strings.ToLower(v.UserName), email) {
+			v.UserName = ""
+		}
+	}
+	return v
+}
+
+// userWriteBody is the request body of user create and update. Pointers tell
+// "absent" from "zero". UserID and UserIsAdmin are only checked against the
+// values the API determined (BR-017); they are never applied.
+type userWriteBody struct {
+	UserID       *int64  `json:"user_id"`
+	UserUsername *string `json:"user_username"`
+	UserName     *string `json:"user_name"`
+	UserEmail    *string `json:"user_email"`
+	UserIsAdmin  *bool   `json:"user_is_admin"`
+}
+
+func (b *userWriteBody) blankIdentityField() bool {
+	return (b.UserUsername != nil && strings.TrimSpace(*b.UserUsername) == "") ||
+		(b.UserEmail != nil && strings.TrimSpace(*b.UserEmail) == "")
+}
+
+func parseUserID(c *gin.Context, log *zap.SugaredLogger) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param("user"), 10, 64)
+	if err != nil {
+		log.Errorf("urlParamter is of wrong type: %#v", err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid user ID"})
+		return 0, false
+	}
+	return id, true
+}
+
+func internalError(c *gin.Context, log *zap.SugaredLogger, err error) {
+	log.Error(err.Error())
+	c.AbortWithStatusJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 }
 
 // InsertUser creates new user in the database
 //
 //	@Summary		Insert new user
-//	@Description	Insert new user with corresponding values
+//	@Description	Insert new user with corresponding values. Admin only. The account is never an admin (use the admin-status operation), and a body that asks for admin status or names a user ID is rejected.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		models.UserWithPass	true	"query params"	test
-//	@Success		200		{object}	models.Status		"status: success when all goes well"
+//	@Param			request	body		models.User		true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
 //	@Router			/api/v1/users/insert [put]
 func InsertUser(c *gin.Context) {
@@ -270,17 +373,44 @@ func InsertUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	if _, isAdmin := callerIdentity(c); !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
 		return
 	}
 
-	_, err = utils.GenericInsert[models.User]("users", data, db)
+	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		internalError(c, log, err)
+		return
+	}
+
+	var body userWriteBody
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid request body"})
+		return
+	}
+	if body.UserID != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_id is assigned by the API and must not be sent"})
+		return
+	}
+	if body.UserIsAdmin != nil && *body.UserIsAdmin {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "admin status cannot be set when creating a user"})
+		return
+	}
+	if body.UserUsername == nil || body.UserEmail == nil || body.blankIdentityField() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_username and user_email are required"})
+		return
+	}
+	name := ""
+	if body.UserName != nil {
+		name = *body.UserName
+	}
+
+	// Always non-admin and without password; admin status has its own operation (BR-010, BR-011).
+	if _, err := db.ExecContext(c.Request.Context(),
+		`INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES (?, '', ?, ?, 0, 0)`,
+		*body.UserUsername, name, *body.UserEmail); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
@@ -290,7 +420,7 @@ func InsertUser(c *gin.Context) {
 // UpdateUser updates user in database
 //
 //	@Summary		Update user with ID
-//	@Description	Update user identified by ID
+//	@Description	Update the caller's own profile. Other accounts are refused with 403, admins included. Omitted fields are left unchanged. Admin status and user ID in the body must match the stored values or the request is rejected with 400.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
@@ -306,27 +436,139 @@ func UpdateUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+	callerID, _ := callerIdentity(c)
+	if targetID != callerID {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "you can only update your own account"})
 		return
 	}
 
-	err = utils.GenericUpdate[models.User]("users", data, db)
+	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		internalError(c, log, err)
+		return
+	}
+	var body userWriteBody
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid request body"})
+		return
+	}
+	if body.UserID != nil && *body.UserID != targetID {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_id in body does not match the path"})
+		return
+	}
+	if body.blankIdentityField() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_username and user_email must not be blank"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+
+	var storedAdmin bool
+	if err := tx.QueryRowContext(ctx, `SELECT userIsAdmin <> 0 FROM users WHERE userId = ?`, targetID).Scan(&storedAdmin); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		internalError(c, log, err)
+		return
+	}
+	if body.UserIsAdmin != nil && *body.UserIsAdmin != storedAdmin {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "admin status cannot be changed through profile update"})
+		return
+	}
+
+	// userPassword and userIsAdmin are deliberately not in the SET list.
+	res, err := tx.ExecContext(ctx,
+		`UPDATE users SET userUsername = COALESCE(?, userUsername), userName = COALESCE(?, userName), userEmail = COALESCE(?, userEmail) WHERE userId = ?`,
+		body.UserUsername, body.UserName, body.UserEmail, targetID)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		if err == nil {
+			err = fmt.Errorf("update of user %d affected %d rows", targetID, n)
+		}
+		internalError(c, log, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// SetUserAdmin grants or revokes a user's admin status
+//
+//	@Summary		Set admin status of user with ID
+//	@Description	Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh.
+//	@Security		BearerAuth
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	path		int				true	"Unique ID of the user"
+//	@Param			request	body		map[string]bool	true	"new admin status"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/users/{user}/admin [post]
+func SetUserAdmin(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+
+	if _, isAdmin := callerIdentity(c); !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
+		return
+	}
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		UserIsAdmin *bool `json:"user_is_admin"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.UserIsAdmin == nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "body must be {\"user_is_admin\": true|false}"})
+		return
+	}
+
+	res, err := db.ExecContext(c.Request.Context(), `UPDATE users SET userIsAdmin = ? WHERE userId = ?`, *body.UserIsAdmin, targetID)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	if n == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+		return
+	}
+
+	log.Infof("admin status of user %d set to %v", targetID, *body.UserIsAdmin)
+	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+}
+
 // DeleteUser delets user from database
 //
 //	@Summary		Delete user with ID
-//	@Description	Delete user with corresponding ID value
+//	@Description	Delete the caller's own account together with all of its registrations, container links, loadouts and loadout items, all or nothing. Other accounts are refused with 403, admins included.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
@@ -340,38 +582,72 @@ func DeleteUser(c *gin.Context) {
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	function := "user"
 
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+	callerID, _ := callerIdentity(c)
+	if targetID != callerID {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "you can only delete your own account"})
 		return
 	}
 
-	userRegistrations, err := utils.GenericList[models.UserGearLink]("user_gear_registrations", "userId", urlParameter, db)
+	ctx := c.Request.Context()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		log.Error(err.Error())
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		internalError(c, log, err)
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+
+	var username string
+	if err := tx.QueryRowContext(ctx, `SELECT userUsername FROM users WHERE userId = ?`, targetID).Scan(&username); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		internalError(c, log, err)
 		return
 	}
 
-	for _, userRegistration := range *userRegistrations {
-		_, err := utils.GenericDelete[models.UserGearLink]("user_gear_registrations", int(*userRegistration.UserGearRegistrationID), db)
-		if err != nil {
-			log.Error(err.Error())
-			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+	// Foreign keys are not enforced in this database, so every dependent row is removed explicitly.
+	const ownedRegistrations = `SELECT userGearRegistrationId FROM user_gear_registrations WHERE userId = ?`
+	steps := []struct{ name, query string }{
+		{"container links", `DELETE FROM user_container_registration WHERE userContainerId IN (` + ownedRegistrations + `) OR userGearRegistrationId IN (` + ownedRegistrations + `)`},
+		{"loadout items", `DELETE FROM loadout_items WHERE loadoutId IN (SELECT loadoutId FROM loadouts WHERE userId = ?)`},
+		{"loadouts", `DELETE FROM loadouts WHERE userId = ?`},
+		{"gear registrations", `DELETE FROM user_gear_registrations WHERE userId = ?`},
+	}
+	for _, step := range steps {
+		args := []any{targetID}
+		if step.name == "container links" {
+			args = append(args, targetID)
+		}
+		if _, err := tx.ExecContext(ctx, step.query, args...); err != nil {
+			internalError(c, log, fmt.Errorf("deleting %s of user %d: %w", step.name, targetID, err))
 			return
 		}
 	}
 
-	result, err := utils.GenericDelete[models.User]("users", urlParameter, db)
+	res, err := tx.ExecContext(ctx, `DELETE FROM users WHERE userId = ?`, targetID)
 	if err != nil {
-		log.Error(err.Error())
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		internalError(c, log, fmt.Errorf("deleting user %d: %w", targetID, err))
+		return
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		if err == nil {
+			err = fmt.Errorf("delete of user %d affected %d rows", targetID, n)
+		}
+		internalError(c, log, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
-	log.Infof("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)})
+	msg := fmt.Sprintf("success! User %s (ID: %d) and all the users data was deleted", username, targetID)
+	log.Info(msg)
+	c.JSON(http.StatusOK, map[string]string{"status": msg})
 }
