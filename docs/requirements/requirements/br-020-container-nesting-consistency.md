@@ -1,0 +1,45 @@
+---
+type: Behavioral Requirement
+title: BR-020 Containers nest to any depth, with one direct container per registration and no cycles
+description: Any owned gear registration can hold any other owned registration at unlimited depth; a registration is directly inside at most one container at a time and can never end up inside itself.
+tags: [containers, inventory, nesting, data-integrity]
+timestamp: 2026-11-21T00:00:00Z
+---
+
+# BR-020 — Containers nest to any depth, with one direct container per registration and no cycles
+
+**Implementation:** partly implemented. Already in place before this requirement: a link of a registration to itself is refused with 400 (wave 3, and by the database since wave 6), and a duplicate link is refused with 409 (wave 6). Not implemented: any registration as container regardless of the catalog flag is today's behavior but not yet verified as a rule, and the one-direct-container rule, longer-cycle refusal, concurrency guarantee and stored-data cleanup (AC-3 to AC-8) are missing. **Status:** Accepted with provisional conditions. **Priority:** P1 (review SEC-06 and section 9, data integrity). **Basis:** AC-1 (contents) and AC-2 are sourced from anchor decision D9. AC-4 is derived from it, because nothing can physically be inside itself. AC-1 (container role), AC-3, AC-5 and AC-8 are provisional defaults or specified choices of the requirements author, marked where they apply. Ownership of every link stays as in [BR-013](/docs/requirements/requirements/br-013-container-links-owner-scoped.md).
+
+**Terms:**
+- *Container link*, *container*: as in [BR-013](/docs/requirements/requirements/br-013-container-links-owner-scoped.md). Here a container is any registration that holds, or is asked to hold, another registration.
+- *Direct container* of X: the registration that a container link names as X's container.
+- *Inside*: X is inside C if C is X's direct container, or X's direct container is inside C. This covers any depth.
+
+**Statement:**
+The API shall let a user put any of their own gear registrations into any other of their own registrations, at any depth, as long as afterwards every registration has at most one direct container and no registration is inside itself.
+
+**Acceptance criteria:**
+
+- AC-1: Any registration may be a container, and any registration may be content, including one that already holds other registrations. The catalog gear's container flag (`gear_is_container`) neither allows nor prevents either role. The flag stays catalog information and a list filter. **[Provisional default P-11 — open to product-owner change. D9 says "a container can store anything"; it is ambiguous whether it also means "anything can be a container". This reading takes the owner's sentence "a gear item in one container can itself hold items" literally and keeps today's behavior.]**
+- AC-2: There is no depth limit. Example: the owner links R2 into R1, R3 into R2, and so on, up to R25 into R24. Every link succeeds, and listing each container returns exactly its direct contents.
+- AC-3: A registration has at most one direct container at a time. Linking X into C when X already has a different direct container D is refused with 409, and nothing changes. To move X, the owner removes the link to D and then links X into C. Linking X into C again when that link already exists stays a 409, as today. **[Provisional default P-12 — open to product-owner change]**
+- AC-4: No registration is ever inside itself. Linking X into C is refused when C is X (400, as today) or when C is already inside X (409). Example: R2 is in R1 and R3 is in R2; linking R1 into R3 is refused with 409, and nothing changes. **[The 409 status is provisional default P-12]**
+- AC-5: The ownership refusal of BR-013 (the "not found" outcome of [BR-018](/docs/requirements/requirements/br-018-denial-outcomes.md)) is decided before the 400 and 409 outcomes of AC-3 and AC-4. Among those, the self-link 400 comes before any 409. A 400 or 409 response reveals nothing about another user's registrations or links. (Specified choice; it keeps BR-018's precedence.)
+- AC-6: AC-3 and AC-4 hold when link requests run at the same time. Examples: concurrent requests "R1 into R2" and "R2 into R1" leave at most one of the two links stored; concurrent requests "X into C" and "X into D" leave X with at most one direct container. (Derived: otherwise two requests that are each valid alone could store a cycle or a second container.)
+- AC-7: Deleting a registration removes only the links that involve it. Its direct contents stay in the owner's inventory with no direct container, and whatever they hold stays inside them. Removing a link changes no other link. (Specified choice; it matches today's behavior.)
+- AC-8: Once this requirement is implemented, no stored link violates AC-3 or AC-4, and no stored link joins registrations of different owners. This includes self-links and multiple direct containers stored before. How existing violations are removed is a realization choice. Removing such links is allowed, because the product owner stated that the stored data is generated test data, so no existing link needs to be preserved. (Specified choice, enabled by the anchor's context note.)
+
+**Out of scope:** whether contents physically fit, for example against a registration's maximum container weight. The product owner has not decided this, and no limit is required.
+
+**Verification semantics:**
+Use real request handling and stored data. Build the 25-level chain of AC-2. Try to link a registration that already has a container into a second container: 409, and both stored links are unchanged. Try the cycle of AC-4, and a cycle of length 2: 409, no link added. Try a self-link: 400. Run the two concurrent pairs of AC-6 many times: never two links stored. Delete a middle registration of the chain: its child has no container, and the rest of the chain below it is intact. Link a registration whose catalog gear has `gear_is_container` false as a container: it succeeds. After the change, check the stored links for self-links, multiple direct containers, cycles and cross-owner links: finding any falsifies AC-8. The requirement is falsified by any stored state where a registration has two direct containers or is inside itself.
+
+## Derived from
+
+- [Access control and identity decisions — D9, D4](/docs/anchors/access-control-and-identity.md)
+
+## Related
+
+- [BR-013 Container links involve only the caller's own registrations](/docs/requirements/requirements/br-013-container-links-owner-scoped.md)
+- [BR-012 Gear registrations are readable and changeable only by their owner](/docs/requirements/requirements/br-012-inventory-registrations-owner-scoped.md)
+- [OC-001 Owner-scoped data operations](/docs/requirements/obligation-contracts/oc-001-owner-scoped-data-operations.md)

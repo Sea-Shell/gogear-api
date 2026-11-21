@@ -6,11 +6,11 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, BR-001 (admin-only catalog) as of wave 4, and BR-003 to BR-005 (Google identity binding) as of wave 5; BR-002 is planned, not implemented. Wave 6 adds the database integrity that backs these rules (foreign keys, container-link and quantity constraints) and a required Go CI gate. The engineering review of revision `6fb972b` found most of them violated. Performance and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, BR-001 (admin-only catalog) as of wave 4, and BR-003 to BR-005 (Google identity binding) as of wave 5; BR-002 is planned, not implemented. The follow-up decisions D6 to D10 of the same day add BR-019 (permanent first admin, not implemented) and BR-020 (container nesting, partly implemented), and amend BR-004, BR-006, BR-008 to BR-010, BR-012, BR-013 and BR-018. Each requirement marks its amended parts "not implemented" where that applies. Wave 6 adds the database integrity that backs these rules (foreign keys, container-link and quantity constraints) and a required Go CI gate. The engineering review of revision `6fb972b` found most of them violated. Performance and API redesign findings from the same review are out of scope.
 
-**Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
+**Choices the product owner may still change:** the provisional defaults P-1 to P-12 below, and the edited-email rule of BR-004 AC-8 and AC-9, which was adopted on General's recommendation without an explicit owner choice.
 
-**Context, not a requirement:** At the time of writing there are two registered users, and Google OAuth is limited to test users, so there is no live exposure.
+**Context, not a requirement:** At the time of writing there are two registered users, and Google OAuth is limited to test users, so there is no live exposure. All stored data is generated test data, not real user data, so preserving existing data is not a product obligation (anchor context note). This adds no requirement.
 
 ## Terms
 
@@ -20,6 +20,9 @@
 - **User-owned data:** gear registrations (inventory), container links, loadouts and loadout items.
 - **Owner:** for a registration or loadout, the user it belongs to. For a loadout item, the owner of its loadout. For a container link, the owner of its container registration.
 - **Google subject (`sub`):** Google's stable account identifier in a validated ID token.
+- **Service token:** the GoGear JWT the API issues at sign-in and refresh. It is not a Google token.
+- **Permanent admin:** the one account designated as the first admin in BR-019. It can never lose admin status or be deleted through the API.
+- **Email:** profile data only. It identifies an account only in the one-time backfill match of BR-004 (anchor decision D7).
 
 ## Behavioral requirements
 
@@ -43,6 +46,8 @@
 | BR-016 | [Public loadouts are readable by slug without signing in; private ones are not](/docs/requirements/requirements/br-016-public-loadouts-by-slug.md) | D4 | — |
 | BR-017 | [Identity and privilege values in request bodies never take effect](/docs/requirements/requirements/br-017-client-identity-fields-never-take-effect.md) | D3, D4 | SEC-01, SEC-03, SEC-05 |
 | BR-018 | [Refused requests change nothing and use a defined status](/docs/requirements/requirements/br-018-denial-outcomes.md) | D3, D4 | — |
+| BR-019 | [The first admin is a permanent admin](/docs/requirements/requirements/br-019-permanent-first-admin.md) — **not implemented** | D6 | — |
+| BR-020 | [Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — **partly implemented** | D9 | SEC-06 |
 
 ## Obligation contracts
 
@@ -78,16 +83,16 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Container list, insert and delete: `:container` in the list route is the container registration ID; in the delete route it is the link ID (`container_registration_id`). Insert needs both `user_container_id` and `user_gear_registration_id` (400 otherwise). Self-link is 400 (after the ownership check, so a foreign ID is 404).
   - Deleting a registration also removes every link that names it as container or content, in the same transaction, because foreign keys are not enforced.
   - Bad paging values are 400 instead of 500.
-  - Not changed: gear existence is not checked on insert (needs foreign-key enforcement), and Q-4 rules (nesting, longer cycles, duplicate links, what may hold gear) are not enforced.
+  - Not changed: gear existence is not checked on insert (needs foreign-key enforcement), and the container rules of former open question Q-4 (nesting, longer cycles, duplicate links, what may hold gear) are not enforced. Q-4 is now answered by BR-020.
 - **Wave 4 (implemented):** BR-001, and the catalog parts of BR-017 and BR-018. BR-002 stays planned. Decisions made while implementing, within the requirements:
   - One route middleware (`RequireAdmin`) guards every catalog create, update and delete; the routes are registered by `RegisterCatalogRoutes`, shared by `main` and the tests, so a handler cannot forget the check. Reads are unchanged.
   - Catalog updates are explicit partial `UPDATE`s: only fields present in the body change (a JSON `null` is treated as absent), and an empty body is 400. A body ID that differs from the path ID is 400 (P-2). An unknown ID is 404, checked before the body-ID conflict and the empty-body checks.
   - Catalog delete reads only the record name, answers 404 for an unknown ID, and reports the ID rather than a pointer. Its message text changed to `success! <Type> with ID <n> and name <name> was deleted`.
   - Request and config logging (review SEC-11, not a requirement): debug config output reports secrets only as set/unset. The request log is written after the handler with the final status, latency, route template and the number of query parameters, and never query names or values. A request whose handler panics is logged as a 500, the panic handler does not write the query, and gin runs in release mode unless `GIN_MODE` is set.
   - Not changed: catalog foreign keys are not enforced, so deleting a category or manufacturer still leaves gear pointing at it (integrity wave).
-- **Wave 5 (implemented):** BR-003, BR-004, BR-005 (review SEC-08). Decisions made while implementing, within the requirements:
+- **Wave 5 (implemented):** BR-003, BR-004, BR-005 (review SEC-08). Decisions made while implementing. All are within the requirements except the planted-email rule, which went beyond the requirement text (an earlier version of this list wrongly called it "within the requirements"). It is now accepted as BR-004 AC-8:
   - Storage is a nullable `users.googleSubject` with a unique index (migration 000004), plus `users.userEmailEdited` (default 0). The migration applies to existing databases and leaves every existing account unbound, so the next Google sign-in of each existing user backfills it.
-  - **Planted email:** a profile update that changes the email sets `userEmailEdited`, and such an account is never eligible for backfill. Otherwise a user could set their email to someone else's and capture that person's first Google sign-in. An excluded account that holds the email still blocks creation of a new account for it (403), because BR-005 allows creation only when no account uses the email. The edit flag is not cleared; there is no way yet to restore eligibility (a Q-5 follow-up for the product owner).
+  - **Planted email:** a profile update that changes the email sets `userEmailEdited`, and such an account is never eligible for backfill. Otherwise a user could set their email to someone else's and capture that person's first Google sign-in. An excluded account that holds the email still blocks creation of a new account for it (403), because BR-005 allows creation only when no account uses the email. The edit flag is not cleared; there is no way yet to restore eligibility. BR-004 AC-9 now requires an admin-only way to clear it (not implemented).
   - A token without a subject is 401 (treated as an invalid token). The P-6 refusals are 403. A token without an email that matches no bound subject is 400, as before.
   - Sign-in by a bound subject needs no email and no `email_verified`; the stored account's name, email and admin status are never updated from the token.
   - A sign-in that creates an account stores the Google email as username, name fallback and email, as before.
@@ -100,8 +105,8 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Legacy data: quantities of 0 or below are **clamped to 1**, with the original values kept in `audit_000005_clamped_loadout_item_quantity` and the totals of the affected loadouts recomputed. Only identical duplicate links are deleted. Existing self-links and orphans are left unchanged for review. The down migration removes the constraints and indexes but does not undo data changes.
   - Database settings: file databases use the WAL journal (`_journal_mode=WAL`) so concurrent readers and writers do not hit "database is locked". Startup refuses an empty `database.file`.
   - CI: `.github/workflows/go.yaml` runs `go mod verify`, `go build`, `go vet`, `go test -race -count=1` and `govulncheck` on pull requests and pushes to main. Making it a required check is a GitHub branch-protection setting, not part of this repository.
-  - Still open: Q-4 container rules (nesting, longer cycles, what may hold gear), repair of existing orphans and self-links, `totalWeight` after catalog weight edits, and a Swagger drift check in CI.
-- **Not yet implemented:** BR-002 (planned). The Q-4 container rules beyond duplicates and self-links, and repair of pre-existing orphan rows, are not implemented.
+  - Still open at the end of wave 6: the container rules of former Q-4 (now BR-020: one direct container, longer cycles, removing existing self-links and other violating links), repair of existing orphans, `totalWeight` after catalog weight edits, and a Swagger drift check in CI.
+- **Not yet implemented:** BR-002 (planned); BR-019 (permanent first admin, with its refusals in BR-009 AC-6, BR-010 AC-2 and BR-018); BR-004 AC-9 (admin-only clearing of the edited-email mark); BR-020 AC-3 to AC-8 (one direct container, longer cycles, concurrency, cleanup of violating stored links); repair of pre-existing orphan rows.
 
 ## Provisional defaults (open to product-owner change)
 
@@ -114,14 +119,21 @@ Where the decisions were silent, the requirements author chose the least-privile
 - **P-5** — The direct user-creation operation is **admin-only** (BR-011).
 - **P-6** — Google sign-in is **refused with 403** in these cases: the email is not verified and no account is bound to the token's subject; the verified email belongs to an account already bound to another subject; or several unbound accounts share the email. In these cases no account is linked or created (BR-004, BR-005).
 - **P-7** — The backfill email match is **exact and case-sensitive, after trimming whitespace** (BR-004).
+- **P-8** — The **permanent admin** is the admin with the **lowest user ID when BR-019 takes effect**, or, if there is no admin then, the first account to become admin afterwards. The designation never moves (BR-019 AC-1). The product owner should confirm that this selects their own account.
+- **P-9** — Revoking the permanent admin's status, or the permanent admin **deleting their own account**, is **refused with 403** for every caller and changes nothing. Granting admin status to the permanent admin succeeds and changes nothing (BR-019 AC-4, AC-5).
+- **P-10** — Admins other than the permanent admin get **no protection**: any admin may revoke them, and they may revoke **their own** status (BR-019 AC-7).
+- **P-11** — **Any registration can act as a container**, whatever the catalog `gear_is_container` flag says (BR-020 AC-1). "A container can store anything" could also mean "only container gear holds items, but it holds any gear". This reading was chosen because the owner also said that a gear item in a container can itself hold items.
+- **P-12** — A registration has **at most one direct container**. Linking it into a second container, or creating a cycle longer than a self-link, is **refused with 409**. A self-link stays 400 (BR-020 AC-3, AC-4).
 
-## Open questions (none block the current remediation)
+## Open questions
 
-- **Q-1** — Can an admin remove their own admin status, including the last admin? Owner: product owner. Not specified, so it is neither required nor forbidden.
-- **Q-2** — When a user's Google email changes, should the stored profile email follow it? Owner: product owner. Sign-in is not affected (BR-003). Only profile data is.
-- **Q-3** — Must tokens issued before a demotion stop working before they expire? Owner: product owner, with the architect for the mechanism. D5 covers refresh only. Today the risk is bounded by token lifetime (60 minutes by default).
-- **Q-4** — Container integrity rules: whether a registration can hold gear, nesting, cycles, duplicates. Owner: product owner. Out of scope here (BR-013).
-- **Q-5** — Which profile fields a user may edit, including their own email, which is the backfill matching key. Owner: product owner. BR-008 keeps today's editable fields.
+None are open. The product owner answered all five on 2026-11-21 (anchor decisions D6 to D10):
+
+- **Q-1 (answered, D6)** — Can an admin remove admin status, including their own or the last admin's? The first admin is permanent and can never lose admin status (BR-019). Other admins can be demoted, also by themselves (P-10). Because the permanent admin always stays, at least one admin always exists.
+- **Q-2 (answered, D7)** — Should the stored profile email follow a changed Google email? There is no requirement either way. Email is profile data only and never identifies a user, except in the one-time backfill match (BR-004 AC-10, BR-008 AC-6).
+- **Q-3 (answered, D10; accepted, not provisional)** — Must GoGear service JWTs issued at sign-in or refresh stop working before they expire after a demotion or account deletion? (Google tokens were never the subject.) No. They keep their role until they expire, 60 minutes by default. No revocation and no per-request role check is required (BR-006 AC-5, BR-009 AC-7).
+- **Q-4 (answered, D9)** — Container rules. Anything can be stored in a container, at unlimited depth (BR-020, with provisional defaults P-11 and P-12).
+- **Q-5 (answered, D8)** — Which profile fields may a user edit? All of them (username, name, email) except the Google subject, admin status and user ID (BR-008 AC-4, AC-5). The edited-email rule that protects the backfill is BR-004 AC-8 and AC-9.
 
 ## Bundle files
 
