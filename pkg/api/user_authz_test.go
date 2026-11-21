@@ -562,3 +562,174 @@ func TestSetUserAdmin_LogNamesActingAdmin(t *testing.T) {
 	}
 	t.Fatalf("no admin-change log entry: %v", env.Logs.All())
 }
+
+// ---- BR-004 AC-9: admin-only clearing of the edited-email mark ---------------
+
+func (e *authzEnv) emailEdited(id int64) bool {
+	e.T.Helper()
+	var v bool
+	if err := e.DB.QueryRow(`SELECT userEmailEdited FROM users WHERE userId = ?`, id).Scan(&v); err != nil {
+		e.T.Fatalf("read userEmailEdited of %d: %v", id, err)
+	}
+	return v
+}
+
+func TestClearEmailEdited_AdminOnlyAndChangesNothingElse(t *testing.T) {
+	env := newAuthzEnv(t)
+	admin := env.SeedUser("root", "root@example.com", true)
+	a := env.SeedUser("alice", "alice@example.com", false)
+	env.bind(a, "sub-alice")
+	if _, err := env.DB.Exec(`UPDATE users SET userEmailEdited = 1 WHERE userId = ?`, a); err != nil {
+		t.Fatal(err)
+	}
+	before := env.User(a)
+	path := userPath(a, "email-edited/clear")
+
+	// Refused: no token, a non-admin (the account's own owner included), an
+	// admin-audience-less token minted for the admin's id.
+	expectStatus(t, env.Do(http.MethodPost, path, "", nil), http.StatusUnauthorized)
+	expectStatus(t, env.Do(http.MethodPost, path, env.Token(a, false), nil), http.StatusForbidden)
+	expectStatus(t, env.Do(http.MethodPost, path, env.Token(admin, false), nil), http.StatusForbidden)
+	if !env.emailEdited(a) {
+		t.Fatal("a refused request cleared the mark")
+	}
+
+	expectStatus(t, env.Do(http.MethodPost, path, env.Token(admin, true), nil), http.StatusOK)
+	if env.emailEdited(a) {
+		t.Fatal("the admin's request did not clear the mark")
+	}
+	if got := env.User(a); got != before {
+		t.Fatalf("clearing changed the account: %+v -> %+v", before, got)
+	}
+	if s := env.subjectOf(a); !s.Valid || s.String != "sub-alice" {
+		t.Fatalf("clearing changed the Google subject: %+v", s)
+	}
+
+	// Clearing an account without the mark succeeds and changes nothing.
+	b := env.SeedUser("bob", "bob@example.com", false)
+	bBefore := env.User(b)
+	expectStatus(t, env.Do(http.MethodPost, userPath(b, "email-edited/clear"), env.Token(admin, true), nil), http.StatusOK)
+	if env.User(b) != bBefore || env.emailEdited(b) {
+		t.Fatal("clearing an unmarked account changed it")
+	}
+
+	// A later email change marks again.
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), env.Token(a, false), map[string]any{"user_email": "alice-new@example.com"}), http.StatusOK)
+	if !env.emailEdited(a) {
+		t.Fatal("email change after clearing did not mark the account again")
+	}
+
+	// Errors: unknown user 404, malformed id 400.
+	expectStatus(t, env.Do(http.MethodPost, userPath(9999, "email-edited/clear"), env.Token(admin, true), nil), http.StatusNotFound)
+	expectStatus(t, env.Do(http.MethodPost, "/api/v1/users/xyz/email-edited/clear", env.Token(admin, true), nil), http.StatusBadRequest)
+}
+
+// The point of AC-9: after clearing, an unbound account is eligible for the
+// backfill again (BR-004 AC-8); before, the sign-in is refused (403).
+func TestClearEmailEdited_RestoresBackfillEligibility(t *testing.T) {
+	env := newAuthzEnv(t)
+	admin := env.SeedUser("root", "root@example.com", true)
+	a := env.SeedUser("alice", "old@example.com", false)
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), env.Token(a, false), map[string]any{"user_email": "alice@gmail.example"}), http.StatusOK)
+
+	if res := env.signIn(verified("sub-A", "alice@gmail.example")); res.Code != http.StatusForbidden {
+		t.Fatalf("marked account: sign-in = %d, want 403", res.Code)
+	}
+	if env.subjectOf(a).Valid {
+		t.Fatal("marked account was bound")
+	}
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "email-edited/clear"), env.Token(admin, true), nil), http.StatusOK)
+	if res := env.signIn(verified("sub-A", "alice@gmail.example")); res.Code != http.StatusOK || res.UserID != a {
+		t.Fatalf("after clearing: %+v, want sign-in as %d", res, a)
+	}
+	if s := env.subjectOf(a); !s.Valid || s.String != "sub-A" {
+		t.Fatalf("subject = %+v", s)
+	}
+}
+
+// The acting admin and the target are logged.
+func TestClearEmailEdited_LogNamesActingAdminAndTarget(t *testing.T) {
+	env := newAuthzEnv(t)
+	root := env.SeedUser("root", "root@example.com", true)
+	u := env.SeedUser("alice", "alice@example.com", false)
+	expectStatus(t, env.Do(http.MethodPost, userPath(u, "email-edited/clear"), env.Token(root, true), nil), http.StatusOK)
+	for _, e := range env.Logs.All() {
+		if e.Message == "edited-email mark cleared" {
+			f := e.ContextMap()
+			if f["actor_user_id"] != root || f["target_user_id"] != u {
+				t.Fatalf("log fields = %v, want actor %d target %d", f, root, u)
+			}
+			return
+		}
+	}
+	t.Fatalf("no log entry: %v", env.Logs.All())
+}
+
+// ---- BR-008 AC-4..AC-6: what a profile update may and may not change ----------
+
+// Whatever the body carries, a profile update never changes the Google subject,
+// admin status, user ID, password or the edited-email mark, except that a real
+// email change sets the mark.
+func TestUpdateUser_NeverTouchesSubjectIDAdminOrMarkExceptViaEmail(t *testing.T) {
+	env := newAuthzEnv(t)
+	a := env.SeedUser("alice", "alice@example.com", true)
+	env.bind(a, "sub-alice")
+	tok := env.Token(a, true)
+
+	hostile := map[string]any{
+		"user_id": a, "user_is_admin": true,
+		"googleSubject": "sub-attacker", "google_subject": "sub-attacker", "GoogleSubject": "sub-attacker",
+		"userEmailEdited": false, "user_email_edited": false, "email_edited": false,
+		"userId": a + 100, "userIsAdmin": false, "userPassword": "x",
+		"user_username": "alice2", "user_name": "Alice Two",
+	}
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), tok, hostile), http.StatusOK)
+	got := env.User(a)
+	if got.Username != "alice2" || got.Name != "Alice Two" || got.Email != "alice@example.com" {
+		t.Fatalf("profile fields not applied or email disturbed: %+v", got)
+	}
+	if got.Password != "hash-of-alice" || !got.IsAdmin {
+		t.Fatalf("password or admin status changed: %+v", got)
+	}
+	if s := env.subjectOf(a); !s.Valid || s.String != "sub-alice" {
+		t.Fatalf("Google subject changed: %+v", s)
+	}
+	if env.emailEdited(a) {
+		t.Fatal("an update that left the email alone set the mark")
+	}
+	if env.Count("users", "userId = ?", a+100) != 0 || env.Count("users", "") != 1 {
+		t.Fatal("user ID changed or a user appeared")
+	}
+
+	// Changing the email sets the mark and still changes nothing else.
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), tok, map[string]any{"user_email": "other@example.com", "googleSubject": "sub-attacker"}), http.StatusOK)
+	if got := env.User(a); got.Email != "other@example.com" || !got.IsAdmin {
+		t.Fatalf("after email change: %+v", got)
+	}
+	if !env.emailEdited(a) {
+		t.Fatal("email change did not set the mark")
+	}
+	if s := env.subjectOf(a); s.String != "sub-alice" {
+		t.Fatalf("Google subject changed by email update: %+v", s)
+	}
+
+	// The user cannot clear the mark: not by body fields, not by restoring the old email.
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), tok, map[string]any{"user_email": "alice@example.com", "userEmailEdited": false, "user_email_edited": false}), http.StatusOK)
+	if !env.emailEdited(a) {
+		t.Fatal("the user cleared the edited-email mark through a profile update")
+	}
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), tok, map[string]any{"user_name": "Same Email Resent", "user_email": "alice@example.com"}), http.StatusOK)
+	if !env.emailEdited(a) {
+		t.Fatal("re-sending the email cleared the mark")
+	}
+}
+
+// A user without a bound subject stays unbound after any update.
+func TestUpdateUser_UnboundAccountStaysUnbound(t *testing.T) {
+	env := newAuthzEnv(t)
+	a := env.SeedUser("alice", "alice@example.com", false)
+	expectStatus(t, env.Do(http.MethodPost, userPath(a, "update"), env.Token(a, false), map[string]any{"googleSubject": "sub-x", "user_name": "A"}), http.StatusOK)
+	if env.subjectOf(a).Valid {
+		t.Fatal("a profile update bound a Google subject")
+	}
+}

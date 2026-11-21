@@ -11,6 +11,7 @@ func RegisterUserRoutes(g *gin.RouterGroup) {
 	g.POST("/:user/update", UpdateUser)
 	g.DELETE("/:user/delete", DeleteUser)
 	g.POST("/:user/admin", SetUserAdmin)
+	g.POST("/:user/email-edited/clear", ClearUserEmailEdited)
 	g.PUT("/insert", InsertUser)
 }
 

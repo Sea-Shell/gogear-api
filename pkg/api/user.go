@@ -634,6 +634,54 @@ func SetUserAdmin(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// ClearUserEmailEdited clears the edited-email mark of a user
+//
+//	@Summary		Clear the edited-email mark of user with ID
+//	@Description	Admin only. Removes the mark that stops an unbound account from being bound to a Google identity by its email (BR-004). Nothing else about the account changes. Clearing an account without the mark succeeds. Clear it only after confirming the account's email belongs to its owner.
+//	@Security		BearerAuth
+//	@Tags			User
+//	@Produce		json
+//	@Param			user	path		int				true	"Unique ID of the user"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/users/{user}/email-edited/clear [post]
+func ClearUserEmailEdited(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+
+	actorID, isAdmin := callerIdentity(c)
+	if !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
+		return
+	}
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+
+	// Only the mark is in the SET list. SQLite counts a matched row even when
+	// the value does not change, so 0 rows means the user does not exist.
+	res, err := db.ExecContext(c.Request.Context(), `UPDATE users SET userEmailEdited = 0 WHERE userId = ?`, targetID)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	if n == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+		return
+	}
+
+	log.Infow("edited-email mark cleared", "actor_user_id", actorID, "target_user_id", targetID)
+	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+}
+
 // DeleteUser delets user from database
 //
 //	@Summary		Delete user with ID

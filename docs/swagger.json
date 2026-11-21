@@ -2585,6 +2585,46 @@
                 }
             }
         },
+        "/api/v1/users/{user}/email-edited/clear": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. Removes the mark that stops an unbound account from being bound to a Google identity by its email (BR-004). Nothing else about the account changes. Clearing an account without the mark succeeds. Clear it only after confirming the account's email belongs to its owner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Clear the edited-email mark of user with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of the user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{user}/get": {
             "get": {
                 "security": [
