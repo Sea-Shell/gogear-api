@@ -2,6 +2,8 @@ package endpoints
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -19,8 +21,39 @@ import (
 	zap "go.uber.org/zap"
 )
 
+// categoryCapabilityJoin attaches the container settings of a sub-category (view
+// category_container_setting, migration 000009, ADR-001 D-3) to a query on
+// gear_category. The trailing space lets GenericGet append its WHERE clause.
+const categoryCapabilityJoin = ` LEFT JOIN category_container_setting ON category_container_setting.categoryId = gear_category.categoryId `
+
+var errInvalidCategoryContainer = errors.New(`category_container must be "container", "not_container" or "inherit"`)
+
+// parseCategoryContainer reads the category_container field of a request body
+// (ADR-001 D-2). present is false when the field is absent or JSON null: not
+// sent. Otherwise value is the column value: nil for "inherit" (removes the
+// explicit setting), 1 for "container", 0 for "not_container". Any other JSON
+// value is errInvalidCategoryContainer.
+func parseCategoryContainer(raw json.RawMessage) (value any, present bool, err error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, false, nil
+	}
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return nil, false, errInvalidCategoryContainer
+	}
+	switch s {
+	case "container":
+		return int64(1), true, nil
+	case "not_container":
+		return int64(0), true, nil
+	case "inherit":
+		return nil, true, nil
+	}
+	return nil, false, errInvalidCategoryContainer
+}
+
 // @Summary		Get category with ID
-// @Description	Get category spessific to ID
+// @Description	Get category spessific to ID. category_container is the explicit container setting (container, not_container, or inherit when the sub-category has none); category_is_container is the effective setting (BR-021).
 // @Security		BearerAuth
 // @Tags			Category
 // @Accept			json
@@ -42,12 +75,7 @@ func GetCategory(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 	}
 
-	var extraSQL []string
-	// extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
-	// extraSQL = append(extraSQL, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
-	// extraSQL = append(extraSQL, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-
-	results, err := utils.GenericGet[models.GearCategory]("gear_category", urlParameter, extraSQL, db)
+	results, err := utils.GenericGet[models.GearCategory]("gear_category", urlParameter, []string{categoryCapabilityJoin}, db)
 	if err != nil {
 		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -59,7 +87,7 @@ func GetCategory(c *gin.Context) {
 }
 
 // @Summary		List categories
-// @Description	Get a list of category items
+// @Description	Get a list of category items, each with its explicit (category_container) and effective (category_is_container) container setting and its top category's (top_category_is_container).
 // @Security		BearerAuth
 // @Tags			Category
 // @Accept			json
@@ -68,7 +96,7 @@ func GetCategory(c *gin.Context) {
 // @Param			limit		query		int		false	"Number of items per page"	default(30)
 // @Param			category	query		[]int	false	"Top category"				collectionFormat(multi)
 // @Param			topCategory	query		[]int	false	"Top gear category"			collectionFormat(multi)
-// @Success		200			{object}	models.ResponsePayload{items=[]models.GearCategory}
+// @Success		200			{object}	models.ResponsePayload{items=[]models.GearCategoryListItem}
 // @Failure		default		{object}	models.Error
 // @Router			/api/v1/category/list [get]
 func ListCategory(c *gin.Context) {
@@ -162,7 +190,8 @@ func ListCategory(c *gin.Context) {
 	fields := utils.GetDBFieldNames(reflect.TypeOf(paramCategory))
 
 	baseQuery := fmt.Sprintf(`SELECT %s FROM gear_category
-    LEFT JOIN gear_top_category ON gear_category.categoryTopCategoryId = gear_top_category.topCategoryId`,
+    LEFT JOIN gear_top_category ON gear_category.categoryTopCategoryId = gear_top_category.topCategoryId
+    LEFT JOIN category_container_setting ON category_container_setting.categoryId = gear_category.categoryId`,
 		strings.Join(fields, ", "))
 
 	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
@@ -246,16 +275,17 @@ func ListCategory(c *gin.Context) {
 }
 
 // @Summary		Update category with ID
-// @Description	Update category identified by ID. Requires a JWT issued with the admin audience.
+// @Description	Update category identified by ID. Requires a JWT issued with the admin audience. category_container sets the container setting: "container" or "not_container" sets it, "inherit" removes it so the top category's setting applies; absent or null leaves it unchanged; any other value is 400. category_is_container is read-only and ignored.
 // @Security		BearerAuth
 // @Tags			Category
 // @Accept			json
 // @Produce		json
 // @Param			categoryID	path		int					true	"Unique ID of category you want to update"
-// @Param			request		body		models.GearCategory	true	"Request body"
+// @Param			request		body		models.GearCategoryInput	true	"Request body"
 // @Success		200			{object}	models.Status		"status: success when all goes well"
 // @Failure		default		{object}	models.Error
 // @Failure		400		{object}	models.Error
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/category/{category}/update [post]
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -265,14 +295,23 @@ func UpdateCategory(c *gin.Context) {
 		return
 	}
 	var body struct {
-		ID            *int64  `json:"category_id"`
-		TopCategoryID *int64  `json:"category_top_category_id"`
-		Name          *string `json:"category_name"`
+		ID            *int64          `json:"category_id"`
+		TopCategoryID *int64          `json:"category_top_category_id"`
+		Name          *string         `json:"category_name"`
+		Container     json.RawMessage `json:"category_container"`
 	}
 	if !readCatalogBody(c, &body) {
 		return
 	}
+	container, hasContainer, err := parseCategoryContainer(body.Container)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
+	}
 	u := catalogUpdate{table: "gear_category", idColumn: "categoryId"}
+	if hasContainer {
+		u.add("categoryIsContainer", container)
+	}
 	if body.TopCategoryID != nil {
 		u.add("categoryTopCategoryId", *body.TopCategoryID)
 	}
@@ -283,15 +322,16 @@ func UpdateCategory(c *gin.Context) {
 }
 
 // @Summary		Insert new category
-// @Description	Insert new category with corresponding values. Requires a JWT issued with the admin audience.
+// @Description	Insert new category with corresponding values. Requires a JWT issued with the admin audience. Without category_container (or with null or "inherit") the new sub-category has no explicit container setting and follows its top category.
 // @Security		BearerAuth
 // @Tags			Category
 // @Accept			json
 // @Produce		json
-// @Param			request	body		models.GearCategory	true	"Request body"
-// @Success		200		{object}	models.GearCategory	"status: success when all goes well"
+// @Param			request	body		models.GearCategoryInput	true	"Request body"
+// @Success		200		{object}	models.GearCategory	"the created category with its container settings"
 // @Failure		default	{object}	models.Error
 // @Failure		400		{object}	models.Error
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/category/insert [put]
 func InsertCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -306,7 +346,33 @@ func InsertCategory(c *gin.Context) {
 		return
 	}
 
-	createdObject, err := utils.GenericInsert[models.GearCategory]("gear_category", data, db)
+	var body struct {
+		TopCategoryID int64           `json:"category_top_category_id"`
+		Name          string          `json:"category_name"`
+		Container     json.RawMessage `json:"category_container"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: "invalid JSON body: " + err.Error()})
+		return
+	}
+	container, _, err := parseCategoryContainer(body.Container)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
+	}
+
+	res, err := db.Exec(`INSERT INTO gear_category (categoryTopCategoryId, categoryName, categoryIsContainer) VALUES (?, ?, ?)`,
+		body.TopCategoryID, body.Name, container)
+	if err != nil {
+		catalogInsertFailed(c, log, err)
+		return
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		catalogInsertFailed(c, log, err)
+		return
+	}
+	createdObject, err := utils.GenericGet[models.GearCategory]("gear_category", int(id), []string{categoryCapabilityJoin}, db)
 	if err != nil {
 		catalogInsertFailed(c, log, err)
 		return

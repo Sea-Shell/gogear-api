@@ -124,7 +124,7 @@ func ListUserGearInContainer(c *gin.Context) {
 //	@Success		200		{object}	models.Status				"status: success when all goes well"
 //	@Failure		400		{object}	models.Error
 //	@Failure		404		{object}	models.Error
-//	@Failure		409		{object}	models.Error
+//	@Failure		409		{object}	models.Error	"the container registration cannot hold items (its gear is not in a container category), or the content already has a container, or the link would make a cycle"
 //	@Router			/api/v1/container/insert [put]
 func InsertContainer(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)

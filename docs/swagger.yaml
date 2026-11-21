@@ -28,6 +28,7 @@ definitions:
       gear_id:
         type: integer
       gear_is_container:
+        readOnly: true
         type: boolean
       gear_length:
         type: integer
@@ -65,6 +66,7 @@ definitions:
       gear_id:
         type: integer
       gear_is_container:
+        readOnly: true
         type: boolean
       gear_length:
         type: integer
@@ -85,12 +87,62 @@ definitions:
     type: object
   models.GearCategory:
     properties:
+      category_container:
+        enum:
+        - container
+        - not_container
+        - inherit
+        type: string
+      category_id:
+        type: integer
+      category_is_container:
+        readOnly: true
+        type: boolean
+      category_name:
+        type: string
+      category_top_category_id:
+        type: integer
+    type: object
+  models.GearCategoryInput:
+    properties:
+      category_container:
+        enum:
+        - container
+        - not_container
+        - inherit
+        type: string
       category_id:
         type: integer
       category_name:
         type: string
       category_top_category_id:
         type: integer
+    type: object
+  models.GearCategoryListItem:
+    properties:
+      category_container:
+        enum:
+        - container
+        - not_container
+        - inherit
+        type: string
+      category_id:
+        type: integer
+      category_is_container:
+        readOnly: true
+        type: boolean
+      category_name:
+        type: string
+      category_top_category_id:
+        type: integer
+      top_category_icon:
+        type: string
+      top_category_id:
+        type: integer
+      top_category_is_container:
+        type: boolean
+      top_category_name:
+        type: string
     type: object
   models.GearInput:
     properties:
@@ -130,6 +182,7 @@ definitions:
       gear_id:
         type: integer
       gear_is_container:
+        readOnly: true
         type: boolean
       gear_manufacture_id:
         type: integer
@@ -156,6 +209,12 @@ definitions:
         type: string
       top_category_id:
         type: integer
+      top_category_is_container:
+        description: |-
+          TopCategoryIsContainer is the top category's container setting (BR-021).
+          Absent or null on create means false; absent or null on update means
+          unchanged.
+        type: boolean
       top_category_name:
         type: string
     type: object
@@ -334,6 +393,7 @@ definitions:
       gear_id:
         type: integer
       gear_is_container:
+        readOnly: true
         type: boolean
       gear_length:
         type: integer
@@ -441,7 +501,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get category spessific to ID
+      description: Get category spessific to ID. category_container is the explicit
+        container setting (container, not_container, or inherit when the sub-category
+        has none); category_is_container is the effective setting (BR-021).
       parameters:
       - description: Unique ID of category you want to get
         in: path
@@ -468,8 +530,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Update category identified by ID. Requires a JWT issued with the
-        admin audience.
+      description: 'Update category identified by ID. Requires a JWT issued with the
+        admin audience. category_container sets the container setting: "container"
+        or "not_container" sets it, "inherit" removes it so the top category''s setting
+        applies; absent or null leaves it unchanged; any other value is 400. category_is_container
+        is read-only and ignored.'
       parameters:
       - description: Unique ID of category you want to update
         in: path
@@ -481,7 +546,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.GearCategory'
+          $ref: '#/definitions/models.GearCategoryInput'
       produces:
       - application/json
       responses:
@@ -491,6 +556,10 @@ paths:
             $ref: '#/definitions/models.Status'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: admin privileges required
           schema:
             $ref: '#/definitions/models.Error'
         default:
@@ -507,23 +576,29 @@ paths:
       consumes:
       - application/json
       description: Insert new category with corresponding values. Requires a JWT issued
-        with the admin audience.
+        with the admin audience. Without category_container (or with null or "inherit")
+        the new sub-category has no explicit container setting and follows its top
+        category.
       parameters:
       - description: Request body
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.GearCategory'
+          $ref: '#/definitions/models.GearCategoryInput'
       produces:
       - application/json
       responses:
         "200":
-          description: 'status: success when all goes well'
+          description: the created category with its container settings
           schema:
             $ref: '#/definitions/models.GearCategory'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "403":
+          description: admin privileges required
           schema:
             $ref: '#/definitions/models.Error'
         default:
@@ -539,7 +614,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of category items
+      description: Get a list of category items, each with its explicit (category_container)
+        and effective (category_is_container) container setting and its top category's
+        (top_category_is_container).
       parameters:
       - default: 1
         description: Page number
@@ -576,7 +653,7 @@ paths:
             - properties:
                 items:
                   items:
-                    $ref: '#/definitions/models.GearCategory'
+                    $ref: '#/definitions/models.GearCategoryListItem'
                   type: array
               type: object
         default:
@@ -690,7 +767,9 @@ paths:
           schema:
             $ref: '#/definitions/models.Error'
         "409":
-          description: Conflict
+          description: the container registration cannot hold items (its gear is not
+            in a container category), or the content already has a container, or the
+            link would make a cycle
           schema:
             $ref: '#/definitions/models.Error'
       security:
@@ -1601,7 +1680,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get top category spessific to ID
+      description: Get top category spessific to ID. top_category_is_container is
+        its container setting (BR-021).
       parameters:
       - description: Unique ID of top category you want to get
         in: path
@@ -1628,7 +1708,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Update top category identified by ID
+      description: Update top category identified by ID. Requires a JWT issued with
+        the admin audience. top_category_is_container sets the container setting;
+        absent or null leaves it unchanged.
       parameters:
       - description: Unique ID of top category you want to update
         in: path
@@ -1652,6 +1734,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
+        "403":
+          description: admin privileges required
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -1665,7 +1751,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Insert new top category with corresponding values
+      description: Insert new top category with corresponding values. Requires a JWT
+        issued with the admin audience. A new top category is not a container category
+        unless top_category_is_container is true.
       parameters:
       - description: Request body
         in: body
@@ -1680,6 +1768,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "403":
+          description: admin privileges required
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:

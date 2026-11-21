@@ -29,7 +29,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience.",
+                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience. Without category_container (or with null or \"inherit\") the new sub-category has no explicit container setting and follows its top category.",
                 "consumes": [
                     "application/json"
                 ],
@@ -47,19 +47,25 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
+                            "$ref": "#/definitions/models.GearCategoryInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "status: success when all goes well",
+                        "description": "the created category with its container settings",
                         "schema": {
                             "$ref": "#/definitions/models.GearCategory"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -80,7 +86,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of category items",
+                "description": "Get a list of category items, each with its explicit (category_container) and effective (category_is_container) container setting and its top category's (top_category_is_container).",
                 "consumes": [
                     "application/json"
                 ],
@@ -141,7 +147,7 @@ const docTemplate = `{
                                         "items": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.GearCategory"
+                                                "$ref": "#/definitions/models.GearCategoryListItem"
                                             }
                                         }
                                     }
@@ -214,7 +220,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get category spessific to ID",
+                "description": "Get category spessific to ID. category_container is the explicit container setting (container, not_container, or inherit when the sub-category has none); category_is_container is the effective setting (BR-021).",
                 "consumes": [
                     "application/json"
                 ],
@@ -257,7 +263,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update category identified by ID. Requires a JWT issued with the admin audience.",
+                "description": "Update category identified by ID. Requires a JWT issued with the admin audience. category_container sets the container setting: \"container\" or \"not_container\" sets it, \"inherit\" removes it so the top category's setting applies; absent or null leaves it unchanged; any other value is 400. category_is_container is read-only and ignored.",
                 "consumes": [
                     "application/json"
                 ],
@@ -282,7 +288,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
+                            "$ref": "#/definitions/models.GearCategoryInput"
                         }
                     }
                 ],
@@ -295,6 +301,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -357,7 +369,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "the container registration cannot hold items (its gear is not in a container category), or the content already has a container, or the link would make a cycle",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1818,7 +1830,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new top category with corresponding values",
+                "description": "Insert new top category with corresponding values. Requires a JWT issued with the admin audience. A new top category is not a container category unless top_category_is_container is true.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1845,6 +1857,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -1987,7 +2005,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get top category spessific to ID",
+                "description": "Get top category spessific to ID. top_category_is_container is its container setting (BR-021).",
                 "consumes": [
                     "application/json"
                 ],
@@ -2030,7 +2048,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update top category identified by ID",
+                "description": "Update top category identified by ID. Requires a JWT issued with the admin audience. top_category_is_container sets the container setting; absent or null leaves it unchanged.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2068,6 +2086,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -2961,7 +2985,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"
@@ -3017,7 +3042,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"
@@ -3048,6 +3074,40 @@ const docTemplate = `{
         "models.GearCategory": {
             "type": "object",
             "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_is_container": {
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "category_top_category_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.GearCategoryInput": {
+            "type": "object",
+            "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
                 "category_id": {
                     "type": "integer"
                 },
@@ -3056,6 +3116,44 @@ const docTemplate = `{
                 },
                 "category_top_category_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.GearCategoryListItem": {
+            "type": "object",
+            "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_is_container": {
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "category_top_category_id": {
+                    "type": "integer"
+                },
+                "top_category_icon": {
+                    "type": "string"
+                },
+                "top_category_id": {
+                    "type": "integer"
+                },
+                "top_category_is_container": {
+                    "type": "boolean"
+                },
+                "top_category_name": {
+                    "type": "string"
                 }
             }
         },
@@ -3116,7 +3214,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_manufacture_id": {
                     "type": "integer"
@@ -3155,6 +3254,10 @@ const docTemplate = `{
                 },
                 "top_category_id": {
                     "type": "integer"
+                },
+                "top_category_is_container": {
+                    "description": "TopCategoryIsContainer is the top category's container setting (BR-021).\nAbsent or null on create means false; absent or null on update means\nunchanged.",
+                    "type": "boolean"
                 },
                 "top_category_name": {
                     "type": "string"
@@ -3429,7 +3532,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"

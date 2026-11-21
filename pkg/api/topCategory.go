@@ -31,7 +31,7 @@ func normalizeTopCategoryIcon(value string) string {
 }
 
 // @Summary		Get top category with ID
-// @Description	Get top category spessific to ID
+// @Description	Get top category spessific to ID. top_category_is_container is its container setting (BR-021).
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -248,7 +248,7 @@ func ListTopCategory(c *gin.Context) {
 }
 
 // @Summary		Update top category with ID
-// @Description	Update top category identified by ID
+// @Description	Update top category identified by ID. Requires a JWT issued with the admin audience. top_category_is_container sets the container setting; absent or null leaves it unchanged.
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -258,6 +258,7 @@ func ListTopCategory(c *gin.Context) {
 // @Success		200				{object}	models.Status			"status: success when all goes well"
 // @Failure		default			{object}	models.Error
 // @Failure		400		{object}	models.Error
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -267,9 +268,10 @@ func UpdateTopCategory(c *gin.Context) {
 		return
 	}
 	var body struct {
-		ID   *int64  `json:"top_category_id"`
-		Name *string `json:"top_category_name"`
-		Icon *string `json:"top_category_icon"`
+		ID          *int64  `json:"top_category_id"`
+		Name        *string `json:"top_category_name"`
+		Icon        *string `json:"top_category_icon"`
+		IsContainer *bool   `json:"top_category_is_container"`
 	}
 	if !readCatalogBody(c, &body) {
 		return
@@ -281,11 +283,14 @@ func UpdateTopCategory(c *gin.Context) {
 	if body.Icon != nil {
 		u.add("topCategoryIcon", normalizeTopCategoryIcon(*body.Icon))
 	}
+	if body.IsContainer != nil {
+		u.add("topCategoryIsContainer", *body.IsContainer)
+	}
 	u.apply(c, id, body.ID)
 }
 
 // @Summary		Insert new top category
-// @Description	Insert new top category with corresponding values
+// @Description	Insert new top category with corresponding values. Requires a JWT issued with the admin audience. A new top category is not a container category unless top_category_is_container is true.
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -293,6 +298,7 @@ func UpdateTopCategory(c *gin.Context) {
 // @Param			request	body		models.GearTopCategory	true	"Request body"
 // @Success		200		{object}	models.Status			"status: success when all goes well"
 // @Failure		default	{object}	models.Error
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

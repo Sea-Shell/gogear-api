@@ -11,7 +11,7 @@ type Gear struct {
 	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
 	GearCategoryID     int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
-	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
+	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readonly:"true"`
 	GearName           string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gear.gearSizeDefinition"`
 	GearWeight         int32  `json:"gear_weight" db:"gear.gearWeight"`
@@ -50,7 +50,7 @@ type FullGear struct {
 	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
 	GearCategoryID     int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
-	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
+	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readonly:"true"`
 	GearName           string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	GearWeight         int32  `json:"gear_weight" db:"gear.gearWeight"`
@@ -77,7 +77,7 @@ type GearListItem struct {
 	GearTopCategoryID     int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
 	GearCategoryID        int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID     int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
-	GearIsContainer       bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
+	GearIsContainer       bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readonly:"true"`
 	GearName              string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition    string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	ManufactureID         int64  `json:"manufacture_id" db:"manufacture.manufactureId"`
