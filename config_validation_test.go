@@ -24,7 +24,7 @@ func TestValidateConfig_FromConfigFile(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "config.yaml")
-			if err := os.WriteFile(file, []byte("auth:\n  "+tc.auth+"\n"), 0o600); err != nil {
+			if err := os.WriteFile(file, []byte("database:\n  file: /data/gogear.db\nauth:\n  "+tc.auth+"\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			cfg, err := utils.LoadConfig[models.Config](file)
@@ -37,6 +37,35 @@ func TestValidateConfig_FromConfigFile(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			case tc.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tc.wantErr)):
 				t.Fatalf("error = %v, want it to contain %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// An empty database.file is refused at startup: the SQLite driver would
+// otherwise open a file named after the DSN options in the working directory.
+func TestValidateConfig_DatabaseFile(t *testing.T) {
+	const auth = "auth:\n  jwt-audience: client\n  jwt-admin-audience: admin\n"
+	for _, tc := range []struct {
+		name, yaml string
+		wantErr    bool
+	}{
+		{"set", "database:\n  file: /data/gogear.db\n", false},
+		{"missing section", "", true},
+		{"empty", "database:\n  file: \"\"\n", true},
+		{"blank", "database:\n  file: \"   \"\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(file, []byte(tc.yaml+auth), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := loadValidatedConfig(file)
+			switch {
+			case tc.wantErr && (err == nil || !strings.Contains(err.Error(), "database: file must not be empty")):
+				t.Fatalf("error = %v, want the empty database file refused", err)
+			case !tc.wantErr && err != nil:
+				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}

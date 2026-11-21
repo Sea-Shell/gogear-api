@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -140,6 +141,11 @@ func oauthConfigMiddleware(oauth *oauth2.Config) gin.HandlerFunc {
 func validateConfig(config *models.Config) error {
 	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
 		return fmt.Errorf("auth: %w", err)
+	}
+	// An empty path would make the SQLite driver open a file named after its
+	// options in the working directory (see utils.SQLiteDSN).
+	if strings.TrimSpace(config.Database.File) == "" {
+		return errors.New("database: file must not be empty")
 	}
 	return nil
 }
