@@ -60,6 +60,13 @@ INSERT INTO user_container_registration (containerRegistrationId, userContainerI
 	return db
 }
 
+// migrateTo8 stops at 000008: these tests describe that migration, before the
+// category rule of 000009 refuses links into gear that is not container-capable.
+func migrateTo8(t *testing.T, db *sql.DB) {
+	t.Helper()
+	stepMigrate(t, db, migrationsPath(t), func(m *migrate.Migrate) error { return m.Migrate(8) })
+}
+
 func linkIDs(t *testing.T, db *sql.DB) []int {
 	t.Helper()
 	rows, err := db.Query(`SELECT containerRegistrationId FROM user_container_registration ORDER BY 1`)
@@ -82,7 +89,7 @@ func linkIDs(t *testing.T, db *sql.DB) []int {
 // links that had to go are gone.
 func TestMigration8RemovesViolatingLinks(t *testing.T) {
 	db := containerLegacyDB(t)
-	runMigrate(t, db, migrationsPath(t))
+	migrateTo8(t, db)
 
 	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 8 {
 		t.Fatalf("version = %d", v)
@@ -147,7 +154,7 @@ func TestMigration8RemovesViolatingLinks(t *testing.T) {
 func TestMigration8ReplayAndDownUp(t *testing.T) {
 	db := containerLegacyDB(t)
 	path := migrationsPath(t)
-	runMigrate(t, db, path)
+	migrateTo8(t, db)
 	before := linkIDs(t, db)
 
 	script, err := os.ReadFile(filepath.Join(path, "000008_container_nesting.up.sql"))
@@ -182,7 +189,7 @@ func TestMigration8ReplayAndDownUp(t *testing.T) {
 	if got := linkIDs(t, db); !reflect.DeepEqual(got, before) {
 		t.Fatalf("down changed links: %v", got)
 	}
-	runMigrate(t, db, path)
+	migrateTo8(t, db)
 	if got := linkIDs(t, db); !reflect.DeepEqual(got, before) {
 		t.Fatalf("up again changed links: %v", got)
 	}
