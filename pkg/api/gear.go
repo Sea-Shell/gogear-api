@@ -529,24 +529,51 @@ func InsertGear(c *gin.Context) {
 func UpdateGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	id, ok := catalogID(c, "gear")
+	if !ok {
+		return
+	}
+	var body struct {
+		ID             *int64  `json:"gear_id"`
+		TopCategoryID  *int64  `json:"gear_top_category_id"`
+		CategoryID     *int64  `json:"gear_category_id"`
+		ManufactureID  *int64  `json:"gear_manufacture_id"`
+		IsContainer    *bool   `json:"gear_is_container"`
+		Name           *string `json:"gear_name"`
+		SizeDefinition *string `json:"gear_size_definition"`
+		Weight         *int32  `json:"gear_weight"`
+		Height         *int32  `json:"gear_height"`
+		Length         *int32  `json:"gear_length"`
+		Width          *int32  `json:"gear_width"`
+		Status         *bool   `json:"gear_status"`
+	}
+	if !readCatalogBody(c, &body) {
 		return
 	}
 
-	err = utils.GenericUpdate[models.Gear]("gear", data, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	u := catalogUpdate{table: "gear", idColumn: "gearId"}
+	for _, f := range []struct {
+		column string
+		value  any
+		set    bool
+	}{
+		{"gearTopCategoryId", body.TopCategoryID, body.TopCategoryID != nil},
+		{"gearCategoryId", body.CategoryID, body.CategoryID != nil},
+		{"gearManufactureId", body.ManufactureID, body.ManufactureID != nil},
+		{"gearIsContainer", body.IsContainer, body.IsContainer != nil},
+		{"gearName", body.Name, body.Name != nil},
+		{"gearSizeDefinition", body.SizeDefinition, body.SizeDefinition != nil},
+		{"gearWeight", body.Weight, body.Weight != nil},
+		{"gearHeight", body.Height, body.Height != nil},
+		{"gearLength", body.Length, body.Length != nil},
+		{"gearWidth", body.Width, body.Width != nil},
+		{"gearStatus", body.Status, body.Status != nil},
+	} {
+		if f.set {
+			u.add(f.column, f.value)
+		}
 	}
-
-	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+	u.apply(c, id, body.ID)
 }
 
 // DeleteGear delets gear based on ID
@@ -563,27 +590,5 @@ func UpdateGear(c *gin.Context) {
 //	@Router			/api/v1/gear/{gear}/delete [delete]
 func DeleteGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	function := "gear"
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := utils.GenericDelete[models.Gear]("gear", urlParameter, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	log.Infof("success! Gear with gear_id %v and gear_name %s was deleted", result.GearID, result.GearName)
-	c.JSON(http.StatusOK, map[string]string{
-		"status": fmt.Sprintf("success! Gear with gear_id %v and gear_name %s was deleted", result.GearID, result.GearName),
-	})
+	deleteCatalogRow(c, "gear", "gearId", "gearName", "gear", "Gear")
 }

@@ -259,31 +259,26 @@ func ListCategory(c *gin.Context) {
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	isAdmin, _ := c.Get("user_is_admin")
-	if adminFlag, ok := isAdmin.(bool); !ok || !adminFlag {
-		log.Warn("unauthorized category update attempt without admin privileges")
-		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
+	id, ok := catalogID(c, "category")
+	if !ok {
 		return
 	}
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	var body struct {
+		ID            *int64  `json:"category_id"`
+		TopCategoryID *int64  `json:"category_top_category_id"`
+		Name          *string `json:"category_name"`
+	}
+	if !readCatalogBody(c, &body) {
 		return
 	}
-
-	err = utils.GenericUpdate[models.GearCategory]("gear_category", data, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	u := catalogUpdate{table: "gear_category", idColumn: "categoryId"}
+	if body.TopCategoryID != nil {
+		u.add("categoryTopCategoryId", *body.TopCategoryID)
 	}
-
-	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+	if body.Name != nil {
+		u.add("categoryName", *body.Name)
+	}
+	u.apply(c, id, body.ID)
 }
 
 // @Summary		Insert new category
@@ -301,13 +296,6 @@ func InsertCategory(c *gin.Context) {
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-
-	isAdmin, _ := c.Get("user_is_admin")
-	if adminFlag, ok := isAdmin.(bool); !ok || !adminFlag {
-		log.Warn("unauthorized category insert attempt without admin privileges")
-		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
-		return
-	}
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -338,32 +326,5 @@ func InsertCategory(c *gin.Context) {
 // @Router			/api/v1/category/{category}/delete [delete]
 func DeleteCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	function := "category"
-
-	isAdmin, _ := c.Get("user_is_admin")
-	if adminFlag, ok := isAdmin.(bool); !ok || !adminFlag {
-		log.Warn("unauthorized category delete attempt without admin privileges")
-		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
-		return
-	}
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := utils.GenericDelete[models.GearCategory]("gear_category", urlParameter, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	log.Infof("success! Category with category_id %v and name %s was deleted", result.CategoryID, result.CategoryName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Category with category_id %v and name %s has been deleted", result.CategoryID, result.CategoryName)})
+	deleteCatalogRow(c, "gear_category", "categoryId", "categoryName", "category", "Category")
 }

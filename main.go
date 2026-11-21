@@ -218,10 +218,6 @@ func main() {
 
 	// API Groups
 	userGroup := v1.Group("/users")
-	gearGroup := v1.Group("/gear")
-	topCategoryGroup := v1.Group("/topCategory")
-	categoryGroup := v1.Group("/category")
-	manufactureGroup := v1.Group("/manufacture")
 	userGearGroup := v1.Group("/usergear")
 	containerGroup := v1.Group("/container")
 
@@ -239,40 +235,15 @@ func main() {
 	// User endpoints
 	endpoints.RegisterUserRoutes(userGroup)
 
-	// Gear endpoints
-	gearGroup.GET("/list", endpoints.ListGear)
-	gearGroup.GET("/search", endpoints.SearchGear)
-	gearGroup.GET("/:gear/get", endpoints.GetGear)
-	gearGroup.POST("/:gear/update", endpoints.UpdateGear)
-	gearGroup.DELETE("/:gear/delete", endpoints.DeleteGear)
-	gearGroup.PUT("/insert", endpoints.InsertGear)
+	// Catalog endpoints (gear, top category, category, manufacture): reads for
+	// every authenticated user, writes admin-only
+	endpoints.RegisterCatalogRoutes(v1)
 
 	// User Gear endpoints
 	endpoints.RegisterUserGearRoutes(userGearGroup)
 
 	// Container endpoints
 	endpoints.RegisterContainerRoutes(containerGroup)
-
-	// Top Category endpoints
-	topCategoryGroup.GET("/list", endpoints.ListTopCategory)
-	topCategoryGroup.GET("/:topCategory/get", endpoints.GetTopCategory)
-	topCategoryGroup.POST("/:topCategory/update", endpoints.UpdateTopCategory)
-	topCategoryGroup.DELETE("/:topCategory/delete", endpoints.DeleteTopCategory)
-	topCategoryGroup.PUT("/insert", endpoints.InsertTopCategory)
-
-	// Category endpoints
-	categoryGroup.GET("/list", endpoints.ListCategory)
-	categoryGroup.GET("/:category/get", endpoints.GetCategory)
-	categoryGroup.POST("/:category/update", endpoints.UpdateCategory)
-	categoryGroup.DELETE("/:category/delete", endpoints.DeleteCategory)
-	categoryGroup.PUT("/insert", endpoints.InsertCategory)
-
-	// Manufacture endpoints
-	manufactureGroup.GET("/list", endpoints.ListManufacture)
-	manufactureGroup.GET("/:manufacture/get", endpoints.GetManufacture)
-	manufactureGroup.POST("/:manufacture/update", endpoints.UpdateManufacture)
-	manufactureGroup.DELETE("/:manufacture/delete", endpoints.DeleteManufature)
-	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
 
 	// Loadout and loadout item endpoints (protected)
 	endpoints.RegisterLoadoutRoutes(v1.Group("/loadout"))

@@ -261,64 +261,26 @@ func ListTopCategory(c *gin.Context) {
 func UpdateTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	id, ok := catalogID(c, "topCategory")
+	if !ok {
 		return
 	}
-
-	var payload models.GearTopCategory
-	if err := json.Unmarshal(data, &payload); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	var body struct {
+		ID   *int64  `json:"top_category_id"`
+		Name *string `json:"top_category_name"`
+		Icon *string `json:"top_category_icon"`
+	}
+	if !readCatalogBody(c, &body) {
 		return
 	}
-
-	if payload.TopCategoryID == nil {
-		err := fmt.Errorf("top_category_id is required")
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	u := catalogUpdate{table: "gear_top_category", idColumn: "topCategoryId"}
+	if body.Name != nil {
+		u.add("topCategoryName", *body.Name)
 	}
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	if body.Icon != nil {
+		u.add("topCategoryIcon", normalizeTopCategoryIcon(*body.Icon))
 	}
-
-	if _, iconProvided := raw["top_category_icon"]; iconProvided {
-		payload.TopCategoryIcon = normalizeTopCategoryIcon(payload.TopCategoryIcon)
-	} else {
-		existing, err := utils.GenericGet[models.GearTopCategory]("gear_top_category", int(*payload.TopCategoryID), nil, db)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			log.Error(err.Error())
-			return
-		}
-		payload.TopCategoryIcon = existing.TopCategoryIcon
-	}
-
-	normalizedPayload, err := json.Marshal(payload)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	err = utils.GenericUpdate[models.GearTopCategory]("gear_top_category", normalizedPayload, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+	u.apply(c, id, body.ID)
 }
 
 // @Summary		Insert new top category
@@ -382,25 +344,5 @@ func InsertTopCategory(c *gin.Context) {
 // @Router			/api/v1/topCategory/{topCategory}/delete [delete]
 func DeleteTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	function := "topCategory"
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := utils.GenericDelete[models.GearTopCategory]("gear_top_category", urlParameter, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	log.Infof("success! Top category with top_category_id %v and top_category_name %s was deleted", result.TopCategoryID, result.TopCategoryName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Top category with top_category_id %v and top_category_name %s was deleted", result.TopCategoryID, result.TopCategoryName)})
+	deleteCatalogRow(c, "gear_top_category", "topCategoryId", "topCategoryName", "topCategory", "Top category")
 }
