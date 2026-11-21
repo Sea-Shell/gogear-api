@@ -437,3 +437,69 @@ func TestDeleteUser_AllOrNothingOnFailure(t *testing.T) {
 		t.Fatal("other user's data changed")
 	}
 }
+
+// A username or name that looks like an email address is hidden from other
+// non-admin users even when it is not the user's stored email (Google
+// sign-in, changed email), and search cannot reveal it.
+func TestUserDirectory_AnyEmailLikeNameIsHiddenAndNotSearchable(t *testing.T) {
+	env := newAuthzEnv(t)
+	a := env.SeedUser("alice", "alice@example.com", false)
+	d := env.SeedUser("dave@old-mail.test", "dave@new-mail.test", false)
+	if _, err := env.DB.Exec(`UPDATE users SET userName = ? WHERE userId = ?`, "Dave at old-mail@work", d); err != nil {
+		t.Fatal(err)
+	}
+	admin := env.SeedUser("root", "root@example.com", true)
+	tok := env.Token(a, false)
+
+	for _, p := range []string{userPath(d, "get"), "/api/v1/users/list"} {
+		w := env.Do(http.MethodGet, p, tok, nil)
+		expectStatus(t, w, http.StatusOK)
+		if strings.Contains(w.Body.String(), "old-mail") {
+			t.Errorf("GET %s discloses an email-like value: %s", p, w.Body.String())
+		}
+	}
+	for _, q := range []string{"user=old-mail", "username=old-mail", "user=dave%40old", "username=work"} {
+		w := env.Do(http.MethodGet, "/api/v1/users/list?"+q, tok, nil)
+		expectStatus(t, w, http.StatusOK)
+		var list struct {
+			TotalItemCount int `json:"total_item_count"`
+		}
+		decodeJSON(t, w, &list)
+		if list.TotalItemCount != 0 {
+			t.Errorf("search %q matched a hidden value: %s", q, w.Body.String())
+		}
+	}
+
+	// Admins and the user themself still see and can search it.
+	for who, tk := range map[string]string{"admin": env.Token(admin, true), "self": env.Token(d, false)} {
+		w := env.Do(http.MethodGet, userPath(d, "get"), tk, nil)
+		expectStatus(t, w, http.StatusOK)
+		if !strings.Contains(w.Body.String(), "dave@old-mail.test") {
+			t.Errorf("%s no longer sees the username: %s", who, w.Body.String())
+		}
+	}
+	w := env.Do(http.MethodGet, "/api/v1/users/list?user=old-mail", env.Token(admin, true), nil)
+	if !strings.Contains(w.Body.String(), "dave@old-mail.test") {
+		t.Errorf("admin search lost the value: %s", w.Body.String())
+	}
+}
+
+// An admin-status change is attributable: the log entry names the acting
+// admin and the target.
+func TestSetUserAdmin_LogNamesActingAdmin(t *testing.T) {
+	env := newAuthzEnv(t)
+	root := env.SeedUser("root", "root@example.com", true)
+	u := env.SeedUser("alice", "alice@example.com", false)
+	expectStatus(t, env.Do(http.MethodPost, userPath(u, "admin"), env.Token(root, true), map[string]any{"user_is_admin": true}), http.StatusOK)
+
+	for _, e := range env.Logs.All() {
+		f := e.ContextMap()
+		if e.Message == "admin status changed" {
+			if f["actor_user_id"] != root || f["target_user_id"] != u || f["user_is_admin"] != true {
+				t.Fatalf("log fields = %v, want actor %d target %d", f, root, u)
+			}
+			return
+		}
+	}
+	t.Fatalf("no admin-change log entry: %v", env.Logs.All())
+}

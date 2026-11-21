@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // Authorization test harness.
@@ -52,6 +54,7 @@ type authzEnv struct {
 	Router *gin.Engine
 	V1     *gin.RouterGroup // /api/v1, behind the real JWT middleware
 	Auth   *models.Auth
+	Logs   *observer.ObservedLogs // everything the handlers logged
 }
 
 func newAuthzEnv(t *testing.T) *authzEnv {
@@ -71,7 +74,8 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	t.Cleanup(func() { db.Close() })
 	runMigrate(t, db)
 
-	logger := zap.NewNop().Sugar()
+	core, logs := observer.New(zapcore.DebugLevel)
+	logger := zap.New(core).Sugar()
 	router := gin.New()
 	router.Use(gin.Recovery()) // a handler panic is a 500, as in production
 	router.Use(func(c *gin.Context) {
@@ -92,7 +96,7 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	RegisterUserGearRoutes(v1.Group("/usergear"))
 	RegisterContainerRoutes(v1.Group("/container"))
 
-	return &authzEnv{T: t, DB: db, Router: router, V1: v1, Auth: auth}
+	return &authzEnv{T: t, DB: db, Router: router, V1: v1, Auth: auth, Logs: logs}
 }
 
 // SignToken signs an HS256 service token with explicit claims.

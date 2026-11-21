@@ -97,13 +97,14 @@ func ListUser(c *gin.Context) {
 	params := []interface{}{}
 	// Google-created accounts use the email as username and name. Non-admins
 	// must not be able to match (or see) such values on other users, so the
-	// search applies to exactly what the response will show.
+	// search applies to exactly what the response will show (see
+	// emailLikeFor and hiddenFromOthers, which must agree).
 	for _, username := range qUserUsername {
 		if callerIsAdmin {
 			conditions = append(conditions, "userUsername LIKE ?")
 			params = append(params, "%"+username+"%")
 		} else {
-			conditions = append(conditions, "(userUsername LIKE ? AND (userId = ? OR userEmail = '' OR instr(lower(userUsername), lower(userEmail)) = 0))")
+			conditions = append(conditions, "(userUsername LIKE ? AND (userId = ? OR "+hiddenFromOthers("userUsername")+" = 0))")
 			params = append(params, "%"+username+"%", callerID)
 		}
 	}
@@ -113,7 +114,7 @@ func ListUser(c *gin.Context) {
 			conditions = append(conditions, "userName LIKE ?")
 			params = append(params, "%"+name+"%")
 		} else {
-			conditions = append(conditions, "(userName LIKE ? AND (userId = ? OR userEmail = '' OR instr(lower(userName), lower(userEmail)) = 0))")
+			conditions = append(conditions, "(userName LIKE ? AND (userId = ? OR "+hiddenFromOthers("userName")+" = 0))")
 			params = append(params, "%"+name+"%", callerID)
 		}
 	}
@@ -303,9 +304,27 @@ func callerIdentity(c *gin.Context) (id int64, isAdmin bool) {
 	return id, isAdmin
 }
 
+// emailLikeFor reports whether value must be hidden from other users of the
+// account u: it contains '@' (it looks like an email address) or embeds the
+// stored email. Google sign-in uses the email for both username and name.
+func emailLikeFor(u models.User, value string) bool {
+	if strings.Contains(value, "@") {
+		return true
+	}
+	email := strings.ToLower(u.UserEmail)
+	return email != "" && strings.Contains(strings.ToLower(value), email)
+}
+
+// hiddenFromOthers is the SQL form of emailLikeFor for a users column: 1 when
+// the column value is hidden from other users, 0 otherwise. The user search
+// uses it so a search cannot match what the response redacts.
+func hiddenFromOthers(column string) string {
+	return "(instr(" + column + ", '@') > 0 OR (userEmail <> '' AND instr(lower(" + column + "), lower(userEmail)) > 0))"
+}
+
 // viewUserFor builds the profile response for a caller. Admins and the user
-// themself see email and admin status. For anyone else, a name or username that
-// embeds the user's email (Google sign-in uses the email for both) is blanked.
+// themself see email and admin status. For anyone else, a username or name that
+// looks like an email address is blanked.
 func viewUserFor(u models.User, callerID int64, callerIsAdmin bool) userView {
 	v := userView{UserID: u.UserID, UserUsername: u.UserUsername, UserName: u.UserName}
 	if callerIsAdmin || (u.UserID != nil && *u.UserID == callerID) {
@@ -313,13 +332,11 @@ func viewUserFor(u models.User, callerID int64, callerIsAdmin bool) userView {
 		v.UserEmail, v.UserIsAdmin = &email, &admin
 		return v
 	}
-	if email := strings.ToLower(u.UserEmail); email != "" {
-		if strings.Contains(strings.ToLower(v.UserUsername), email) {
-			v.UserUsername = ""
-		}
-		if strings.Contains(strings.ToLower(v.UserName), email) {
-			v.UserName = ""
-		}
+	if emailLikeFor(u, v.UserUsername) {
+		v.UserUsername = ""
+	}
+	if emailLikeFor(u, v.UserName) {
+		v.UserName = ""
 	}
 	return v
 }
@@ -529,7 +546,8 @@ func SetUserAdmin(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
-	if _, isAdmin := callerIdentity(c); !isAdmin {
+	actorID, isAdmin := callerIdentity(c)
+	if !isAdmin {
 		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
 		return
 	}
@@ -561,7 +579,7 @@ func SetUserAdmin(c *gin.Context) {
 		return
 	}
 
-	log.Infof("admin status of user %d set to %v", targetID, *body.UserIsAdmin)
+	log.Infow("admin status changed", "actor_user_id", actorID, "target_user_id", targetID, "user_is_admin", *body.UserIsAdmin)
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
