@@ -9,6 +9,7 @@ Read these before deploying a new version.
 ### Configuration the service now refuses to start without
 
 - `auth.jwt-audience` and `auth.jwt-admin-audience` must both be set, non-blank and different from each other. Tokens for ordinary users and for admins are told apart by this value.
+- `auth.google-client-id` is required. The service refuses to start without it, because an empty audience would make Google token validation skip the audience check.
 - `database.file` must be set. An empty value is refused.
 
 ### Back up the SQLite file first
@@ -37,7 +38,7 @@ The service starts anyway, and nothing is deleted or repaired. The warning only 
 
 ### First Google sign-in after the upgrade
 
-Accounts are bound to the stable Google subject. Existing accounts have none yet, so each one is bound at its first Google sign-in, by matching the stored email with the verified Google email. The match is exact and case-sensitive, after trimming whitespace.
+Accounts are bound to the stable Google subject. Existing accounts have none yet, so each one is bound at its first Google sign-in, by matching the stored email with the verified Google email. The match is exact and case-sensitive, after trimming whitespace of any kind (spaces, tabs, newlines and other Unicode whitespace). Emails are stored trimmed, and migration 000006 trims the ones already stored.
 
 - Before deploying, check that the stored `users.userEmail` of each existing account is exactly the email of its Google account. If it is not, the first sign-in does not find the account and creates a new, empty one (unless another rule in the requirements refuses the sign-in).
 - An account whose owner changed its email through the profile update is never bound by email. It has to be fixed by the operator.
