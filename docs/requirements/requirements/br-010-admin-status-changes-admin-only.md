@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-010 — Admin status changes are admin-only
 
-**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. The permanent-admin exception in AC-2 ([BR-019](/docs/requirements/requirements/br-019-permanent-first-admin.md)) is not implemented. **Status:** Accepted. **Priority:** P0 (review SEC-01). **Basis:** the statement, AC-1 and AC-3 are sourced from anchor decision D3. AC-2 is derived from it.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. The permanent-admin exception in AC-2 ([BR-019](/docs/requirements/requirements/br-019-permanent-first-admin.md)) is implemented in wave 7: the operation refuses to revoke the permanent admin (403) and treats granting it as a no-op. **Status:** Accepted. **Priority:** P0 (review SEC-01). **Basis:** the statement, AC-1 and AC-3 are sourced from anchor decision D3. AC-2 is derived from it.
 
 **Statement:**
 The API shall change a user's admin status only when an admin requests that change. The change shall not be possible through profile creation or profile update, whoever the caller is.

@@ -16,6 +16,10 @@ Read these before deploying a new version.
 
 Migration `000005` changes data: it clamps loadout item quantities of 0 or below to 1, turns blank loadout slugs into NULL, and deletes identical duplicate container links. The down migration removes the constraints but does not restore those changes. The original quantities stay in the table `audit_000005_clamped_loadout_item_quantity`. Every run of the migration adds its own rows (with a `clampedAt` timestamp), so if the migration is rolled back and applied again and clamps the same item a second time, both original values are kept.
 
+Migration `000007` designates the permanent admin (the admin with the lowest user ID when it runs, or the first account that becomes admin if there is none). That account can never lose admin status or be deleted through the API. Back up first if the lowest-ID admin is not the account you want: the designation lives in the table `permanent_admin`, and changing it is a manual database edit.
+
+Migration `000008` deletes container links that break the nesting rules: self-links, links with a missing registration, links between different users' registrations, all but the oldest container of a registration, and one link of each cycle. The down migration restores the indexes but not the deleted links.
+
 The database runs in WAL mode. Next to the database file there are `<file>-wal` and `<file>-shm` files. A plain copy of the `.db` file while the service runs can be torn or miss recent writes, and checkpointing first does not prevent that, because the service can write again before the copy finishes. Use one of these:
 
 - **Stop the service, then copy.** Scale the Deployment to 0 and wait for the pod to end. Copy the `.db` file together with `-wal` and `-shm` if they exist. Run this on the node that holds the `hostPath` directory (`/data/disk2/opt/gogear-api` in `kubernetes-manifests/deployment.yaml`; the database path is `database.file` in the config).
