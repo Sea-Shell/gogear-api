@@ -14,13 +14,18 @@
 -- 1. loadout_items.quantity must be a positive integer.
 --    Rows that already violate it are clamped to 1. Their original values are
 --    kept in the audit table so they can be reviewed or restored by hand.
+--    Each run appends its own rows (auditId, clampedAt), so a down/up cycle
+--    that clamps the same item again keeps both original values. Replaying the
+--    script adds nothing: rows already clamped no longer match the filter.
 CREATE TABLE IF NOT EXISTS audit_000005_clamped_loadout_item_quantity (
-    loadoutItemId INTEGER PRIMARY KEY,
+    auditId INTEGER PRIMARY KEY,
+    loadoutItemId INTEGER NOT NULL,
     loadoutId INTEGER NOT NULL,
-    quantity INTEGER NOT NULL
+    quantity INTEGER NOT NULL,
+    clampedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO audit_000005_clamped_loadout_item_quantity (loadoutItemId, loadoutId, quantity)
+INSERT INTO audit_000005_clamped_loadout_item_quantity (loadoutItemId, loadoutId, quantity)
     SELECT loadoutItemId, loadoutId, quantity FROM loadout_items
     WHERE typeof(quantity) <> 'integer' OR quantity <= 0;
 

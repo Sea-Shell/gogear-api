@@ -123,7 +123,7 @@ func TestMigration5IntegrityOnLegacyData(t *testing.T) {
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM loadout_items`); n != 5 {
 		t.Fatalf("items deleted: %d left, want 6", n)
 	}
-	rows, err := db.Query(`SELECT loadoutItemId, quantity FROM audit_000005_clamped_loadout_item_quantity ORDER BY 1`)
+	rows, err := db.Query(`SELECT loadoutItemId, quantity FROM audit_000005_clamped_loadout_item_quantity ORDER BY auditId`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,12 +257,20 @@ func TestMigration5DownUpAndReplay(t *testing.T) {
 		t.Fatalf("zero quantity should be accepted after down: %v", err)
 	}
 
+	// Item 1 was clamped by the first run (original 0); break it again.
+	if _, err := db.Exec(`UPDATE loadout_items SET quantity = -7 WHERE loadoutItemId = 1`); err != nil {
+		t.Fatal(err)
+	}
+
 	runMigrate(t, db, path) // up again over data that violates the rule once more
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM loadout_items WHERE quantity <= 0`); n != 0 {
 		t.Fatalf("re-up left %d bad quantities", n)
 	}
-	if n := scalar[int](t, db, `SELECT COUNT(*) FROM audit_000005_clamped_loadout_item_quantity`); n != 4 {
-		t.Fatalf("audit rows after re-up = %d, want 4 (first values kept)", n)
+	if n := scalar[int](t, db, `SELECT COUNT(*) FROM audit_000005_clamped_loadout_item_quantity`); n != 5 {
+		t.Fatalf("audit rows after re-up = %d, want 5 (one per run and item)", n)
+	}
+	if got := scalar[string](t, db, `SELECT group_concat(quantity) FROM (SELECT quantity FROM audit_000005_clamped_loadout_item_quantity WHERE loadoutItemId = 1 ORDER BY auditId)`); got != "0,-7" {
+		t.Fatalf("audit values for item 1 = %q, want both runs: 0,-7", got)
 	}
 	if n := len(schemaNames(t, db, "trigger")); n != 4 {
 		t.Fatalf("triggers after re-up = %d, want 4", n)
