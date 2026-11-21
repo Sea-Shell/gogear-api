@@ -489,6 +489,7 @@ func GetGear(c *gin.Context) {
 //	@Param			request	body		models.Gear	true	"query params"	test
 //	@Success		200		{object}	models.Gear	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
+//	@Failure		400		{object}	models.Error
 //	@Router			/api/v1/gear/insert [put]
 func InsertGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -586,6 +587,7 @@ func UpdateGear(c *gin.Context) {
 //	@Param			gear	path		int				true	"Unique ID of gear you want to delete"
 //	@Success		200		{object}	models.Status	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
+//	@Failure		409		{object}	models.Error
 //	@Router			/api/v1/gear/{gear}/delete [delete]
 func DeleteGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

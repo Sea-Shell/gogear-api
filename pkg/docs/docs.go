@@ -58,6 +58,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.GearCategory"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -184,6 +190,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -324,6 +336,24 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     }
                 }
@@ -472,6 +502,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Gear"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -696,6 +732,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -807,7 +849,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new loadout for the authenticated user",
+                "description": "Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug.",
                 "consumes": [
                     "application/json"
                 ],
@@ -838,6 +880,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -895,7 +943,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a loadout by ID",
+                "description": "Delete a loadout and its items. Unknown and other users' loadouts both return 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -922,8 +970,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -944,7 +992,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a single loadout by ID",
+                "description": "Get a single loadout by ID. Unknown and other users' loadouts both return 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -971,6 +1019,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Loadout"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -987,7 +1041,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Import gear items into a loadout",
+                "description": "Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1036,12 +1090,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1064,7 +1112,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Add gear to a loadout",
+                "description": "Add gear to a loadout owned by the caller. quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1106,12 +1154,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1134,7 +1176,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all items in a loadout",
+                "description": "List all items in a loadout owned by the caller. An empty loadout returns [].",
                 "consumes": [
                     "application/json"
                 ],
@@ -1192,7 +1234,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove an item from a loadout",
+                "description": "Remove an item from a loadout owned by the caller. The item must belong to the loadout in the path, otherwise 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1232,12 +1274,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1260,7 +1296,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update a loadout item",
+                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change. The item must belong to the loadout in the path, otherwise 404. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1309,12 +1345,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1337,7 +1367,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an existing loadout",
+                "description": "Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1373,14 +1403,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1542,6 +1578,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -1905,6 +1947,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -2043,6 +2091,18 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     }
                 }
@@ -2290,7 +2350,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new user with corresponding values",
+                "description": "Insert new user with corresponding values. Admin only. The account is never an admin (use the admin-status operation), and a body that asks for admin status or names a user ID is rejected.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2308,7 +2368,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserWithPass"
+                            "$ref": "#/definitions/models.User"
                         }
                     }
                 ],
@@ -2411,6 +2471,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/{user}/admin": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Set admin status of user with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of the user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "new admin status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{user}/delete": {
             "delete": {
                 "security": [
@@ -2418,7 +2533,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete user with corresponding ID value",
+                "description": "Delete the caller's own account together with all of its registrations, container links, loadouts and loadout items, all or nothing. Other accounts are refused with 403, admins included.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2504,7 +2619,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user identified by ID",
+                "description": "Update the caller's own profile. Other accounts are refused with 403, admins included. Omitted fields are left unchanged. Admin status and user ID in the body must match the stored values or the request is rejected with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3301,29 +3416,6 @@ const docTemplate = `{
                 },
                 "usergear_user_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.UserWithPass": {
-            "type": "object",
-            "properties": {
-                "user_email": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_is_admin": {
-                    "type": "boolean"
-                },
-                "user_name": {
-                    "type": "string"
-                },
-                "user_password": {
-                    "type": "string"
-                },
-                "user_username": {
-                    "type": "string"
                 }
             }
         }

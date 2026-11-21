@@ -330,6 +330,7 @@ func InsertManufacture(c *gin.Context) {
 // @Param			manufacture	path		int				true	"Unique ID of manufacture you want to update"
 // @Success		200			{object}	models.Status	"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		409		{object}	models.Error
 // @Router			/api/v1/manufacture/{manufacture}/delete [delete]
 func DeleteManufature(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

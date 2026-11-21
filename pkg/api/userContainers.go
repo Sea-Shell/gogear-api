@@ -106,6 +106,9 @@ func ListUserGearInContainer(c *gin.Context) {
 //	@Produce		json
 //	@Param			request	body		models.UserContainerNoID	true	"query params"
 //	@Success		200		{object}	models.Status				"status: success when all goes well"
+//	@Failure		400		{object}	models.Error
+//	@Failure		404		{object}	models.Error
+//	@Failure		409		{object}	models.Error
 //	@Router			/api/v1/container/insert [put]
 func InsertContainer(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)

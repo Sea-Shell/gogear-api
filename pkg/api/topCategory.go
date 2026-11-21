@@ -341,6 +341,7 @@ func InsertTopCategory(c *gin.Context) {
 // @Param			topCategory	path		int				true	"Unique ID of topCategory you want to update"
 // @Success		200			{object}	models.Status	"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		409		{object}	models.Error
 // @Router			/api/v1/topCategory/{topCategory}/delete [delete]
 func DeleteTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

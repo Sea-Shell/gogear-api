@@ -369,21 +369,6 @@ definitions:
       usergear_user_id:
         type: integer
     type: object
-  models.UserWithPass:
-    properties:
-      user_email:
-        type: string
-      user_id:
-        type: integer
-      user_is_admin:
-        type: boolean
-      user_name:
-        type: string
-      user_password:
-        type: string
-      user_username:
-        type: string
-    type: object
 info:
   contact:
     email: support@sea-shell.no
@@ -414,6 +399,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -504,6 +493,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.GearCategory'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -652,6 +645,18 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
       security:
       - BearerAuth: []
       summary: Insert user registered gear
@@ -675,6 +680,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -763,6 +772,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Gear'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -889,7 +902,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a loadout by ID
+      description: Delete a loadout and its items. Unknown and other users' loadouts
+        both return 404.
       parameters:
       - description: Loadout ID
         in: path
@@ -903,8 +917,8 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.Status'
-        "403":
-          description: Forbidden
+        "400":
+          description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
         "404":
@@ -920,7 +934,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a single loadout by ID
+      description: Get a single loadout by ID. Unknown and other users' loadouts both
+        return 404.
       parameters:
       - description: Loadout ID
         in: path
@@ -934,6 +949,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.Loadout'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
           schema:
@@ -947,7 +966,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Import gear items into a loadout
+      description: Import gear items into a loadout. All gear is added and the total
+        weight recalculated, or nothing changes.
       parameters:
       - description: Loadout ID
         in: path
@@ -976,10 +996,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
           schema:
@@ -997,7 +1013,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Remove an item from a loadout
+      description: Remove an item from a loadout owned by the caller. The item must
+        belong to the loadout in the path, otherwise 404.
       parameters:
       - description: Loadout ID
         in: path
@@ -1020,10 +1037,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
           schema:
@@ -1041,7 +1054,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Update a loadout item
+      description: Update an item of a loadout owned by the caller. Only fields present
+        in the body change. The item must belong to the loadout in the path, otherwise
+        404. A loadout_id or loadout_item_id in the body that differs from the path
+        is refused with 400.
       parameters:
       - description: Loadout ID
         in: path
@@ -1070,10 +1086,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
           schema:
@@ -1091,7 +1103,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Add gear to a loadout
+      description: Add gear to a loadout owned by the caller. quantity defaults to
+        1; zero or negative is refused with 400. A loadout_id in the body that differs
+        from the path is refused with 400.
       parameters:
       - description: Loadout ID
         in: path
@@ -1115,10 +1129,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
           schema:
@@ -1136,7 +1146,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: List all items in a loadout
+      description: List all items in a loadout owned by the caller. An empty loadout
+        returns [].
       parameters:
       - description: Loadout ID
         in: path
@@ -1173,7 +1184,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Update an existing loadout
+      description: Update the loadout named in the path. Only fields present in the
+        body change. A loadout_id or user_id in the body that differs from the path
+        or the caller is refused with 400.
       parameters:
       - description: Loadout ID
         in: path
@@ -1193,12 +1206,16 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.Status'
-        "403":
-          description: Forbidden
+        "400":
+          description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/models.Error'
       security:
@@ -1210,7 +1227,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Create a new loadout for the authenticated user
+      description: Create a new loadout for the authenticated user. The owner is always
+        the caller; a different user_id in the body is refused with 400. A blank slug
+        is stored as no slug.
       parameters:
       - description: Loadout data
         in: body
@@ -1227,6 +1246,10 @@ paths:
             $ref: '#/definitions/models.Loadout'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/models.Error'
         "500":
@@ -1279,6 +1302,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -1511,6 +1538,10 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
         default:
           description: ""
           schema:
@@ -1743,6 +1774,14 @@ paths:
           description: 'status: success when all goes well'
           schema:
             $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
       security:
       - BearerAuth: []
       summary: Insert user registered gear
@@ -1827,11 +1866,49 @@ paths:
       summary: Update user registered gear with ID
       tags:
       - User gear
+  /api/v1/users/{user}/admin:
+    post:
+      consumes:
+      - application/json
+      description: Grant or revoke admin status. Admin only. New tokens reflect the
+        change at the next sign-in or refresh.
+      parameters:
+      - description: Unique ID of the user
+        in: path
+        name: user
+        required: true
+        type: integer
+      - description: new admin status
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: boolean
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: success when all goes well'
+          schema:
+            $ref: '#/definitions/models.Status'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Set admin status of user with ID
+      tags:
+      - User
   /api/v1/users/{user}/delete:
     delete:
       consumes:
       - application/json
-      description: Delete user with corresponding ID value
+      description: Delete the caller's own account together with all of its registrations,
+        container links, loadouts and loadout items, all or nothing. Other accounts
+        are refused with 403, admins included.
       parameters:
       - description: Unique ID of user you want to update
         in: path
@@ -1885,7 +1962,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Update user identified by ID
+      description: Update the caller's own profile. Other accounts are refused with
+        403, admins included. Omitted fields are left unchanged. Admin status and
+        user ID in the body must match the stored values or the request is rejected
+        with 400.
       parameters:
       - description: Unique ID of user you want to update
         in: path
@@ -1918,14 +1998,16 @@ paths:
     put:
       consumes:
       - application/json
-      description: Insert new user with corresponding values
+      description: Insert new user with corresponding values. Admin only. The account
+        is never an admin (use the admin-status operation), and a body that asks for
+        admin status or names a user ID is rejected.
       parameters:
       - description: query params
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.UserWithPass'
+          $ref: '#/definitions/models.User'
       produces:
       - application/json
       responses:

@@ -290,6 +290,7 @@ func UpdateCategory(c *gin.Context) {
 // @Param			request	body		models.GearCategory	true	"Request body"
 // @Success		200		{object}	models.GearCategory	"status: success when all goes well"
 // @Failure		default	{object}	models.Error
+// @Failure		400		{object}	models.Error
 // @Router			/api/v1/category/insert [put]
 func InsertCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -322,6 +323,7 @@ func InsertCategory(c *gin.Context) {
 // @Param			category	path		int				true	"Unique ID of category you want to update"
 // @Success		200			{object}	models.Status	"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		409		{object}	models.Error
 // @Router			/api/v1/category/{category}/delete [delete]
 func DeleteCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
