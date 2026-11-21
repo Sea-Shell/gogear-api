@@ -56,12 +56,12 @@ None. The decisions contain no measurable quality target. The adversarial and co
 
 - **Wave 1 (implemented):** BR-006, BR-007, BR-008, BR-009, BR-010, BR-011, and the user, role and refresh parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
   - Admin-status changes use `POST /api/v1/users/{user}/admin` with `{"user_is_admin": true|false}` (admin only; 404 for an unknown user).
-  - Profile update changes only the fields present in the body (username, name, email). Omitted fields and the password are never touched.
+  - Profile update changes only the fields present in the body (username, name, email); a JSON `null` is treated as absent. Omitted fields and the password are never touched.
   - A non-admin search by email in the user directory is refused with 403, because it would reveal other users' emails (BR-007). Searches by username and name only match what the response shows.
   - Where a username or name contains the user's email (Google sign-in does this), it is blanked for non-admin viewers of other users.
   - Startup refuses empty or equal `jwt-audience` and `jwt-admin-audience`.
 - **Wave 2 (implemented):** BR-014, BR-015, BR-016, OC-001 for loadouts and items, and the loadout parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
-  - Loadout update changes only the fields present in the body (name, description, public flag, slug) and maintains `updatedAt`. An update with no fields is 400.
+  - Loadout update changes only the fields present in the body (name, description, public flag, slug); a JSON `null` is treated as absent. The update maintains `updatedAt`. An update with no fields is 400.
   - A body `loadout_id`, `loadout_item_id` or `user_id` that differs from the path or caller is 400 (P-2); a matching or absent value is accepted. A foreign or unknown target is 404 before any body conflict is reported.
   - Quantity below 1 is 400 on item insert and update. An absent quantity on insert is 1. No database CHECK constraint yet (integrity wave).
   - A blank or whitespace slug is stored as NULL. A slug already used by another loadout is 409.
@@ -81,9 +81,9 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Not changed: gear existence is not checked on insert (needs foreign-key enforcement), and Q-4 rules (nesting, longer cycles, duplicate links, what may hold gear) are not enforced.
 - **Wave 4 (implemented):** BR-001, and the catalog parts of BR-017 and BR-018. BR-002 stays planned. Decisions made while implementing, within the requirements:
   - One route middleware (`RequireAdmin`) guards every catalog create, update and delete; the routes are registered by `RegisterCatalogRoutes`, shared by `main` and the tests, so a handler cannot forget the check. Reads are unchanged.
-  - Catalog updates are explicit partial `UPDATE`s: only fields present in the body change, and an empty body is 400. A body ID that differs from the path ID is 400 (P-2). An unknown ID is 404.
+  - Catalog updates are explicit partial `UPDATE`s: only fields present in the body change (a JSON `null` is treated as absent), and an empty body is 400. A body ID that differs from the path ID is 400 (P-2). An unknown ID is 404, checked before the body-ID conflict and the empty-body checks.
   - Catalog delete reads only the record name, answers 404 for an unknown ID, and reports the ID rather than a pointer. Its message text changed to `success! <Type> with ID <n> and name <name> was deleted`.
-  - Request and config logging (review SEC-11, not a requirement): debug config output reports secrets only as set/unset. The request log is written after the handler with the final status, latency, route template and the number of query parameters, and never query names or values.
+  - Request and config logging (review SEC-11, not a requirement): debug config output reports secrets only as set/unset. The request log is written after the handler with the final status, latency, route template and the number of query parameters, and never query names or values. A request whose handler panics is logged as a 500, the panic handler does not write the query, and gin runs in release mode unless `GIN_MODE` is set.
   - Not changed: catalog foreign keys are not enforced, so deleting a category or manufacturer still leaves gear pointing at it (integrity wave).
 - **Not yet implemented:** BR-002 (planned), BR-003, BR-004, BR-005.
 
