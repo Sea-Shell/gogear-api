@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -114,5 +116,96 @@ func TestConfigSummaryHasNoSecrets(t *testing.T) {
 		if !strings.Contains(summary, want) {
 			t.Errorf("config summary lacks %q: %s", want, summary)
 		}
+	}
+}
+
+// wiredRouter builds the real router through newRouter, as main does, against
+// a migrated database, with logs captured.
+func wiredRouter(t *testing.T) (*gin.Engine, *observer.ObservedLogs, *models.Config) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	db := tempDB(t)
+	runMigrate(t, db, migrationsPath(t))
+	core, logs := observer.New(zapcore.DebugLevel)
+	cfg := &models.Config{
+		General: models.General{Hostname: "api.example.com", ListenPort: "8080", LogLevel: "debug"},
+		Auth: models.Auth{
+			JWTSecret: "JWT-SECRET-VALUE", JWTAudience: "client", JWTAdminAudience: "admin",
+			GoogleClientID: "cid", GoogleClientSecret: "GOOGLE-SECRET-VALUE",
+			GoogleRedirectURL: "https://api.example.com/cb",
+		},
+	}
+	return newRouter(cfg, db, zap.New(core).Sugar()), logs, cfg
+}
+
+func dumpLogs(logs *observer.ObservedLogs) string {
+	var sb strings.Builder
+	for _, e := range logs.All() {
+		dump, _ := json.Marshal(e.ContextMap())
+		sb.WriteString(e.Message + " " + string(dump) + "\n")
+	}
+	return sb.String()
+}
+
+// SEC-11 through the real wiring: an OAuth callback code and the startup
+// config line must not reach the logs.
+func TestNewRouter_LogsCarryNoSecrets(t *testing.T) {
+	r, logs, _ := wiredRouter(t)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/auth/google/callback?code=SECRET-OAUTH-CODE&state=SECRET-STATE", nil))
+
+	out := dumpLogs(logs)
+	if !strings.Contains(out, "Handled request") || !strings.Contains(out, "Loaded configuration") {
+		t.Fatalf("expected request and startup config log lines, got:\n%s", out)
+	}
+	for _, leak := range []string{"SECRET-OAUTH-CODE", "SECRET-STATE", "JWT-SECRET-VALUE", "GOOGLE-SECRET-VALUE"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("logs leak %q:\n%s", leak, out)
+		}
+	}
+}
+
+// A handler panic is a logged 500 and must not dump the query to stderr.
+func TestNewRouter_PanicIsLoggedAs500WithoutQueryDump(t *testing.T) {
+	r, logs, _ := wiredRouter(t)
+	r.GET("/panic", func(c *gin.Context) { panic("kaboom") })
+
+	// Capture what gin's default recovery would write.
+	var stderr strings.Builder
+	prev := gin.DefaultErrorWriter
+	gin.DefaultErrorWriter = &stderr
+	defer func() { gin.DefaultErrorWriter = prev }()
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/panic?code=SECRET-PANIC-CODE", nil))
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", w.Code)
+	}
+	var handled, panicked bool
+	for _, e := range logs.All() {
+		switch e.Message {
+		case "Handled request":
+			handled = e.ContextMap()["status"] == int64(500) && e.Level == zapcore.ErrorLevel
+		case "Panic recovered":
+			panicked = true
+		}
+	}
+	if !handled || !panicked {
+		t.Fatalf("want a logged 500 request and a panic entry, got:\n%s", dumpLogs(logs))
+	}
+	if strings.Contains(stderr.String(), "SECRET-PANIC-CODE") || strings.Contains(dumpLogs(logs), "SECRET-PANIC-CODE") {
+		t.Errorf("panic handling leaks the query:\nstderr=%s\nlogs=%s", stderr.String(), dumpLogs(logs))
+	}
+}
+
+// Startup goes through loadValidatedConfig, which must refuse a bad config.
+func TestLoadValidatedConfig_RefusesInvalidConfig(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(file, []byte("auth:\n  jwt-audience: same\n  jwt-admin-audience: same\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadValidatedConfig(file); err == nil || !strings.Contains(err.Error(), "must differ") {
+		t.Fatalf("error = %v, want audience validation failure", err)
 	}
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -141,6 +143,19 @@ func validateConfig(config *models.Config) error {
 	return nil
 }
 
+// loadValidatedConfig loads the config file and refuses a configuration that
+// fails validateConfig. main starts only from its result.
+func loadValidatedConfig(file string) (*models.Config, error) {
+	config, err := utils.LoadConfig[models.Config](file)
+	if err != nil {
+		return nil, fmt.Errorf("load config file: %w", err)
+	}
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+	return config, nil
+}
+
 // runMigrations applies pending golang-migrate migrations from the given directory.
 // Uses the already-open *sql.DB so the same SQLite connection is used.
 func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) error {
@@ -166,64 +181,26 @@ func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) er
 	return nil
 }
 
-// @title						GoGear API
-// @version					1.0
-// @description				This is the API of GoGear
-// @contact.name				API Support
-// @contact.email				support@sea-shell.no
-// @license.name				Apache 2.0
-// @license.url				http://www.apache.org/licenses/LICENSE-2.0.html
-//
-// @securityDefinitions.apikey	BearerAuth
-// @in							header
-// @name						Authorization
-// @description				Include a server-issued JWT as `Bearer <token>`. Endpoints may require either the client or admin audience.
-func main() {
-	configFile := flag.String("config", configFile, "Config file")
+// recoveryMiddleware turns a handler panic into a logged 500. It replaces
+// gin.Recovery, which writes the request line, query string included, to
+// stderr: query values carry OAuth codes and tokens (SEC-11).
+func recoveryMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
+	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err any) {
+		logger.Errorw("Panic recovered", "panic", fmt.Sprint(err), "stack", string(debug.Stack()))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	})
+}
 
-	flag.Parse()
-
-	config, err := utils.LoadConfig[models.Config](*configFile)
-	if err != nil {
-		log.Fatalf("Failed to load config file: %v", err)
-	}
-
-	if err := validateConfig(config); err != nil {
-		log.Fatalf("Invalid configuration: %v", err)
-	}
-
-	logLevel := utils.GetLogLevel(config.General.LogLevel)
-	log := makeLogger(logLevel)
-	defer log.Sync()
-
+// newRouter builds the service router: middleware, routes and swagger. main
+// serves it; tests exercise it directly so wiring regressions are caught.
+func newRouter(config *models.Config, db *sql.DB, log *zap.SugaredLogger) *gin.Engine {
 	log.Debugw("Loaded configuration", configSummary(config)...)
 
-	db, err := sql.Open("sqlite3", utils.SQLiteDSN(config.Database.File))
-	if err != nil {
-		log.Error(err)
-	}
-
-	if err := runMigrations(db, "migrations", log); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
-	}
-
-	// Legacy bootstrap: ensure columns that migrations do not manage.
-	// Keep for backward compatibility with databases created before golang-migrate.
-	if err := utils.EnsureColumn(db, "user_gear_registrations", "maxContainerWeight", "INTEGER"); err != nil {
-		log.Fatalf("Failed to ensure user_gear_registrations.maxContainerWeight exists: %v", err)
-	}
-
-	log.Infoln("Connected to database")
-	defer db.Close()
-
-	docs.SwaggerInfo.Title = "GoGear API"
-	docs.SwaggerInfo.Description = "This is the API of GoGear."
-	docs.SwaggerInfo.Host = config.General.Hostname
-	docs.SwaggerInfo.Schemes = config.General.Schemes
-	docs.SwaggerInfo.BasePath = "/"
-
 	router := gin.New()
-	router.Use(gin.Recovery())
+	// Logging comes first so a request that panics is still logged, with the
+	// 500 that recovery wrote.
+	router.Use(LogRequestsMiddleware(log))
+	router.Use(recoveryMiddleware(log))
 	router.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -236,7 +213,6 @@ func main() {
 		}
 	})
 
-	router.Use(LogRequestsMiddleware(log))
 	router.Use(databaseMiddleware(db))
 	googleConf = &oauth2.Config{
 		ClientID:     config.Auth.GoogleClientID,
@@ -296,6 +272,64 @@ func main() {
 
 	// Swagger API documentation
 	swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	return router
+}
+
+// @title						GoGear API
+// @version					1.0
+// @description				This is the API of GoGear
+// @contact.name				API Support
+// @contact.email				support@sea-shell.no
+// @license.name				Apache 2.0
+// @license.url				http://www.apache.org/licenses/LICENSE-2.0.html
+//
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Include a server-issued JWT as `Bearer <token>`. Endpoints may require either the client or admin audience.
+func main() {
+	configFile := flag.String("config", configFile, "Config file")
+
+	flag.Parse()
+
+	config, err := loadValidatedConfig(*configFile)
+	if err != nil {
+		log.Fatalf("Failed to start: %v", err)
+	}
+
+	logLevel := utils.GetLogLevel(config.General.LogLevel)
+	log := makeLogger(logLevel)
+	defer log.Sync()
+
+	db, err := sql.Open("sqlite3", utils.SQLiteDSN(config.Database.File))
+	if err != nil {
+		log.Error(err)
+	}
+
+	if err := runMigrations(db, "migrations", log); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
+	// Legacy bootstrap: ensure columns that migrations do not manage.
+	// Keep for backward compatibility with databases created before golang-migrate.
+	if err := utils.EnsureColumn(db, "user_gear_registrations", "maxContainerWeight", "INTEGER"); err != nil {
+		log.Fatalf("Failed to ensure user_gear_registrations.maxContainerWeight exists: %v", err)
+	}
+
+	log.Infoln("Connected to database")
+	defer db.Close()
+
+	docs.SwaggerInfo.Title = "GoGear API"
+	docs.SwaggerInfo.Description = "This is the API of GoGear."
+	docs.SwaggerInfo.Host = config.General.Hostname
+	docs.SwaggerInfo.Schemes = config.General.Schemes
+	docs.SwaggerInfo.BasePath = "/"
+
+	if os.Getenv(gin.EnvGinMode) == "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	router := newRouter(config, db, log)
 
 	// Listen to all addresses and port defined
 	if err := router.Run("0.0.0.0:" + config.General.ListenPort); err != nil {
