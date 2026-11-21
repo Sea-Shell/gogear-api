@@ -158,6 +158,14 @@ func TestCatalog_AdminWritesSucceed(t *testing.T) {
 	if n := f.env.Count("gear", "gearName = 'renamed'"); n != 1 {
 		t.Fatalf("gear not renamed")
 	}
+	// The inserts above created rows that reference the fixture's category,
+	// manufacturer and top category; they would block the deletes (409).
+	if _, err := f.env.DB.Exec(`DELETE FROM gear WHERE gearName = 'new'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.env.DB.Exec(`DELETE FROM gear_category WHERE categoryName = 'New'`); err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range []string{
 		fmt.Sprintf("/api/v1/gear/%d/delete", f.gear),
 		fmt.Sprintf("/api/v1/category/%d/delete", f.cat),

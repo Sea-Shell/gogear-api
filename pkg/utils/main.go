@@ -356,12 +356,14 @@ func GenericList[model any](table string, field string, id int, db *sql.DB) (*[]
 // SQLiteDSN returns the go-sqlite3 DSN for the configured database file. It
 // adds _txlock=immediate, so a transaction takes the write lock when it
 // begins instead of failing with SQLITE_BUSY when it first writes, and a
-// busy timeout, so concurrent writers wait instead of failing. Options already
+// busy timeout, so concurrent writers wait instead of failing. It also turns
+// foreign-key enforcement on: the setting belongs to one connection, so it
+// must be part of the DSN to reach every pooled connection. Options already
 // present in the configured value (including its query string) are kept.
 func SQLiteDSN(file string) string {
 	base, query, _ := strings.Cut(file, "?")
-	for _, opt := range [][2]string{{"_txlock", "immediate"}, {"_busy_timeout", "5000"}} {
-		if !strings.Contains("&"+query, "&"+opt[0]+"=") {
+	for _, opt := range [][2]string{{"_txlock", "immediate"}, {"_busy_timeout", "5000"}, {"_foreign_keys", "on"}} {
+		if !strings.Contains("&"+query, "&"+opt[0]+"=") && !(opt[0] == "_foreign_keys" && strings.Contains("&"+query, "&_fk=")) {
 			if query != "" {
 				query += "&"
 			}

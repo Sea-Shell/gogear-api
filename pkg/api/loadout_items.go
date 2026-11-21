@@ -108,6 +108,7 @@ func InsertLoadoutItem(c *gin.Context) {
 			`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes)
 			 SELECT loadoutId, ?, ?, ? FROM loadouts WHERE loadoutId = ? AND userId = ?`,
 			body.GearID, quantity, notes, loadoutID, userID)
+		err = gearReferenceError(ctx, tx, body.GearID, err)
 		if err := affectedOne(res, err, errLoadoutNotFound); err != nil {
 			return err
 		}

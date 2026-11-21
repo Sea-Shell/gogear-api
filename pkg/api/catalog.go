@@ -104,6 +104,19 @@ func readCatalogBody(c *gin.Context, dst any) bool {
 	return true
 }
 
+var errInvalidReference = errors.New("a referenced record does not exist")
+
+// catalogInsertFailed answers a failed catalog insert: 400 when a referenced
+// record (top category, category, manufacturer) does not exist, else 500.
+func catalogInsertFailed(c *gin.Context, log *zap.SugaredLogger, err error) {
+	if isForeignKeyViolation(err) {
+		c.JSON(http.StatusBadRequest, models.Error{Error: errInvalidReference.Error()})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+	log.Error(err.Error())
+}
+
 // catalogID parses the path parameter as a positive ID, or answers 400.
 func catalogID(c *gin.Context, param string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(param), 10, 64)
@@ -145,6 +158,10 @@ func (u *catalogUpdate) apply(c *gin.Context, id int64, bodyID *int64) {
 	query := fmt.Sprintf("UPDATE %s SET %s WHERE %s = ?", u.table, strings.Join(u.set, ", "), u.idColumn)
 	res, err := db.Exec(query, append(u.values, id)...)
 	if err != nil {
+		if isForeignKeyViolation(err) {
+			c.JSON(http.StatusBadRequest, models.Error{Error: errInvalidReference.Error()})
+			return
+		}
 		log.Error(err.Error())
 		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
@@ -197,6 +214,13 @@ func deleteCatalogRow(c *gin.Context, table, idColumn, nameColumn, param, label 
 		return
 	}
 	res, err := tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE %s = ?", table, idColumn), id)
+	if isForeignKeyViolation(err) {
+		// Catalog rows are referenced without ON DELETE CASCADE (gear by
+		// registrations and loadout items, categories and manufacturers by
+		// gear): the row stays, and the admin is told why.
+		c.JSON(http.StatusConflict, models.Error{Error: fmt.Sprintf("%s with ID %d is still referenced by other records and cannot be deleted", label, id)})
+		return
+	}
 	if err != nil {
 		fail(err)
 		return

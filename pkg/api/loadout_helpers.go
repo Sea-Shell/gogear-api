@@ -164,6 +164,34 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &se) && se.ExtendedCode == sqlite3.ErrConstraintUnique
 }
 
+func isForeignKeyViolation(err error) bool {
+	var se sqlite3.Error
+	return errors.As(err, &se) && se.ExtendedCode == sqlite3.ErrConstraintForeignKey
+}
+
+// errGearNotFound is the answer when a request names catalog gear that does
+// not exist (registration insert, loadout item insert, import). Any other
+// foreign-key refusal of a write is 400 (see gearReferenceError).
+var errGearNotFound = &opError{http.StatusNotFound, "Gear not found"}
+
+// gearReferenceError turns a foreign-key failure of a write that names gearID
+// into the response error: 404 when the gear does not exist, 400 when it does
+// and some other reference is invalid. Other errors pass through unchanged.
+// q must be usable after the failed statement (a transaction is).
+func gearReferenceError(ctx context.Context, q sqlRunner, gearID int64, err error) error {
+	if !isForeignKeyViolation(err) {
+		return err
+	}
+	var exists bool
+	if qerr := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM gear WHERE gearId = ?)`, gearID).Scan(&exists); qerr != nil {
+		return err
+	}
+	if exists {
+		return badRequest("a referenced record does not exist")
+	}
+	return errGearNotFound
+}
+
 // opError is a refusal decided inside a transaction. Returning it rolls the
 // transaction back and becomes the response.
 type opError struct {

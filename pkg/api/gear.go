@@ -505,8 +505,7 @@ func InsertGear(c *gin.Context) {
 
 	createdObject, err := utils.GenericInsert[models.Gear]("gear", data, db)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		catalogInsertFailed(c, log, err)
 		return
 	}
 

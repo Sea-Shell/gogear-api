@@ -633,7 +633,9 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	// Foreign keys are not enforced in this database, so every dependent row is removed explicitly.
+	// Dependent rows are removed explicitly, children before parents: with
+	// foreign keys enforced, the registrations and loadouts of the user would
+	// otherwise block the final delete.
 	const ownedRegistrations = `SELECT userGearRegistrationId FROM user_gear_registrations WHERE userId = ?`
 	steps := []struct{ name, query string }{
 		{"container links", `DELETE FROM user_container_registration WHERE userContainerId IN (` + ownedRegistrations + `) OR userGearRegistrationId IN (` + ownedRegistrations + `)`},

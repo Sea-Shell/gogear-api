@@ -81,6 +81,7 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	}
 	t.Cleanup(func() { db.Close() })
 	runMigrate(t, db)
+	seedCatalogBase(t, db)
 
 	core, logs := observer.New(zapcore.DebugLevel)
 	logger := zap.New(core).Sugar()
@@ -117,6 +118,22 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 
 	env.V1 = v1
 	return env
+}
+
+// seedCatalogBase inserts the catalog rows (top category, category and
+// manufacturer, all ID 1) that the seeded gear refers to. Foreign keys are
+// enforced, so gear cannot point at rows that do not exist.
+func seedCatalogBase(t *testing.T, db *sql.DB) {
+	t.Helper()
+	for _, q := range []string{
+		`INSERT INTO gear_top_category (topCategoryId, topCategoryName, topCategoryIcon) VALUES (1, 'base', 'spark')`,
+		`INSERT INTO gear_category (categoryId, categoryTopCategoryId, categoryName) VALUES (1, 1, 'base')`,
+		`INSERT INTO manufacture (manufactureId, manufactureName) VALUES (1, 'base')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatalf("seed catalog base: %v", err)
+		}
+	}
 }
 
 // SignToken signs an HS256 service token with explicit claims.

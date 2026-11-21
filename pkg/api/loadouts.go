@@ -299,7 +299,8 @@ func DeleteLoadout(c *gin.Context) {
 		if n != 1 {
 			return errLoadoutNotFound
 		}
-		// Foreign keys are not enforced, so remove the items explicitly.
+		// The items go with the loadout through ON DELETE CASCADE; the
+		// explicit delete keeps the transaction correct on its own.
 		_, err = tx.ExecContext(ctx, `DELETE FROM loadout_items WHERE loadoutId = ?`, loadoutID)
 		return err
 	})
@@ -366,7 +367,7 @@ func ImportLoadout(c *gin.Context) {
 				 SELECT loadoutId, ?, 1, '' FROM loadouts WHERE loadoutId = ? AND userId = ?`,
 				gearID, loadoutID, userID)
 			if err != nil {
-				return err
+				return gearReferenceError(ctx, tx, gearID, err)
 			}
 			// Exactly one row per gear: anything else rolls the import back.
 			if n, err := res.RowsAffected(); err != nil {

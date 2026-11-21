@@ -183,10 +183,13 @@ func InsertUserGear(c *gin.Context) {
 	}
 
 	// The owner is the caller. A registration ID in the body is not read.
-	if _, err := db.ExecContext(c.Request.Context(),
+	// Gear existence is enforced by the foreign key: a gear ID that is not in
+	// the catalog is 404 (see gearReferenceError).
+	ctx := c.Request.Context()
+	if _, err := db.ExecContext(ctx,
 		`INSERT INTO user_gear_registrations (gearId, userId, maxContainerWeight) VALUES (?, ?, ?)`,
 		body.GearID, callerID, body.MaxContainerWeight); err != nil {
-		respondInternal(c, log, "insert registration", err)
+		respondUserGearError(c, log, gearReferenceError(ctx, db, body.GearID, err))
 		return
 	}
 
@@ -316,8 +319,8 @@ func DeleteUserGearRegistration(c *gin.Context) {
 		}
 		// The registration goes first, bound to its owner; if nothing was
 		// deleted no container link is touched. The links of the deleted
-		// registration follow in the same transaction (foreign keys are not
-		// enforced).
+		// registration follow in the same transaction (ON DELETE CASCADE
+		// would remove them too; the explicit delete keeps this correct on its own).
 		res, err := tx.ExecContext(ctx,
 			`DELETE FROM user_gear_registrations WHERE userGearRegistrationId = ? AND userId = ?`, id, callerID)
 		if err != nil {

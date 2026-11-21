@@ -306,8 +306,7 @@ func InsertCategory(c *gin.Context) {
 
 	createdObject, err := utils.GenericInsert[models.GearCategory]("gear_category", data, db)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		catalogInsertFailed(c, log, err)
 		return
 	}
 

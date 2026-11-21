@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -181,6 +182,25 @@ func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) er
 	return nil
 }
 
+// reportForeignKeyViolations logs one warning per (table, parent) with orphan
+// rows. It is a startup audit of data written while enforcement was off: it
+// never repairs or deletes, and a database with orphans still starts, because
+// enforcement only blocks new invalid writes. It returns the number of
+// orphan rows found.
+func reportForeignKeyViolations(ctx context.Context, db *sql.DB, log *zap.SugaredLogger) (int, error) {
+	violations, err := utils.ForeignKeyViolations(ctx, db)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, v := range violations {
+		total += v.Count
+		log.Warnw("Database contains rows that reference a missing parent row; they are left unchanged",
+			"table", v.Table, "parent_table", v.Parent, "orphan_rows", v.Count)
+	}
+	return total, nil
+}
+
 // recoveryMiddleware turns a handler panic into a logged 500. It replaces
 // gin.Recovery, which writes the request line, query string included, to
 // stderr: query values carry OAuth codes and tokens (SEC-11).
@@ -309,6 +329,10 @@ func main() {
 
 	if err := runMigrations(db, "migrations", log); err != nil {
 		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
+	if _, err := reportForeignKeyViolations(context.Background(), db, log); err != nil {
+		log.Warnf("Could not audit foreign keys: %v", err)
 	}
 
 	// Legacy bootstrap: ensure columns that migrations do not manage.

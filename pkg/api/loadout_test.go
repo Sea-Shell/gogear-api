@@ -168,6 +168,7 @@ func setupTestWithUser(t *testing.T, userID int64) (*sql.DB, *gin.Engine, *zap.S
 	gin.SetMode(gin.TestMode)
 	db := tempDB(t)
 	runMigrate(t, db)
+	seedCatalogBase(t, db)
 	seedUser(t, db, userID)
 
 	logger := zap.NewNop().Sugar()

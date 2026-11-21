@@ -342,14 +342,37 @@ func (e *authzEnv) data(userID int64) tenantData {
 	}
 }
 
+// tenantGear returns two catalog gear IDs shared by every seeded tenant,
+// creating them on first use (foreign keys need real gear rows).
+func tenantGear(env *authzEnv) (int64, int64) {
+	var ids []int64
+	rows, err := env.DB.Query(`SELECT gearId FROM gear WHERE gearName = 'g' ORDER BY gearId LIMIT 2`)
+	if err != nil {
+		env.T.Fatal(err)
+	}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			env.T.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	for len(ids) < 2 {
+		ids = append(ids, env.seedGearW(100))
+	}
+	return ids[0], ids[1]
+}
+
 // seedTenant gives a user a container with content, a public loadout and an item.
 func seedTenant(env *authzEnv, userID int64, slug string) {
-	box := env.SeedRegistration(userID, 1)
-	thing := env.SeedRegistration(userID, 2)
+	g1, g2 := tenantGear(env)
+	box := env.SeedRegistration(userID, g1)
+	thing := env.SeedRegistration(userID, g2)
 	env.SeedContainerLink(box, thing)
 	lo := seedLoadout(env.T, env.DB, userID, true, slug)
-	seedLoadoutItem(env.T, env.DB, lo, 1)
-	seedLoadoutItem(env.T, env.DB, lo, 2)
+	seedLoadoutItem(env.T, env.DB, lo, g1)
+	seedLoadoutItem(env.T, env.DB, lo, g2)
 }
 
 func TestDeleteUser_OnlyOwnAccount(t *testing.T) {
@@ -381,8 +404,9 @@ func TestDeleteUser_SelfRemovesAllOwnDataAndNothingElse(t *testing.T) {
 	seedTenant(env, b, "bob-pub")
 	// Bob also links into one of Alice's containers? Not possible to own it, but
 	// a stray link that involves Alice's registration must go with it.
-	aReg := env.SeedRegistration(a, 3)
-	bReg := env.SeedRegistration(b, 3)
+	shared, _ := tenantGear(env)
+	aReg := env.SeedRegistration(a, shared)
+	bReg := env.SeedRegistration(b, shared)
 	env.SeedContainerLink(bReg, aReg)
 	bUser := env.User(b)
 	bBefore := env.data(b)
@@ -403,7 +427,7 @@ func TestDeleteUser_SelfRemovesAllOwnDataAndNothingElse(t *testing.T) {
 	if got := env.data(b); got != bBefore {
 		t.Errorf("other user's data changed: %+v want %+v", got, bBefore)
 	}
-	if n := env.Count("loadout_items", "gearId = 1"); n != 1 {
+	if n := env.Count("loadout_items", "gearId = ?", shared); n != 1 {
 		t.Errorf("other user's item referencing shared gear affected: %d", n)
 	}
 	// public slug 404s now
