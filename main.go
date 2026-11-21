@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	endpoints "github.com/Sea-Shell/gogear-api/pkg/api"
 	docs "github.com/Sea-Shell/gogear-api/pkg/docs"
@@ -55,20 +56,56 @@ func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
 	return zap.Must(cfg.Build()).Sugar()
 }
 
-// LogRequestsMiddleware is a Gin middleware that logs incoming HTTP requests using the provided logger.
+// LogRequestsMiddleware is a Gin middleware that logs one line per request
+// after the handler has run, so the status is the one the client received. It
+// logs the route template (not the raw path, which carries IDs and, on
+// unmatched routes, arbitrary client text) and only the number of query
+// parameters: query values carry OAuth codes, ID tokens and similar secrets
+// (SEC-11), so neither names nor values are recorded.
 func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Log the request details
-		logger.Infow("Received request",
-			"method", c.Request.Method,
-			"status", c.Writer.Status(),
-			"url", c.FullPath(),
-			"url-params", c.Request.URL.Query(),
-		)
-
-		// Continue processing the request
+		start := time.Now()
 		c.Set("logger", logger)
+
 		c.Next()
+
+		route := c.FullPath()
+		if route == "" {
+			route = "unmatched"
+		}
+		status := c.Writer.Status()
+		fields := []any{
+			"method", c.Request.Method,
+			"route", route,
+			"status", status,
+			"latency_ms", float64(time.Since(start).Microseconds()) / 1000,
+			"query_params", len(c.Request.URL.Query()),
+		}
+		if status >= http.StatusInternalServerError {
+			logger.Errorw("Handled request", fields...)
+			return
+		}
+		logger.Infow("Handled request", fields...)
+	}
+}
+
+// configSummary describes the loaded configuration for debug logging without
+// secrets: secret values appear only as set/unset flags.
+func configSummary(cfg *models.Config) []any {
+	return []any{
+		"hostname", cfg.General.Hostname,
+		"schemes", cfg.General.Schemes,
+		"listen_port", cfg.General.ListenPort,
+		"log_level", cfg.General.LogLevel,
+		"database_file", cfg.Database.File,
+		"jwt_issuer", cfg.Auth.JWTIssuer,
+		"jwt_secret_set", strings.TrimSpace(cfg.Auth.JWTSecret) != "",
+		"jwt_audience_set", cfg.Auth.JWTAudience != "",
+		"jwt_admin_audience_set", cfg.Auth.JWTAdminAudience != "",
+		"jwt_expiry_minutes", cfg.Auth.JWTExpiryMinutes,
+		"google_client_id_set", cfg.Auth.GoogleClientID != "",
+		"google_client_secret_set", cfg.Auth.GoogleClientSecret != "",
+		"google_redirect_url_set", cfg.Auth.GoogleRedirectURL != "",
 	}
 }
 
@@ -150,7 +187,7 @@ func main() {
 	log := makeLogger(logLevel)
 	defer log.Sync()
 
-	log.Debugf("%#v", config)
+	log.Debugw("Loaded configuration", configSummary(config)...)
 
 	db, err := sql.Open("sqlite3", config.Database.File)
 	if err != nil {
@@ -204,7 +241,7 @@ func main() {
 		log.Warn("JWT secret is empty; authentication will fail until configured")
 	}
 	if googleConf.ClientID == "" || googleConf.RedirectURL == "" {
-		log.Warnw("Google OAuth configuration incomplete", "client_id_set", googleConf.ClientID != "", "redirect_url", googleConf.RedirectURL)
+		log.Warnw("Google OAuth configuration incomplete", "client_id_set", googleConf.ClientID != "", "redirect_url_set", googleConf.RedirectURL != "")
 	}
 
 	router.Use(configMiddleware(config))
