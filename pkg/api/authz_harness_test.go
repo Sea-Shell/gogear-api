@@ -64,7 +64,7 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 
 	// A file database: unlike :memory:, every pooled connection sees the same
 	// data, which transactional handlers need.
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "authz.db"))
+	db, err := sql.Open("sqlite3", utils.SQLiteDSN(filepath.Join(t.TempDir(), "authz.db")))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

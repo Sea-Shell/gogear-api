@@ -161,14 +161,18 @@ var (
 
 func badRequest(msg string) *opError { return &opError{http.StatusBadRequest, msg} }
 
-// inTx runs fn in one transaction, rolling back on any error.
+// inTx runs fn in one transaction, rolling back on any error or panic. The
+// database is opened with _txlock=immediate (utils.SQLiteDSN), so concurrent
+// writers queue on the busy timeout instead of failing.
 func inTx(ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) error) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
+	// Rollback after a successful Commit is a no-op (sql.ErrTxDone); it only
+	// matters on error returns and panics, which must not leave the lock held.
+	defer func() { _ = tx.Rollback() }()
 	if err := fn(tx); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	if err := tx.Commit(); err != nil {

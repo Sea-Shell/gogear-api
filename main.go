@@ -189,7 +189,7 @@ func main() {
 
 	log.Debugw("Loaded configuration", configSummary(config)...)
 
-	db, err := sql.Open("sqlite3", config.Database.File)
+	db, err := sql.Open("sqlite3", utils.SQLiteDSN(config.Database.File))
 	if err != nil {
 		log.Error(err)
 	}
