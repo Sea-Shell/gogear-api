@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-001 — Catalog changes are admin-only
 
-**Status:** Accepted. **Priority:** P1 (review SEC-10). **Basis:** sourced from anchor decision D1 (interim rule).
+**Implementation:** implemented in wave 4. Gear, manufacturer, top category and category create, update and delete are registered behind one admin-only route middleware (`RequireAdmin`, `RegisterCatalogRoutes`); a non-admin gets 403 and nothing changes, a missing or invalid token gets 401. List, search and get stay open to every authenticated user. Updates change only the fields sent, by the path ID; a body ID that differs from the path is 400 (P-2, BR-017); an unknown ID is 404 (BR-018). Delete works on gear with NULL dimensions and names the ID in its message. **Status:** Accepted. **Priority:** P1 (review SEC-10). **Basis:** sourced from anchor decision D1 (interim rule).
 
 **Statement:**
 When an authenticated user asks to create, update or delete a catalog record, the API shall perform the change only if that user is an admin. The catalog is gear, manufacturers, categories and top categories.

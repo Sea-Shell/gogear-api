@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-002 — Catalog contributions require admin approval (planned)
 
-**Status:** Planned. **Not yet implemented and not part of the current remediation.** **Basis:** sourced from anchor decision D1.
+**Implementation:** still planned after wave 4. Wave 4 enforced only the interim admin-only rule of BR-001; no contribution or approval flow exists. **Status:** Planned. **Not yet implemented and not part of the current remediation.** **Basis:** sourced from anchor decision D1.
 
 **Statement:**
 When contributions are introduced, a catalog change proposed by a non-admin user shall take effect in the catalog only after an admin approves it.

@@ -6,7 +6,7 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, and BR-012 and BR-013 (inventory registrations, container links) as of wave 3; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, and BR-001 (admin-only catalog) as of wave 4; BR-002 to BR-005 are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
 
 **Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
 
@@ -79,7 +79,13 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Deleting a registration also removes every link that names it as container or content, in the same transaction, because foreign keys are not enforced.
   - Bad paging values are 400 instead of 500.
   - Not changed: gear existence is not checked on insert (needs foreign-key enforcement), and Q-4 rules (nesting, longer cycles, duplicate links, what may hold gear) are not enforced.
-- **Not yet implemented:** BR-001 to BR-005.
+- **Wave 4 (implemented):** BR-001, and the catalog parts of BR-017 and BR-018. BR-002 stays planned. Decisions made while implementing, within the requirements:
+  - One route middleware (`RequireAdmin`) guards every catalog create, update and delete; the routes are registered by `RegisterCatalogRoutes`, shared by `main` and the tests, so a handler cannot forget the check. Reads are unchanged.
+  - Catalog updates are explicit partial `UPDATE`s: only fields present in the body change, and an empty body is 400. A body ID that differs from the path ID is 400 (P-2). An unknown ID is 404.
+  - Catalog delete reads only the record name, answers 404 for an unknown ID, and reports the ID rather than a pointer. Its message text changed to `success! <Type> with ID <n> and name <name> was deleted`.
+  - Request and config logging (review SEC-11, not a requirement): debug config output reports secrets only as set/unset. The request log is written after the handler with the final status, latency, route template and the number of query parameters, and never query names or values.
+  - Not changed: catalog foreign keys are not enforced, so deleting a category or manufacturer still leaves gear pointing at it (integrity wave).
+- **Not yet implemented:** BR-002 (planned), BR-003, BR-004, BR-005.
 
 ## Provisional defaults (open to product-owner change)
 
