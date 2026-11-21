@@ -14,17 +14,16 @@ Read these before deploying a new version.
 
 ### Back up the SQLite file first
 
-Migration `000005` changes data: it clamps loadout item quantities of 0 or below to 1, turns blank loadout slugs into NULL, and deletes identical duplicate container links. The down migration removes the constraints but does not restore those changes. The original quantities stay in the table `audit_000005_clamped_loadout_item_quantity`.
+Migration `000005` changes data: it clamps loadout item quantities of 0 or below to 1, turns blank loadout slugs into NULL, and deletes identical duplicate container links. The down migration removes the constraints but does not restore those changes. The original quantities stay in the table `audit_000005_clamped_loadout_item_quantity`. Every run of the migration adds its own rows (with a `clampedAt` timestamp), so if the migration is rolled back and applied again and clamps the same item a second time, both original values are kept.
 
-The database runs in WAL mode. Next to the database file there are `<file>-wal` and `<file>-shm` files. A backup must include them, or the database must be checkpointed first:
+The database runs in WAL mode. Next to the database file there are `<file>-wal` and `<file>-shm` files. A plain copy of the `.db` file while the service runs can be torn or miss recent writes, and checkpointing first does not prevent that, because the service can write again before the copy finishes. Use one of these:
 
-```sh
-sqlite3 /path/to/gogear.db "PRAGMA wal_checkpoint(TRUNCATE);"   # then copy the .db file
-# or take a consistent copy while the service runs:
-sqlite3 /path/to/gogear.db ".backup '/path/to/backup.db'"
-```
+- **Stop the service, then copy.** Scale the Deployment to 0 and wait for the pod to end. Copy the `.db` file together with `-wal` and `-shm` if they exist. Run this on the node that holds the `hostPath` directory (`/data/disk2/opt/gogear-api` in `kubernetes-manifests/deployment.yaml`; the database path is `database.file` in the config).
+- **Live backup with SQLite itself.** Run `sqlite3 /path/to/gogear.db ".backup '/path/to/backup.db'"` (or `sqlite3 ... "VACUUM INTO '/path/to/backup.db'"`) on the node, or in a debug container that has the `sqlite3` binary and mounts the same `hostPath` directory. The service image is Alpine-based and does **not** contain `sqlite3`, so `kubectl exec` into the service pod will not work. The backup file must not exist yet for `VACUUM INTO`.
 
-WAL needs a local disk (a Kubernetes `hostPath` is fine, a network file system is not). Run one instance against the file; a rolling update that starts a second pod while the first is running should use the `Recreate` strategy instead.
+Keep the backup outside the directory the service writes to, and check it with `sqlite3 /path/to/backup.db "PRAGMA integrity_check;"` (expected output: `ok`).
+
+WAL needs a local disk (a Kubernetes `hostPath` is fine, a network file system is not). Run one instance against the file. The Deployment in `kubernetes-manifests/deployment.yaml` uses `strategy: Recreate`, so the old pod stops before the new one starts and runs its migrations. Keep that strategy: with the default `RollingUpdate` the new pod would migrate the database while the old pod is still serving it.
 
 ### Foreign-key warning at startup
 
