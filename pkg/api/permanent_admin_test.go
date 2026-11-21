@@ -162,6 +162,33 @@ func TestPermanentAdmin_CannotBeDeleted(t *testing.T) {
 	}
 }
 
+// Refused attempts on the permanent admin are logged with actor and target.
+func TestPermanentAdmin_RefusalsAreLogged(t *testing.T) {
+	w := newPermWorld(t)
+	env := w.env
+	setAdmin(env, w.a, w.first, false)
+	env.Do(http.MethodDelete, userPath(w.first, "delete"), env.Token(w.first, true), nil)
+
+	want := map[string]int64{
+		"refused to revoke the permanent admin": w.a,
+		"refused to delete the permanent admin": w.first,
+	}
+	for _, e := range env.Logs.All() {
+		actor, ok := want[e.Message]
+		if !ok {
+			continue
+		}
+		f := e.ContextMap()
+		if f["actor_user_id"] != actor || f["target_user_id"] != w.first {
+			t.Fatalf("%q fields = %v, want actor %d target %d", e.Message, f, actor, w.first)
+		}
+		delete(want, e.Message)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing log entries %v in %v", want, env.Logs.All())
+	}
+}
+
 // AC-6: profile update cannot demote the permanent admin either.
 func TestPermanentAdmin_ProfileUpdateCannotDemote(t *testing.T) {
 	w := newPermWorld(t)

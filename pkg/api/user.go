@@ -626,6 +626,9 @@ func SetUserAdmin(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errPermanentAdmin) {
+			log.Warnw("refused to revoke the permanent admin", "actor_user_id", actorID, "target_user_id", targetID)
+		}
 		respondUserGearError(c, log, err)
 		return
 	}
@@ -734,6 +737,7 @@ func DeleteUser(c *gin.Context) {
 		internalError(c, log, err)
 		return
 	} else if permanent {
+		log.Warnw("refused to delete the permanent admin", "actor_user_id", callerID, "target_user_id", targetID)
 		c.AbortWithStatusJSON(errPermanentAdmin.status, models.Error{Error: errPermanentAdmin.msg})
 		return
 	}
