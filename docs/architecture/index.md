@@ -4,7 +4,7 @@ Technical realization decisions for accepted requirements. Requirements live in 
 
 ## Decisions
 
-- [ADR-001 Realizing category-driven container capability](/docs/architecture/decisions/adr-001-category-driven-container-capability.md): category container settings, one SQL view for the derived status, a database guard on links, and migration 000009 (BR-021, BR-020, BR-001 AC-6). Accepted; not implemented.
+- [ADR-001 Realizing category-driven container capability](/docs/architecture/decisions/adr-001-category-driven-container-capability.md): category container settings, one SQL view for the derived status, a database guard on links, and migration 000009 (BR-021, BR-020, BR-001 AC-6). Accepted; implemented.
 
 ## Bundle files
 

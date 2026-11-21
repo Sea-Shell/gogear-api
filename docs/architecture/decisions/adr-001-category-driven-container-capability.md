@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-001 — Realizing category-driven container capability
 
-**Status:** Accepted (architect, 2026-11-22). Not implemented. An independent critique is recommended before `impl` relies on it.
+**Status:** Accepted (architect, 2026-11-22). Implemented on 2026-11-22: migration 000009 and the derived status and link guard in the first change, the admin API for the settings in the second. The decisions are unchanged. An independent review of the implementation is pending.
 
 ## In brief
 
