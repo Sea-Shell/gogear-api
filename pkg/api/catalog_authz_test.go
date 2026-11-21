@@ -269,3 +269,59 @@ func TestCatalog_UnknownTargetIs404(t *testing.T) {
 		t.Fatal("catalog changed")
 	}
 }
+
+// BR-018 AC-4: an unknown target is 404 before any body conflict is judged.
+func TestCatalog_UnknownTargetWithConflictingBodyIDIs404(t *testing.T) {
+	f := newCatalogFixture(t)
+	before := f.env.catalogSnapshot()
+	for _, res := range []struct{ prefix, body string }{
+		{"gear", `{"gear_id":1,"gear_name":"x"}`},
+		{"manufacture", `{"manufacture_id":1,"manufacture_name":"x"}`},
+		{"topCategory", `{"top_category_id":1,"top_category_name":"x"}`},
+		{"category", `{"category_id":1,"category_name":"x"}`},
+		{"gear", `{}`}, // an empty body on an unknown ID is also 404, not 400
+	} {
+		expectStatus(t, f.env.Do(http.MethodPost, "/api/v1/"+res.prefix+"/9999/update", f.adminTok, res.body), http.StatusNotFound)
+	}
+	if f.env.catalogSnapshot() != before {
+		t.Fatal("catalog changed")
+	}
+}
+
+// BR-001: every non-GET route under a catalog prefix refuses a non-admin with
+// 403. The routes come from the router, so a future write route that skips
+// RequireAdmin fails here instead of passing unnoticed.
+func TestCatalog_EveryWriteRouteRequiresAdmin(t *testing.T) {
+	f := newCatalogFixture(t)
+	prefixes := []string{"/api/v1/gear/", "/api/v1/manufacture/", "/api/v1/category/", "/api/v1/topCategory/"}
+	before := f.env.catalogSnapshot()
+
+	checked := 0
+	for _, rt := range f.env.Router.Routes() {
+		if rt.Method == http.MethodGet || rt.Method == http.MethodHead || rt.Method == http.MethodOptions {
+			continue
+		}
+		catalog := false
+		for _, p := range prefixes {
+			catalog = catalog || strings.HasPrefix(rt.Path, p)
+		}
+		if !catalog {
+			continue
+		}
+		path := rt.Path
+		for _, param := range []string{":gear", ":manufacture", ":category", ":topCategory"} {
+			path = strings.ReplaceAll(path, param, "1")
+		}
+		resp := f.env.Do(rt.Method, path, f.userTok, `{}`)
+		if resp.Code != http.StatusForbidden {
+			t.Errorf("%s %s as non-admin: status %d, want 403", rt.Method, rt.Path, resp.Code)
+		}
+		checked++
+	}
+	if checked < 12 {
+		t.Fatalf("walked only %d catalog write routes; the route walk is not seeing the router", checked)
+	}
+	if f.env.catalogSnapshot() != before {
+		t.Fatal("catalog changed")
+	}
+}
