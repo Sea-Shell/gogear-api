@@ -26,6 +26,17 @@ var (
 	errLinkNotFound         = &opError{http.StatusNotFound, "Container link not found"}
 )
 
+// userGearContainerExpr is the container status of a registration's gear: the
+// derived value of the view gear_container_capability (migration 000009,
+// ADR-001 D-3), joined as cap by userGearCapabilityJoin. A registration whose
+// gear row is missing has no view row, hence the COALESCE. It is the reported
+// value and the container filter's value alike (BR-021 AC-3, AC-7).
+const userGearContainerExpr = `COALESCE(cap.isContainer, 0)`
+
+// userGearCapabilityJoin attaches the view row of the registration's gear.
+const userGearCapabilityJoin = `
+	LEFT JOIN gear_container_capability cap ON cap.gearId = ugr.gearId`
+
 // userGearColumns lists the columns in the field order of models.UserGear.
 // Everything that comes from a LEFT JOIN or a nullable catalog column goes
 // through COALESCE, so a NULL never breaks a scan. The link columns stay NULL
@@ -34,7 +45,7 @@ const userGearColumns = `ugr.userGearRegistrationId, ugr.gearId, ugr.userId, ugr
 	COALESCE(u.userId, 0), COALESCE(u.userUsername, ''), COALESCE(u.userName, ''),
 	COALESCE(g.gearId, 0), COALESCE(g.gearTopCategoryId, 0), COALESCE(g.gearCategoryId, 0), COALESCE(g.gearManufactureId, 0),
 	COALESCE(g.gearName, ''), COALESCE(g.gearWeight, 0), COALESCE(g.gearHeight, 0), COALESCE(g.gearLength, 0), COALESCE(g.gearWidth, 0),
-	COALESCE(g.gearStatus, 0), COALESCE(g.gearIsContainer, 0),
+	COALESCE(g.gearStatus, 0), ` + userGearContainerExpr + `,
 	l.containerRegistrationId, l.userContainerId,
 	COALESCE(m.manufactureId, 0), COALESCE(m.manufactureName, ''),
 	COALESCE(t.topCategoryId, 0), COALESCE(t.topCategoryName, ''), COALESCE(t.topCategoryIcon, ''),
@@ -46,7 +57,7 @@ const userGearCatalogJoins = `
 	LEFT JOIN users u ON u.userId = ugr.userId
 	LEFT JOIN manufacture m ON m.manufactureId = g.gearManufactureId
 	LEFT JOIN gear_top_category t ON t.topCategoryId = g.gearTopCategoryId
-	LEFT JOIN gear_category c ON c.categoryId = g.gearCategoryId`
+	LEFT JOIN gear_category c ON c.categoryId = g.gearCategoryId` + userGearCapabilityJoin
 
 // userGearOwnLinkJoin attaches at most one container link to a registration:
 // the lowest-numbered link whose container belongs to the same owner. A

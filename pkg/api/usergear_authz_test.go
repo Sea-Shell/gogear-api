@@ -38,20 +38,24 @@ func ctDelete(link int64) string { return fmt.Sprintf("/api/v1/container/%d/dele
 
 // seedGearX inserts catalog gear. nullDims leaves height, length, width and
 // status NULL (the schema allows it).
+//
+// A gear item's container status comes from its sub-category (BR-021), so
+// isContainer=true puts the gear in a new sub-category of topCategoryID whose
+// explicit setting is "container", and categoryID is not used. isContainer=false
+// puts it in categoryID, which the tests never mark as a container.
 func (e *authzEnv) seedGearX(isContainer, nullDims bool, categoryID, topCategoryID int64) int64 {
 	e.T.Helper()
-	c := 0
 	if isContainer {
-		c = 1
+		categoryID = e.seedContainerCategory(topCategoryID)
 	}
 	var res interface {
 		LastInsertId() (int64, error)
 	}
 	var err error
 	if nullDims {
-		res, err = e.DB.Exec(`INSERT INTO gear (gearTopCategoryId, gearCategoryId, gearManufactureId, gearIsContainer, gearName, gearWeight) VALUES (?, ?, 1, ?, 'nulls', 100)`, topCategoryID, categoryID, c)
+		res, err = e.DB.Exec(`INSERT INTO gear (gearTopCategoryId, gearCategoryId, gearManufactureId, gearName, gearWeight) VALUES (?, ?, 1, 'nulls', 100)`, topCategoryID, categoryID)
 	} else {
-		res, err = e.DB.Exec(`INSERT INTO gear (gearTopCategoryId, gearCategoryId, gearManufactureId, gearIsContainer, gearName, gearWeight, gearHeight, gearLength, gearWidth, gearStatus) VALUES (?, ?, 1, ?, 'full', 100, 1, 2, 3, 1)`, topCategoryID, categoryID, c)
+		res, err = e.DB.Exec(`INSERT INTO gear (gearTopCategoryId, gearCategoryId, gearManufactureId, gearName, gearWeight, gearHeight, gearLength, gearWidth, gearStatus) VALUES (?, ?, 1, 'full', 100, 1, 2, 3, 1)`, topCategoryID, categoryID)
 	}
 	if err != nil {
 		e.T.Fatalf("seed gear: %v", err)
@@ -59,6 +63,59 @@ func (e *authzEnv) seedGearX(isContainer, nullDims bool, categoryID, topCategory
 	id, _ := res.LastInsertId()
 	return id
 }
+
+// seedContainerCategory inserts a sub-category of top whose explicit setting
+// is "container" (ADR-001 D-1: categoryIsContainer = 1) and returns its ID.
+// Settings are seeded by SQL here; the admin API for them is a later step.
+func (e *authzEnv) seedContainerCategory(top int64) int64 {
+	e.T.Helper()
+	res, err := e.DB.Exec(`INSERT INTO gear_category (categoryTopCategoryId, categoryName, categoryIsContainer) VALUES (?, 'box', 1)`, top)
+	if err != nil {
+		e.T.Fatalf("seed container category: %v", err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+// setCategoryContainer sets (1 or 0) or removes (nil) a sub-category's explicit
+// container setting, as an admin would.
+func (e *authzEnv) setCategoryContainer(category int64, v *bool) {
+	e.T.Helper()
+	var arg any
+	if v != nil {
+		arg = *v
+	}
+	if _, err := e.DB.Exec(`UPDATE gear_category SET categoryIsContainer = ? WHERE categoryId = ?`, arg, category); err != nil {
+		e.T.Fatalf("set category container: %v", err)
+	}
+}
+
+// setTopContainer sets a top category's container setting.
+func (e *authzEnv) setTopContainer(top int64, v bool) {
+	e.T.Helper()
+	if _, err := e.DB.Exec(`UPDATE gear_top_category SET topCategoryIsContainer = ? WHERE topCategoryId = ?`, v, top); err != nil {
+		e.T.Fatalf("set top container: %v", err)
+	}
+}
+
+// categoryOfGear returns the sub-category of a catalog gear row.
+func (e *authzEnv) categoryOfGear(gear int64) int64 {
+	e.T.Helper()
+	var c int64
+	if err := e.DB.QueryRow(`SELECT gearCategoryId FROM gear WHERE gearId = ?`, gear).Scan(&c); err != nil {
+		e.T.Fatal(err)
+	}
+	return c
+}
+
+// capGear inserts catalog gear that is container-capable (see seedGearX), for
+// registrations that must be able to hold items.
+func (e *authzEnv) capGear() int64 {
+	e.T.Helper()
+	return e.seedGearX(true, false, 1, 1)
+}
+
+func boolPtr(b bool) *bool { return &b }
 
 func (e *authzEnv) setMaxWeight(reg int64, w int) {
 	e.T.Helper()
@@ -204,7 +261,8 @@ func TestUserGearList_FiltersAreBoundNeverWidening(t *testing.T) {
 	e := w.env
 	e.SeedCategory("c1") // id 1 is the category of the default gear
 	cat := e.SeedCategory("c2")
-	other := e.seedGearX(true, false, cat, 1)
+	other := e.seedGearX(false, false, cat, 1)
+	e.setCategoryContainer(cat, boolPtr(true)) // c2 is a container category
 	aBox := e.SeedRegistration(w.alice, other)
 	e.SeedRegistration(w.bob, other)
 
@@ -269,7 +327,7 @@ func TestUserGearList_ForeignContainerLinkNotDisclosed(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
 	// Legacy bad link: alice's registration sits in bob's container.
-	bBox := e.SeedRegistration(w.bob, w.gear)
+	bBox := e.SeedRegistration(w.bob, e.capGear())
 	e.SeedContainerLink(bBox, w.aReg1)
 
 	r := e.Do("GET", ugList(w.alice, ""), w.tokA, nil)
@@ -468,9 +526,13 @@ func TestUserGearUpdate_OwnerBoundAndBodyIdsNeverTakeEffect(t *testing.T) {
 func TestUserGearDelete_OwnerOnly_RefusedDeleteKeepsLinks(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
-	bBox := e.SeedRegistration(w.bob, w.gear)
+	bBox := e.SeedRegistration(w.bob, e.capGear())
 	e.SeedContainerLink(bBox, w.bReg)
-	e.SeedContainerLink(w.bReg, e.SeedRegistration(w.bob, w.gear)) // bob's registration also holds content
+	// bob's registration also holds content, so it needs capable gear
+	if _, err := e.DB.Exec(`UPDATE user_gear_registrations SET gearId = ? WHERE userGearRegistrationId = ?`, e.capGear(), w.bReg); err != nil {
+		t.Fatal(err)
+	}
+	e.SeedContainerLink(w.bReg, e.SeedRegistration(w.bob, w.gear))
 	before := e.ugSnapshot()
 
 	foreign := e.Do("DELETE", ugPath(w.bReg, "delete"), w.tokA, nil)
@@ -493,10 +555,10 @@ func TestUserGearDelete_OwnerOnly_RefusedDeleteKeepsLinks(t *testing.T) {
 func TestUserGearDelete_OwnDeleteRemovesItsLinksOnly(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
-	box := e.SeedRegistration(w.alice, w.gear)
+	box := e.SeedRegistration(w.alice, e.capGear())
 	e.SeedContainerLink(box, w.aReg1)
 	e.SeedContainerLink(box, w.aReg2)
-	bBox := e.SeedRegistration(w.bob, w.gear)
+	bBox := e.SeedRegistration(w.bob, e.capGear())
 	e.SeedContainerLink(bBox, w.bReg)
 
 	expectStatus(t, e.Do("DELETE", ugPath(box, "delete"), w.tokA, nil), 200)
@@ -518,7 +580,7 @@ func TestUserGearDelete_OwnDeleteRemovesItsLinksOnly(t *testing.T) {
 func TestUserGearDelete_IsAtomic(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
-	box := e.SeedRegistration(w.alice, w.gear)
+	box := e.SeedRegistration(w.alice, e.capGear())
 	e.SeedContainerLink(box, w.aReg1)
 	before := e.ugSnapshot()
 	if _, err := e.DB.Exec(`CREATE TRIGGER fail_reg_delete BEFORE DELETE ON user_gear_registrations BEGIN SELECT RAISE(ABORT, 'injected failure'); END`); err != nil {
@@ -738,7 +800,7 @@ func TestUserGear_ResponsesNeverCarryOtherUsersNames(t *testing.T) {
 func TestUserGearDelete_FailureAfterFirstWriteRollsBack(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
-	box := e.SeedRegistration(w.alice, w.gear)
+	box := e.SeedRegistration(w.alice, e.capGear())
 	e.SeedContainerLink(box, w.aReg1)
 	before := e.ugSnapshot()
 	// The registration delete succeeds; removing its links then fails.

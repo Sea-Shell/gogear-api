@@ -19,6 +19,12 @@ import (
 	zap "go.uber.org/zap"
 )
 
+// gearCapabilityJoin attaches the derived container status (view
+// gear_container_capability, migration 000009, ADR-001 D-3) to a query on gear.
+// Container status is read only through this view, in the reported value, the
+// container filter and its count, so they cannot disagree (BR-021 AC-3).
+const gearCapabilityJoin = ` LEFT JOIN gear_container_capability ON gear_container_capability.gearId = gear.gearId`
+
 // ListGear lists gear in the database
 //
 //	@Summary		List gear
@@ -110,9 +116,9 @@ func ListGear(c *gin.Context) {
 			return
 		}
 		if containerBool {
-			conditions = append(conditions, "gear.gearIsContainer = 1")
+			conditions = append(conditions, "gear_container_capability.isContainer = 1")
 		} else {
-			conditions = append(conditions, "gear.gearIsContainer = 0")
+			conditions = append(conditions, "gear_container_capability.isContainer = 0")
 		}
 	}
 
@@ -121,7 +127,7 @@ func ListGear(c *gin.Context) {
 		whereClause = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	baseCountQuery := "SELECT COUNT(*) FROM gear"
+	baseCountQuery := "SELECT COUNT(*) FROM gear" + gearCapabilityJoin
 	countQuery := baseCountQuery + whereClause
 
 	var totalCount int
@@ -147,7 +153,7 @@ func ListGear(c *gin.Context) {
 	baseQuery := fmt.Sprintf(`SELECT %s FROM gear
         LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId
         LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId
-        LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`,
+        LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`+gearCapabilityJoin,
 		strings.Join(fields, ", "))
 
 	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
@@ -353,7 +359,7 @@ func SearchGear(c *gin.Context) {
 	baseQuery := fmt.Sprintf(`SELECT %s FROM gear
         LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId
         LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId
-        LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`,
+        LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId`+gearCapabilityJoin,
 		strings.Join(fields, ", "))
 
 	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
@@ -466,6 +472,7 @@ func GetGear(c *gin.Context) {
 	extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
 	extraSQL = append(extraSQL, " LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId ")
 	extraSQL = append(extraSQL, "  LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
+	extraSQL = append(extraSQL, gearCapabilityJoin+" ")
 
 	results, err := utils.GenericGet[models.FullGear]("gear", urlParameter, extraSQL, db)
 	if err != nil {
@@ -481,13 +488,13 @@ func GetGear(c *gin.Context) {
 // InsertGear insert new gear according to spessification
 //
 //	@Summary		Insert new gear
-//	@Description	Insert new gear with corresponding values
+//	@Description	Insert new gear with corresponding values. gear_is_container is read-only: it is ignored when sent, and the response reports the status derived from the gear's sub-category.
 //	@Security		BearerAuth
 //	@Tags			Gear
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		models.Gear	true	"query params"	test
-//	@Success		200		{object}	models.Gear	"status: success when all goes well"
+//	@Param			request	body		models.GearInput	true	"query params"	test
+//	@Success		200		{object}	models.Gear			"the created gear"
 //	@Failure		default	{object}	models.Error
 //	@Failure		400		{object}	models.Error
 //	@Router			/api/v1/gear/insert [put]
@@ -504,7 +511,14 @@ func InsertGear(c *gin.Context) {
 		return
 	}
 
-	createdObject, err := utils.GenericInsert[models.Gear]("gear", data, db)
+	inserted, err := utils.GenericInsert[models.GearInput]("gear", data, db)
+	if err != nil {
+		catalogInsertFailed(c, log, err)
+		return
+	}
+	// The response carries the derived container status, so it is read back
+	// through the same view as every other gear response.
+	createdObject, err := utils.GenericGet[models.Gear]("gear", int(*inserted.GearID), []string{gearCapabilityJoin + " "}, db)
 	if err != nil {
 		catalogInsertFailed(c, log, err)
 		return
@@ -522,8 +536,8 @@ func InsertGear(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			gear	path		int				true	"Unique ID of Gear you want to get"
-//	@Param			request	body		models.Gear		true	"query params"	test
-//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Param			request	body		models.GearInput	true	"query params"	test
+//	@Success		200		{object}	models.Status		"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
 //	@Failure		400		{object}	models.Error
 //	@Router			/api/v1/gear/{gear}/update [post]
@@ -539,7 +553,6 @@ func UpdateGear(c *gin.Context) {
 		TopCategoryID  *int64  `json:"gear_top_category_id"`
 		CategoryID     *int64  `json:"gear_category_id"`
 		ManufactureID  *int64  `json:"gear_manufacture_id"`
-		IsContainer    *bool   `json:"gear_is_container"`
 		Name           *string `json:"gear_name"`
 		SizeDefinition *string `json:"gear_size_definition"`
 		Weight         *int32  `json:"gear_weight"`
@@ -561,7 +574,6 @@ func UpdateGear(c *gin.Context) {
 		{"gearTopCategoryId", body.TopCategoryID, body.TopCategoryID != nil},
 		{"gearCategoryId", body.CategoryID, body.CategoryID != nil},
 		{"gearManufactureId", body.ManufactureID, body.ManufactureID != nil},
-		{"gearIsContainer", body.IsContainer, body.IsContainer != nil},
 		{"gearName", body.Name, body.Name != nil},
 		{"gearSizeDefinition", body.SizeDefinition, body.SizeDefinition != nil},
 		{"gearWeight", body.Weight, body.Weight != nil},

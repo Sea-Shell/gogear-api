@@ -3,13 +3,32 @@ package models
 // Store represents a collection of Gear.
 type Store []Gear
 
-// Gear represents a piece of gear.
+// Gear is a gear item as the API reports it. GearIsContainer is read-only: it
+// is the container status derived from the gear's sub-category (view
+// gear_container_capability) and is ignored when sent.
 type Gear struct {
+	GearID             *int64 `json:"gear_id" db:"gear.gearId"`
+	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
+	GearCategoryID     int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
+	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
+	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
+	GearName           string `json:"gear_name" db:"gear.gearName"`
+	GearSizeDefinition string `json:"gear_size_definition" db:"gear.gearSizeDefinition"`
+	GearWeight         int32  `json:"gear_weight" db:"gear.gearWeight"`
+	GearHeight         int32  `json:"gear_height" db:"gear.gearHeight"`
+	GearLength         int32  `json:"gear_length" db:"gear.gearLength"`
+	GearWidth          int32  `json:"gear_width" db:"gear.gearWidth"`
+	GearStatus         bool   `json:"gear_status" db:"gear.gearStatus"`
+}
+
+// GearInput is the request body for creating a gear item. It has no container
+// field: the status comes from the sub-category, so a gear_is_container in a
+// request body is ignored.
+type GearInput struct {
 	GearID             *int64 `json:"gear_id" db:"gearId"`
 	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gearTopCategoryId"`
 	GearCategoryID     int64  `json:"gear_category_id" db:"gearCategoryId"`
 	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gearManufactureId"`
-	GearIsContainer    bool   `json:"gear_is_container" db:"gearIsContainer"`
 	GearName           string `json:"gear_name" db:"gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	GearWeight         int32  `json:"gear_weight" db:"gearWeight"`
@@ -25,28 +44,13 @@ type GearNameList struct {
 	GearName string `json:"gear_name" db:"gearName"`
 }
 
-// GearNoID represents a piece of gear without an ID.
-type GearNoID struct {
-	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gearTopCategoryId"`
-	GearCategoryID     int64  `json:"gear_category_id" db:"gearCategoryId"`
-	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gearManufactureId"`
-	GearIsContainer    bool   `json:"gear_is_container" db:"gearIsContainer"`
-	GearName           string `json:"gear_name" db:"gearName"`
-	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
-	GearWeight         int32  `json:"gear_weight" db:"gearWeight"`
-	GearHeight         int32  `json:"gear_height" db:"gearHeight"`
-	GearLength         int32  `json:"gear_length" db:"gearLength"`
-	GearWidth          int32  `json:"gear_width" db:"gearWidth"`
-	GearStatus         bool   `json:"gear_status" db:"gearStatus"`
-}
-
 // FullGear represents a complete gear object.
 type FullGear struct {
 	GearID             int64  `json:"gear_id" db:"gear.gearId"`
 	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
 	GearCategoryID     int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
-	GearIsContainer    bool   `json:"gear_is_container" db:"gearIsContainer"`
+	GearIsContainer    bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
 	GearName           string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	GearWeight         int32  `json:"gear_weight" db:"gear.gearWeight"`
@@ -73,7 +77,7 @@ type GearListItem struct {
 	GearTopCategoryID     int64  `json:"gear_top_category_id" db:"gear.gearTopCategoryId"`
 	GearCategoryID        int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID     int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
-	GearIsContainer       bool   `json:"gear_is_container" db:"gearIsContainer"`
+	GearIsContainer       bool   `json:"gear_is_container" db:"gear_container_capability.isContainer" readOnly:"true"`
 	GearName              string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition    string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	ManufactureID         int64  `json:"manufacture_id" db:"manufacture.manufactureId"`

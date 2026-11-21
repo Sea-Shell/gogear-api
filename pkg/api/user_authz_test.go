@@ -367,7 +367,7 @@ func tenantGear(env *authzEnv) (int64, int64) {
 // seedTenant gives a user a container with content, a public loadout and an item.
 func seedTenant(env *authzEnv, userID int64, slug string) {
 	g1, g2 := tenantGear(env)
-	box := env.SeedRegistration(userID, g1)
+	box := env.SeedRegistration(userID, env.capGear())
 	thing := env.SeedRegistration(userID, g2)
 	env.SeedContainerLink(box, thing)
 	lo := seedLoadout(env.T, env.DB, userID, true, slug)
@@ -406,7 +406,7 @@ func TestDeleteUser_SelfRemovesAllOwnDataAndNothingElse(t *testing.T) {
 	// a stray link that involves Alice's registration must go with it.
 	shared, _ := tenantGear(env)
 	aReg := env.SeedRegistration(a, shared)
-	bReg := env.SeedRegistration(b, shared)
+	bReg := env.SeedRegistration(b, env.capGear())
 	env.SeedContainerLink(bReg, aReg)
 	bUser := env.User(b)
 	bBefore := env.data(b)

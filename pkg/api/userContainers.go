@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	models "github.com/Sea-Shell/gogear-api/pkg/models"
 
@@ -20,12 +21,24 @@ import (
 // and a container, content or link that is unknown or not the caller's gives
 // one identical 404 (BR-018).
 //
-// Nesting rules (BR-020, D9): any registration may hold any other, whatever the
-// catalog's gearIsContainer says, at any depth. A registration has at most one
+// Nesting rules (BR-020, D9, D11): a registration may hold others only when its
+// gear is container-capable, which the gear's sub-category decides (BR-021; the
+// view gear_container_capability is the one place that rule is computed); any
+// registration may be content, at any depth. A registration has at most one
 // direct container, and nothing is ever inside itself. The checks run in the
 // same immediate transaction as the insert, so concurrent requests queue and
-// cannot jointly break a rule; the database repeats the rules as a unique index
-// on the content column and a cycle trigger (migration 000008).
+// cannot jointly break a rule, and a catalog change that removes a container's
+// capability is ordered against them by SQLite's write lock (BR-021 AC-8). The
+// database repeats the rules as a unique index on the content column, a cycle
+// trigger (migration 000008) and capability triggers (migration 000009).
+
+// capabilityTriggerMessage is the abort message of the capability triggers of
+// migration 000009; the API maps it to errCannotHoldItems.
+const capabilityTriggerMessage = "the container registration cannot hold items"
+
+// errCannotHoldItems is the 409 for a link into a registration whose gear is
+// not container-capable. It names only the caller's own registration.
+var errCannotHoldItems = &opError{http.StatusConflict, "this registration cannot hold items: its gear is not in a container category"}
 
 // ownedContainerExists is a SQL fragment that is true when its first ? (a
 // registration ID) belongs to the user given by the second ?.
@@ -102,7 +115,7 @@ func ListUserGearInContainer(c *gin.Context) {
 // InsertContainer puts gear on the users gear list
 //
 //	@Summary		Insert user registered gear
-//	@Description	Put one of the caller's registrations inside another. Any registration can hold any other, at any depth. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404.
+//	@Description	Put one of the caller's registrations inside another. Any registration can be content, at any depth, but only a registration whose gear is container-capable (its sub-category is a container category) can hold items; otherwise the request is refused with 409. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404. Checks run in that order: 404, then 400 for a self-link, then the not-capable 409, then the other 409s.
 //	@Security		BearerAuth
 //	@Tags			User container
 //	@Accept			json
@@ -163,6 +176,24 @@ func InsertContainer(c *gin.Context) {
 			return errRegistrationNotFound
 		}
 
+		// Only a registration whose gear is container-capable can hold items
+		// (BR-020 AC-1, BR-021). This is decided after ownership (so the answer
+		// says nothing about anyone else's registration) and before the other
+		// 409s. The capability is read here, inside the immediate transaction,
+		// through the view, so a concurrent catalog change is ordered before or
+		// after this request (BR-021 AC-8, ADR-001 D-8). Content may be any
+		// registration.
+		var capable int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COALESCE((SELECT cap.isContainer FROM user_gear_registrations r
+			                  JOIN gear_container_capability cap ON cap.gearId = r.gearId
+			                  WHERE r.userGearRegistrationId = ?), 0)`, containerID).Scan(&capable); err != nil {
+			return err
+		}
+		if capable != 1 {
+			return errCannotHoldItems
+		}
+
 		// At most one direct container (AC-3).
 		var current int64
 		switch err := tx.QueryRowContext(ctx,
@@ -198,12 +229,16 @@ func InsertContainer(c *gin.Context) {
 			        WHERE userGearRegistrationId IN (?, ?) AND userId = ?) = 2`,
 			containerID, contentID, containerID, contentID, callerID)
 		// The database's own guards: a unique violation is a second container
-		// (or a repeat), a trigger abort is a cycle. The checks above make both
-		// unreachable in one transaction; they are the last line of defence.
+		// (or a repeat), a trigger abort is the capability rule or a cycle. The
+		// checks above make all of them unreachable in one transaction; they
+		// are the last line of defence.
 		if isUniqueViolation(err) {
 			return &opError{http.StatusConflict, "registration is already in a container"}
 		}
 		if isTriggerViolation(err) {
+			if strings.Contains(err.Error(), capabilityTriggerMessage) {
+				return errCannotHoldItems
+			}
 			return &opError{http.StatusConflict, "a registration cannot be put inside one of its own contents"}
 		}
 		if err != nil {

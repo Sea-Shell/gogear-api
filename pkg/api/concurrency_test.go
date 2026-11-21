@@ -77,7 +77,7 @@ func TestConcurrentMixedWorkloadAllSucceeds(t *testing.T) {
 		tn.loadout = env.seedLO(u, false, fmt.Sprintf("lo-%d", u))
 		tn.item = env.seedItem(tn.loadout, gear, 1)
 		for i := 0; i < perUser/kinds+2; i++ {
-			tn.boxes = append(tn.boxes, env.SeedRegistration(u, gear))
+			tn.boxes = append(tn.boxes, env.SeedRegistration(u, env.capGear()))
 			tn.contents = append(tn.contents, env.SeedRegistration(u, gear))
 		}
 		tenants[u] = tn

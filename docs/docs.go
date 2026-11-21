@@ -315,7 +315,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Put one of the caller's registrations inside another. Any registration can hold any other, at any depth. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404.",
+                "description": "Put one of the caller's registrations inside another. Any registration can be content, at any depth, but only a registration whose gear is container-capable (its sub-category is a container category) can hold items; otherwise the request is refused with 409. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404. Checks run in that order: 404, then 400 for a self-link, then the not-capable 409, then the other 409s.",
                 "consumes": [
                     "application/json"
                 ],
@@ -481,7 +481,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new gear with corresponding values",
+                "description": "Insert new gear with corresponding values. gear_is_container is read-only: it is ignored when sent, and the response reports the status derived from the gear's sub-category.",
                 "consumes": [
                     "application/json"
                 ],
@@ -499,13 +499,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Gear"
+                            "$ref": "#/definitions/models.GearInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "status: success when all goes well",
+                        "description": "the created gear",
                         "schema": {
                             "$ref": "#/definitions/models.Gear"
                         }
@@ -828,7 +828,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Gear"
+                            "$ref": "#/definitions/models.GearInput"
                         }
                     }
                 ],
@@ -3055,6 +3055,44 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "category_top_category_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.GearInput": {
+            "type": "object",
+            "properties": {
+                "gear_category_id": {
+                    "type": "integer"
+                },
+                "gear_height": {
+                    "type": "integer"
+                },
+                "gear_id": {
+                    "type": "integer"
+                },
+                "gear_length": {
+                    "type": "integer"
+                },
+                "gear_manufacture_id": {
+                    "type": "integer"
+                },
+                "gear_name": {
+                    "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "string"
+                },
+                "gear_status": {
+                    "type": "boolean"
+                },
+                "gear_top_category_id": {
+                    "type": "integer"
+                },
+                "gear_weight": {
+                    "type": "integer"
+                },
+                "gear_width": {
                     "type": "integer"
                 }
             }

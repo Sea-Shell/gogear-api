@@ -38,7 +38,8 @@ func newIntFixture(t *testing.T) *intFixture {
 	f.top = env.seedTopCategory("Shelter")
 	f.cat = env.SeedCategory("Tents")
 	f.man = env.seedManufacturer("Acme")
-	f.gear = env.seedGearX(true, false, f.cat, f.top) // weighs 100
+	f.gear = env.seedGearX(false, false, f.cat, f.top) // weighs 100
+	env.setCategoryContainer(f.cat, boolPtr(true))     // its registrations hold items below
 	f.missingGear = 987654
 	f.loadout = env.seedLO(f.alice, false, "alice-lo")
 	f.loadoutItem = env.seedItem(f.loadout, f.gear, 2)

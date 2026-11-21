@@ -78,16 +78,16 @@ func ListUserGear(c *gin.Context) {
 	addIntFilters("g.gearManufactureId", c.QueryArray("manufacture"))
 	switch c.Query("container") {
 	case "true":
-		where = append(where, "g.gearIsContainer = 1")
+		where = append(where, userGearContainerExpr+" = 1")
 	case "false":
-		where = append(where, "g.gearIsContainer = 0")
+		where = append(where, userGearContainerExpr+" = 0")
 	}
 	whereSQL := " WHERE " + strings.Join(where, " AND ")
 
 	ctx := c.Request.Context()
 	var total int
 	if err := db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_gear_registrations ugr LEFT JOIN gear g ON g.gearId = ugr.gearId`+whereSQL, args...).Scan(&total); err != nil {
+		`SELECT COUNT(*) FROM user_gear_registrations ugr LEFT JOIN gear g ON g.gearId = ugr.gearId`+userGearCapabilityJoin+whereSQL, args...).Scan(&total); err != nil {
 		respondInternal(c, log, "count registrations", err)
 		return
 	}

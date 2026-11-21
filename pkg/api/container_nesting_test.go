@@ -8,10 +8,12 @@ import (
 	"testing"
 )
 
-// Adversarial regression tests for BR-020 (container nesting): any registration
-// can hold any other at any depth, a registration has at most one direct
-// container, and nothing is ever inside itself, also under concurrency. All
-// through the real JWT middleware and a migrated database.
+// Adversarial regression tests for BR-020 (container nesting): a registration
+// whose gear is container-capable (BR-021) can hold any other registration at
+// any depth, a registration has at most one direct container, and nothing is
+// ever inside itself, also under concurrency. All through the real JWT
+// middleware and a migrated database. Every fixture that acts as a container
+// uses capable gear (w.boxGear); w.plain gear is not container-capable.
 
 type nestWorld struct {
 	env     *authzEnv
@@ -19,8 +21,8 @@ type nestWorld struct {
 	bob     int64
 	tokA    string
 	tokB    string
-	plain   int64 // catalog gear with gearIsContainer = 0
-	boxGear int64 // catalog gear with gearIsContainer = 1
+	plain   int64 // catalog gear whose sub-category is not a container
+	boxGear int64 // catalog gear whose sub-category is a container
 }
 
 func newNestWorld(t *testing.T) *nestWorld {
@@ -44,11 +46,12 @@ func (w *nestWorld) linkAs(tok string, container, content int64) *httptest.Respo
 		map[string]any{"user_container_id": container, "user_gear_registration_id": content})
 }
 
-// regs seeds n plain-gear registrations for alice.
+// regs seeds n registrations of container-capable gear for alice, so each can
+// be a container and any can be content.
 func (w *nestWorld) regs(n int) []int64 {
 	out := make([]int64, n)
 	for i := range out {
-		out[i] = w.env.SeedRegistration(w.alice, w.plain)
+		out[i] = w.env.SeedRegistration(w.alice, w.boxGear)
 	}
 	return out
 }
@@ -107,23 +110,38 @@ func (e *authzEnv) storedViolations() string {
 	return ""
 }
 
-// AC-1: the catalog flag neither allows nor prevents a role.
+// BR-020 AC-1 (as amended by D11): any registration may be content, but only a
+// registration whose gear is container-capable may hold content. A refused
+// link is 409 and changes nothing.
 func TestContainerNesting_AnyRegistrationCanContainAnyOther(t *testing.T) {
 	w := newNestWorld(t)
 	e := w.env
 	plainA, plainB := e.SeedRegistration(w.alice, w.plain), e.SeedRegistration(w.alice, w.plain)
-	flagged := e.SeedRegistration(w.alice, w.boxGear)
-	flagged2 := e.SeedRegistration(w.alice, w.boxGear)
+	capA, capB := e.SeedRegistration(w.alice, w.boxGear), e.SeedRegistration(w.alice, w.boxGear)
 
-	expectStatus(t, w.link(plainA, plainB), http.StatusOK)    // non-container gear holds non-container gear
-	expectStatus(t, w.link(plainA, flagged), http.StatusOK)   // ... and container gear
-	expectStatus(t, w.link(flagged, flagged2), http.StatusOK) // container gear holds container gear
-	// content that itself holds others, and non-container gear that sits inside
-	// container gear and holds items:
-	expectStatus(t, w.link(flagged2, e.SeedRegistration(w.alice, w.plain)), http.StatusOK)
-	if got := w.directContents(t, plainA); !sameIDs(got, []int64{plainB, flagged}) {
-		t.Fatalf("contents of plain container = %v", got)
+	before := e.ugSnapshot()
+	for name, l := range map[string][2]int64{
+		"plain gear holding plain gear":   {plainA, plainB},
+		"plain gear holding capable gear": {plainA, capA},
+	} {
+		got := w.link(l[0], l[1])
+		if got.Code != http.StatusConflict {
+			t.Errorf("%s: status %d, want 409; body %s", name, got.Code, got.Body.String())
+		}
 	}
+	if e.ugSnapshot() != before {
+		t.Fatal("a refused link changed stored links")
+	}
+
+	expectStatus(t, w.link(capA, plainA), http.StatusOK) // capable gear holds non-capable gear
+	expectStatus(t, w.link(capA, capB), http.StatusOK)   // ... and capable gear
+	// capable gear that sits inside capable gear may hold items too:
+	expectStatus(t, w.link(capB, plainB), http.StatusOK)
+	if got := w.directContents(t, capA); !sameIDs(got, []int64{plainA, capB}) {
+		t.Fatalf("contents of capable container = %v", got)
+	}
+	// Content that is not capable cannot receive anything, even from its container.
+	expectStatus(t, w.link(plainA, e.SeedRegistration(w.alice, w.plain)), http.StatusConflict)
 	if v := e.storedViolations(); v != "" {
 		t.Fatal(v)
 	}
@@ -256,7 +274,7 @@ func TestContainerNesting_StatusPrecedence(t *testing.T) {
 
 	// Bob's chain: Alice gets one identical 404 whether the request would be a
 	// cycle, a second container, a self-link or an unknown ID.
-	b := []int64{e.SeedRegistration(w.bob, w.plain), e.SeedRegistration(w.bob, w.plain), e.SeedRegistration(w.bob, w.plain)}
+	b := []int64{e.SeedRegistration(w.bob, w.boxGear), e.SeedRegistration(w.bob, w.boxGear), e.SeedRegistration(w.bob, w.boxGear)}
 	e.SeedContainerLink(b[0], b[1])
 	e.SeedContainerLink(b[1], b[2])
 	want := w.link(99998, 99999)
@@ -322,7 +340,7 @@ func TestContainerNesting_ConcurrentThreeRingStoresNoCycle(t *testing.T) {
 	w := newNestWorld(t)
 	e := w.env
 	for round := 0; round < 15; round++ {
-		r := []int64{e.SeedRegistration(w.alice, w.plain), e.SeedRegistration(w.alice, w.plain), e.SeedRegistration(w.alice, w.plain)}
+		r := []int64{e.SeedRegistration(w.alice, w.boxGear), e.SeedRegistration(w.alice, w.boxGear), e.SeedRegistration(w.alice, w.boxGear)}
 		var wg sync.WaitGroup
 		start := make(chan struct{})
 		var mu sync.Mutex
@@ -404,7 +422,7 @@ func TestContainerNesting_DatabaseRefusesViolationsOnItsOwn(t *testing.T) {
 	}
 	// Re-pointing an existing link so that it closes a ring is refused as well:
 	// moving r1 into r3 would make r3 hold r1, r1 hold r2 and r2 hold r3.
-	free := e.SeedRegistration(w.alice, w.plain)
+	free := e.SeedRegistration(w.alice, w.boxGear)
 	if _, err := e.DB.Exec(`UPDATE user_container_registration SET userContainerId = ? WHERE containerRegistrationId = ?`, r[3], e.linkID(r[0], r[1])); err == nil {
 		t.Error("the database accepted an update that closes a ring")
 	}
@@ -451,17 +469,16 @@ func TestContainerNesting_DeletedContainerLeavesContentsUncontained(t *testing.T
 	expectStatus(t, w.link(deep, b), http.StatusOK)
 }
 
-// The list filter `container` keeps meaning "catalog container gear"; nesting
-// does not depend on it, and a registration inside a container still lists
-// once with its container.
-func TestContainerNesting_ListFilterIsStillTheCatalogFlag(t *testing.T) {
+// The list filter `container` selects by the derived status (BR-021 AC-7), not
+// by nesting; a registration inside a container still lists once with its container.
+func TestContainerNesting_ListFilterIsTheDerivedStatus(t *testing.T) {
 	w := newNestWorld(t)
 	e := w.env
-	flagged := e.SeedRegistration(w.alice, w.boxGear)
-	plainBox := e.SeedRegistration(w.alice, w.plain)
+	outer := e.SeedRegistration(w.alice, w.boxGear)
+	inner := e.SeedRegistration(w.alice, w.boxGear)
 	inside := e.SeedRegistration(w.alice, w.plain)
-	expectStatus(t, w.link(plainBox, inside), http.StatusOK)
-	expectStatus(t, w.link(flagged, plainBox), http.StatusOK)
+	expectStatus(t, w.link(inner, inside), http.StatusOK)
+	expectStatus(t, w.link(outer, inner), http.StatusOK)
 
 	ids := func(q string) []int64 {
 		r := e.Do(http.MethodGet, ugList(w.alice, q), w.tokA, nil)
@@ -469,17 +486,16 @@ func TestContainerNesting_ListFilterIsStillTheCatalogFlag(t *testing.T) {
 		items, _ := page(t, r)
 		return regIDs(items)
 	}
-	if got := ids("container=true"); !sameIDs(got, []int64{flagged}) {
-		t.Errorf("container=true = %v, want only the flagged gear %d", got, flagged)
+	if got := ids("container=true"); !sameIDs(got, []int64{outer, inner}) {
+		t.Errorf("container=true = %v, want %v", got, []int64{outer, inner})
 	}
-	if got := ids("container=false"); !sameIDs(got, []int64{plainBox, inside}) {
-		t.Errorf("container=false = %v, want %v", got, []int64{plainBox, inside})
+	if got := ids("container=false"); !sameIDs(got, []int64{inside}) {
+		t.Errorf("container=false = %v, want %v", got, []int64{inside})
 	}
-	if got := ids("limit=100"); !sameIDs(got, []int64{flagged, plainBox, inside}) {
+	if got := ids("limit=100"); !sameIDs(got, []int64{outer, inner, inside}) {
 		t.Errorf("unfiltered = %v", got)
 	}
-	// The registration of a non-container gear that holds items lists its contents.
-	if got := w.directContents(t, plainBox); !sameIDs(got, []int64{inside}) {
-		t.Errorf("contents of a non-container gear = %v", got)
+	if got := w.directContents(t, inner); !sameIDs(got, []int64{inside}) {
+		t.Errorf("contents of a nested container = %v", got)
 	}
 }

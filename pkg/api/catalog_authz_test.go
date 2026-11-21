@@ -37,10 +37,10 @@ func (e *authzEnv) catalogSnapshot() string {
 	e.T.Helper()
 	var sb strings.Builder
 	for _, q := range []string{
-		`SELECT quote(gearId)||'|'||quote(gearTopCategoryId)||'|'||quote(gearCategoryId)||'|'||quote(gearManufactureId)||'|'||quote(gearIsContainer)||'|'||quote(gearSizeDefinition)||'|'||quote(gearName)||'|'||quote(gearWeight)||'|'||quote(gearHeight)||'|'||quote(gearLength)||'|'||quote(gearWidth)||'|'||quote(gearStatus) FROM gear ORDER BY gearId`,
+		`SELECT quote(gearId)||'|'||quote(gearTopCategoryId)||'|'||quote(gearCategoryId)||'|'||quote(gearManufactureId)||'|'||quote(gearIsContainerLegacy)||'|'||quote(gearSizeDefinition)||'|'||quote(gearName)||'|'||quote(gearWeight)||'|'||quote(gearHeight)||'|'||quote(gearLength)||'|'||quote(gearWidth)||'|'||quote(gearStatus) FROM gear ORDER BY gearId`,
 		`SELECT quote(manufactureId)||'|'||quote(manufactureName) FROM manufacture ORDER BY manufactureId`,
-		`SELECT quote(topCategoryId)||'|'||quote(topCategoryName)||'|'||quote(topCategoryIcon) FROM gear_top_category ORDER BY topCategoryId`,
-		`SELECT quote(categoryId)||'|'||quote(categoryTopCategoryId)||'|'||quote(categoryName) FROM gear_category ORDER BY categoryId`,
+		`SELECT quote(topCategoryId)||'|'||quote(topCategoryName)||'|'||quote(topCategoryIcon)||'|'||quote(topCategoryIsContainer) FROM gear_top_category ORDER BY topCategoryId`,
+		`SELECT quote(categoryId)||'|'||quote(categoryTopCategoryId)||'|'||quote(categoryName)||'|'||quote(categoryIsContainer) FROM gear_category ORDER BY categoryId`,
 	} {
 		rows, err := e.DB.Query(q)
 		if err != nil {
