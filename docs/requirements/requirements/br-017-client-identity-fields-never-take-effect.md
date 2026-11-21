@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-017 — Identity and privilege values in request bodies never take effect
 
-**Implementation:** partly implemented in wave 1 (user operations and the admin-status field only; loadouts, registrations and containers are later waves). **Status:** Accepted with a provisional conflict outcome. **Priority:** P0 (review SEC-01, SEC-03, SEC-05). **Basis:** the statement is derived from anchor decisions D3 ("no client can set the admin flag through profile create/update") and D4 (scope to the authenticated owner). AC-2 is a provisional default.
+**Implementation:** partly implemented: wave 1 covered user operations and the admin-status field; wave 2 adds loadout and loadout-item operations (`loadout_id`, `loadout_item_id`, `user_id` in bodies). Registrations and containers are later waves. **Status:** Accepted with a provisional conflict outcome. **Priority:** P0 (review SEC-01, SEC-03, SEC-05). **Basis:** the statement is derived from anchor decisions D3 ("no client can set the admin flag through profile create/update") and D4 (scope to the authenticated owner). AC-2 is a provisional default.
 
 **Terms — identity and privilege values:**
 - the owner (user) of user-owned data;

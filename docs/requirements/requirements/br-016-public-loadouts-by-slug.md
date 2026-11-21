@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-016 — Public loadouts are readable by slug without signing in; private ones are not
 
-**Status:** Accepted. **Priority:** P0 (completes the visibility rule in D4). **Basis:** sourced from anchor decision D4. AC-2 is derived from it. AC-4 is a specified choice of the requirements author and matches current behavior.
+**Implementation:** implemented in wave 2 (public loadouts), with tests in `pkg/api/loadout_authz_test.go`. A blank slug is stored as no slug (NULL) and never matches a public read; empty item lists return `[]`. **Status:** Accepted. **Priority:** P0 (completes the visibility rule in D4). **Basis:** sourced from anchor decision D4. AC-2 is derived from it. AC-4 is a specified choice of the requirements author and matches current behavior.
 
 **Statement:**
 The API shall return a loadout and its items by slug, without authentication, if and only if the loadout is marked public at the time of the request.

@@ -6,7 +6,7 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, and BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
 
 **Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
 
@@ -60,7 +60,16 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - A non-admin search by email in the user directory is refused with 403, because it would reveal other users' emails (BR-007). Searches by username and name only match what the response shows.
   - Where a username or name contains the user's email (Google sign-in does this), it is blanked for non-admin viewers of other users.
   - Startup refuses empty or equal `jwt-audience` and `jwt-admin-audience`.
-- **Not yet implemented:** BR-001 to BR-005, BR-012 to BR-016, OC-001, and the non-user parts of BR-017 and BR-018.
+- **Wave 2 (implemented):** BR-014, BR-015, BR-016, OC-001 for loadouts and items, and the loadout parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
+  - Loadout update changes only the fields present in the body (name, description, public flag, slug) and maintains `updatedAt`. An update with no fields is 400.
+  - A body `loadout_id`, `loadout_item_id` or `user_id` that differs from the path or caller is 400 (P-2); a matching or absent value is accepted. A foreign or unknown target is 404 before any body conflict is reported.
+  - Quantity below 1 is 400 on item insert and update. An absent quantity on insert is 1. No database CHECK constraint yet (integrity wave).
+  - A blank or whitespace slug is stored as NULL. A slug already used by another loadout is 409.
+  - Deleting a loadout also deletes its items in the same transaction, because foreign keys are not enforced.
+  - Import, item insert, update and delete are all-or-nothing together with the total-weight recalculation; a failed recalculation fails the request.
+  - List endpoints return `[]` when empty.
+  - Not changed: gear existence is not checked when adding items (needs foreign-key enforcement, a later wave).
+- **Not yet implemented:** BR-001 to BR-005, BR-012, BR-013, and the registration and container parts of BR-017, BR-018 and OC-001.
 
 ## Provisional defaults (open to product-owner change)
 
