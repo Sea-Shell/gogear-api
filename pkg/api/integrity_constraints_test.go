@@ -18,9 +18,9 @@ func TestContainerInsert_DuplicateLinkIs409(t *testing.T) {
 	if n := f.env.Count("user_container_registration", ""); n != 1 {
 		t.Fatalf("%d links, want 1", n)
 	}
-	// The reverse direction is a different link.
+	// The reverse direction would put each inside the other: a cycle (BR-020 AC-4).
 	expectStatus(t, f.env.Do(http.MethodPut, "/api/v1/container/insert", f.aTok,
-		map[string]any{"user_container_id": f.regThing, "user_gear_registration_id": f.regBox}), http.StatusOK)
+		map[string]any{"user_container_id": f.regThing, "user_gear_registration_id": f.regBox}), http.StatusConflict)
 }
 
 // The database itself refuses self-links, whatever the handler does.

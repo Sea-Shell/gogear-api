@@ -35,9 +35,9 @@ func TestReportForeignKeyViolations_WarnsPerTableAndLeavesData(t *testing.T) {
 	want := map[string]int64{
 		"loadout_items->gear": 2, // items 4, 5
 		"loadouts->users":     1,
-		"user_container_registration->user_gear_registrations": 1,
-		"user_gear_registrations->gear":                        1,
-		"user_gear_registrations->users":                       1,
+		// The orphan container link of the legacy data is removed by 000008.
+		"user_gear_registrations->gear":  1,
+		"user_gear_registrations->users": 1,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("warnings = %v, want %v", got, want)

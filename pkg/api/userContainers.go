@@ -20,9 +20,12 @@ import (
 // and a container, content or link that is unknown or not the caller's gives
 // one identical 404 (BR-018).
 //
-// Not decided yet (open question Q-4), so not enforced: nesting depth, cycles
-// longer than a self-link, duplicate links, and whether a registration may hold
-// gear at all.
+// Nesting rules (BR-020, D9): any registration may hold any other, whatever the
+// catalog's gearIsContainer says, at any depth. A registration has at most one
+// direct container, and nothing is ever inside itself. The checks run in the
+// same immediate transaction as the insert, so concurrent requests queue and
+// cannot jointly break a rule; the database repeats the rules as a unique index
+// on the content column and a cycle trigger (migration 000008).
 
 // ownedContainerExists is a SQL fragment that is true when its first ? (a
 // registration ID) belongs to the user given by the second ?.
@@ -99,7 +102,7 @@ func ListUserGearInContainer(c *gin.Context) {
 // InsertContainer puts gear on the users gear list
 //
 //	@Summary		Insert user registered gear
-//	@Description	Insert user registered gear with corresponding values
+//	@Description	Put one of the caller's registrations inside another. Any registration can hold any other, at any depth. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404.
 //	@Security		BearerAuth
 //	@Tags			User container
 //	@Accept			json
@@ -148,15 +151,60 @@ func InsertContainer(c *gin.Context) {
 			}
 			return badRequest("a registration cannot be contained in itself")
 		}
-		// One statement inserts only if the caller owns both registrations.
+		// Ownership of both registrations is decided before any 409 (BR-020
+		// AC-5), so a conflict never reveals another user's links.
+		var owned int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM user_gear_registrations WHERE userGearRegistrationId IN (?, ?) AND userId = ?`,
+			containerID, contentID, callerID).Scan(&owned); err != nil {
+			return err
+		}
+		if owned != 2 {
+			return errRegistrationNotFound
+		}
+
+		// At most one direct container (AC-3).
+		var current int64
+		switch err := tx.QueryRowContext(ctx,
+			`SELECT userContainerId FROM user_container_registration WHERE userGearRegistrationId = ?`, contentID).Scan(&current); {
+		case err == nil && current == containerID:
+			return &opError{http.StatusConflict, "registration is already in this container"}
+		case err == nil:
+			return &opError{http.StatusConflict, "registration is already in another container; remove that link first"}
+		case !isNoRows(err):
+			return err
+		}
+
+		// No cycles (AC-4): the new container must not already be inside the
+		// content, at any depth. UNION ends the walk even over a stored ring.
+		var cycle int
+		if err := tx.QueryRowContext(ctx,
+			`WITH RECURSIVE up(id) AS (
+				SELECT ?
+				UNION
+				SELECT l.userContainerId FROM user_container_registration l JOIN up ON l.userGearRegistrationId = up.id
+			) SELECT COUNT(*) FROM up WHERE id = ?`, containerID, contentID).Scan(&cycle); err != nil {
+			return err
+		}
+		if cycle > 0 {
+			return &opError{http.StatusConflict, "a registration cannot be put inside one of its own contents"}
+		}
+
+		// The insert still binds the owner in its own statement (OC-001 G-2).
 		res, err := tx.ExecContext(ctx,
 			`INSERT INTO user_container_registration (userContainerId, userGearRegistrationId)
 			 SELECT ?, ?
 			 WHERE (SELECT COUNT(*) FROM user_gear_registrations
 			        WHERE userGearRegistrationId IN (?, ?) AND userId = ?) = 2`,
 			containerID, contentID, containerID, contentID, callerID)
+		// The database's own guards: a unique violation is a second container
+		// (or a repeat), a trigger abort is a cycle. The checks above make both
+		// unreachable in one transaction; they are the last line of defence.
 		if isUniqueViolation(err) {
-			return &opError{http.StatusConflict, "registration is already in this container"}
+			return &opError{http.StatusConflict, "registration is already in a container"}
+		}
+		if isTriggerViolation(err) {
+			return &opError{http.StatusConflict, "a registration cannot be put inside one of its own contents"}
 		}
 		if err != nil {
 			return err

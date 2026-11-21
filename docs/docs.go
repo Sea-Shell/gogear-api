@@ -315,7 +315,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert user registered gear with corresponding values",
+                "description": "Put one of the caller's registrations inside another. Any registration can hold any other, at any depth. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404.",
                 "consumes": [
                     "application/json"
                 ],

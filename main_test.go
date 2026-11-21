@@ -120,8 +120,8 @@ func TestMigrationsUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 7 {
-		t.Errorf("expected version 7, got %d", version)
+	if version != 8 {
+		t.Errorf("expected version 8, got %d", version)
 	}
 	if dirty {
 		t.Error("expected clean migration")
@@ -179,14 +179,14 @@ func TestMigrationsIdempotentUp(t *testing.T) {
 	runMigrate(t, db, path)
 	runMigrate(t, db, path)
 
-	// Should still be at version 7
+	// Should still be at version 8
 	var version int
 	err := db.QueryRow("SELECT version FROM schema_migrations").Scan(&version)
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 7 {
-		t.Errorf("expected version 7 after second up, got %d", version)
+	if version != 8 {
+		t.Errorf("expected version 8 after second up, got %d", version)
 	}
 }
 

@@ -94,7 +94,7 @@ func TestMigration7DownRemovesDesignationOnly(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO users (userId, userUsername, userPassword, userEmail, userIsAdmin) VALUES (1, 'a', '', 'a@example.com', 1)`); err != nil {
 		t.Fatal(err)
 	}
-	stepMigrate(t, db, migrationsPath(t), func(m *migrate.Migrate) error { return m.Steps(-1) })
+	stepMigrate(t, db, migrationsPath(t), func(m *migrate.Migrate) error { return m.Migrate(6) })
 	if schemaNames(t, db, "table")["permanent_admin"] {
 		t.Fatal("permanent_admin left after down")
 	}

@@ -244,14 +244,18 @@ func TestUserGearList_FiltersAreBoundNeverWidening(t *testing.T) {
 	}
 }
 
-func TestUserGearList_RegistrationInSeveralContainersIsNotDuplicated(t *testing.T) {
+// A registration has at most one container (BR-020, enforced by the database),
+// so it is listed once, with that container.
+func TestUserGearList_ContainedRegistrationIsListedOnce(t *testing.T) {
 	w := newUGWorld(t)
 	e := w.env
 	boxGear := e.seedGearX(true, false, 1, 1)
 	box1 := e.SeedRegistration(w.alice, boxGear)
 	box2 := e.SeedRegistration(w.alice, boxGear)
 	e.SeedContainerLink(box1, w.aReg1)
-	e.SeedContainerLink(box2, w.aReg1)
+	if _, err := e.DB.Exec(`INSERT INTO user_container_registration (userContainerId, userGearRegistrationId) VALUES (?, ?)`, box2, w.aReg1); err == nil {
+		t.Fatal("the database stored a second container for one registration")
+	}
 
 	r := e.Do("GET", ugList(w.alice, "limit=100"), w.tokA, nil)
 	expectStatus(t, r, 200)
@@ -466,7 +470,7 @@ func TestUserGearDelete_OwnerOnly_RefusedDeleteKeepsLinks(t *testing.T) {
 	e := w.env
 	bBox := e.SeedRegistration(w.bob, w.gear)
 	e.SeedContainerLink(bBox, w.bReg)
-	e.SeedContainerLink(w.bReg, bBox) // bob's registration also holds content
+	e.SeedContainerLink(w.bReg, e.SeedRegistration(w.bob, w.gear)) // bob's registration also holds content
 	before := e.ugSnapshot()
 
 	foreign := e.Do("DELETE", ugPath(w.bReg, "delete"), w.tokA, nil)
@@ -552,7 +556,7 @@ func TestContainerList_OwnerScoped(t *testing.T) {
 	e.SeedContainerLink(w.aBox, w.aReg2)
 	e.SeedContainerLink(w.aBox, w.aThing)
 	e.SeedContainerLink(w.aBox, w.bReg) // legacy cross-owner link (BR-013 AC-4)
-	e.SeedContainerLink(w.bBox, w.bReg)
+	e.SeedContainerLink(w.bBox, e.SeedRegistration(w.bob, w.gear))
 	before := e.ugSnapshot()
 
 	r := e.Do("GET", ctList(w.aBox, ""), w.tokA, nil)
@@ -664,10 +668,11 @@ func TestContainerDelete_OwnerOfContainerOnly(t *testing.T) {
 	e := w.env
 	e.SeedContainerLink(w.aBox, w.aThing)
 	e.SeedContainerLink(w.aBox, w.bReg) // legacy cross-owner link in alice's container
-	e.SeedContainerLink(w.bBox, w.bReg)
+	bThing := e.SeedRegistration(w.bob, w.gear)
+	e.SeedContainerLink(w.bBox, bThing)
 	aLink := e.linkID(w.aBox, w.aThing)
 	legacy := e.linkID(w.aBox, w.bReg)
-	bLink := e.linkID(w.bBox, w.bReg)
+	bLink := e.linkID(w.bBox, bThing)
 	before := e.ugSnapshot()
 
 	foreign := e.Do("DELETE", ctDelete(bLink), w.tokA, nil)
@@ -690,7 +695,7 @@ func TestContainerDelete_OwnerOfContainerOnly(t *testing.T) {
 	if e.Count("user_container_registration", "") != 1 || e.Count("user_container_registration", "containerRegistrationId = ?", bLink) != 1 {
 		t.Fatal("wrong links remain")
 	}
-	if e.Count("user_gear_registrations", "") != 5 {
+	if e.Count("user_gear_registrations", "") != 6 {
 		t.Fatal("deleting a link deleted a registration")
 	}
 	expectStatus(t, e.Do("DELETE", ctDelete(aLink), w.tokA, nil), 404) // already gone
@@ -714,7 +719,7 @@ func TestUserGear_ResponsesNeverCarryOtherUsersNames(t *testing.T) {
 	gBox := e.SeedRegistration(gina, e.seedGearX(true, false, 1, 1))
 	e.SeedContainerLink(w.aBox, gReg)   // legacy: gina's gear in alice's container
 	e.SeedContainerLink(gBox, w.aThing) // legacy: alice's gear in gina's container
-	e.SeedContainerLink(gBox, gReg)
+	e.SeedContainerLink(gBox, e.SeedRegistration(gina, w.gear))
 
 	for name, tok := range map[string]string{"alice": w.tokA, "admin": w.tokC, "bob": w.tokB} {
 		for _, p := range []string{

@@ -164,6 +164,11 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &se) && se.ExtendedCode == sqlite3.ErrConstraintUnique
 }
 
+func isTriggerViolation(err error) bool {
+	var se sqlite3.Error
+	return errors.As(err, &se) && se.ExtendedCode == sqlite3.ErrConstraintTrigger
+}
+
 func isForeignKeyViolation(err error) bool {
 	var se sqlite3.Error
 	return errors.As(err, &se) && se.ExtendedCode == sqlite3.ErrConstraintForeignKey
