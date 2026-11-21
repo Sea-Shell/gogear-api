@@ -1,0 +1,77 @@
+# GoGear API requirements — access control and identity
+
+## In brief
+
+**Goal:** Every user can see and change only what the product owner allows. Users manage only their own inventory, containers, loadouts and account. Only admins change the shared catalog and admin roles. A Google login always reaches the same account, and never someone else's.
+
+**Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
+
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). They are not yet implemented: the engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+
+**Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
+
+**Context, not a requirement:** At the time of writing there are two registered users, and Google OAuth is limited to test users, so there is no live exposure.
+
+## Terms
+
+- **Authenticated user:** the user identified by a valid service token issued by the API.
+- **Admin:** a user whose stored admin status is true. Tokens reflect this status as described in BR-006.
+- **Catalog:** gear, manufacturers, categories and top categories. It is shared by all users.
+- **User-owned data:** gear registrations (inventory), container links, loadouts and loadout items.
+- **Owner:** for a registration or loadout, the user it belongs to. For a loadout item, the owner of its loadout. For a container link, the owner of its container registration.
+- **Google subject (`sub`):** Google's stable account identifier in a validated ID token.
+
+## Behavioral requirements
+
+| ID | Requirement | Decision | Review finding |
+|---|---|---|---|
+| BR-001 | [Catalog changes are admin-only](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md) | D1 | SEC-10 |
+| BR-002 | [Catalog contributions require admin approval — **planned, not implemented**](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md) | D1 | — |
+| BR-003 | [Google sign-in identifies accounts by Google subject only](/docs/requirements/requirements/br-003-google-sign-in-resolves-by-subject.md) | D2 | SEC-08 |
+| BR-004 | [Legacy accounts get their Google subject filled in once, by verified email](/docs/requirements/requirements/br-004-legacy-account-subject-backfill.md) | D2 | SEC-08 |
+| BR-005 | [First Google sign-in creates a new account only when no existing account claims the email](/docs/requirements/requirements/br-005-first-google-sign-in.md) | D2 | SEC-08 |
+| BR-006 | [Issued tokens carry only the role the account currently has](/docs/requirements/requirements/br-006-issued-roles-reflect-current-state.md) | D5 | SEC-09, SEC-01 |
+| BR-007 | [Other users' email and admin status are hidden from non-admins](/docs/requirements/requirements/br-007-user-profile-visibility.md) | D3 | SEC-02 |
+| BR-008 | [Users update only their own profile](/docs/requirements/requirements/br-008-self-only-profile-update.md) | D3 | SEC-01, SEC-02 |
+| BR-009 | [Users delete only their own account, and deletion removes all their data or nothing](/docs/requirements/requirements/br-009-self-only-account-deletion.md) | D3, D4 | SEC-02 |
+| BR-010 | [Admin status changes are admin-only](/docs/requirements/requirements/br-010-admin-status-changes-admin-only.md) | D3 | SEC-01 |
+| BR-011 | [Direct user creation is admin-only and creates non-admin accounts](/docs/requirements/requirements/br-011-direct-user-creation-admin-only.md) | D3 | SEC-01 |
+| BR-012 | [Gear registrations are readable and changeable only by their owner](/docs/requirements/requirements/br-012-inventory-registrations-owner-scoped.md) | D4 | SEC-05, SEC-07 |
+| BR-013 | [Container links involve only the caller's own registrations](/docs/requirements/requirements/br-013-container-links-owner-scoped.md) | D4 | SEC-06 |
+| BR-014 | [Loadouts are readable and changeable only by their owner](/docs/requirements/requirements/br-014-loadouts-owner-scoped.md) | D4 | SEC-03 |
+| BR-015 | [Loadout items are reachable only through their own, owned loadout](/docs/requirements/requirements/br-015-loadout-items-scoped-to-owned-parent.md) | D4 | SEC-04 |
+| BR-016 | [Public loadouts are readable by slug without signing in; private ones are not](/docs/requirements/requirements/br-016-public-loadouts-by-slug.md) | D4 | — |
+| BR-017 | [Identity and privilege values in request bodies never take effect](/docs/requirements/requirements/br-017-client-identity-fields-never-take-effect.md) | D3, D4 | SEC-01, SEC-03, SEC-05 |
+| BR-018 | [Refused requests change nothing and use a defined status](/docs/requirements/requirements/br-018-denial-outcomes.md) | D3, D4 | — |
+
+## Obligation contracts
+
+- OC-001 — [Owner-scoped data operations](/docs/requirements/obligation-contracts/oc-001-owner-scoped-data-operations.md): ownership and parent membership are checked in the same operation that reads or changes the data.
+
+## Quality scenarios
+
+None. The decisions contain no measurable quality target. The adversarial and concurrent cases are covered as behavior by OC-001 and the BR acceptance criteria.
+
+## Provisional defaults (open to product-owner change)
+
+Where the decisions were silent, the requirements author chose the least-privilege option. The product owner may change any of these. Each is marked where it applies.
+
+- **P-1** — A user-owned record that does not exist, belongs to someone else, or is addressed through the wrong parent returns **404**. All three cases give an identical response (BR-018). This changes today's 403 for foreign loadouts and items, and the existing tests that expect 403.
+- **P-2** — A conflicting owner, target or parent ID, or admin status, in a request body is **rejected with 400** rather than silently ignored (BR-017).
+- **P-3** — **No admin exceptions** for user-owned data or for other users' profiles: admins cannot read or change other users' inventory, containers or loadouts, or update or delete other accounts. Admins keep only the catalog (BR-001) and admin-status changes (BR-010). This removes today's admin ability to list another user's registrations. Affects BR-008, BR-009 and BR-012 to BR-015.
+- **P-4** — Self-deletion **removes all of the user's data** (registrations, container links, loadouts, items), **all-or-nothing** (BR-009).
+- **P-5** — The direct user-creation operation is **admin-only** (BR-011).
+- **P-6** — Google sign-in is **refused with 403** in these cases: the email is not verified and no account is bound to the token's subject; the verified email belongs to an account already bound to another subject; or several unbound accounts share the email. In these cases no account is linked or created (BR-004, BR-005).
+- **P-7** — The backfill email match is **exact and case-sensitive, after trimming whitespace** (BR-004).
+
+## Open questions (none block the current remediation)
+
+- **Q-1** — Can an admin remove their own admin status, including the last admin? Owner: product owner. Not specified, so it is neither required nor forbidden.
+- **Q-2** — When a user's Google email changes, should the stored profile email follow it? Owner: product owner. Sign-in is not affected (BR-003). Only profile data is.
+- **Q-3** — Must tokens issued before a demotion stop working before they expire? Owner: product owner, with the architect for the mechanism. D5 covers refresh only. Today the risk is bounded by token lifetime (60 minutes by default).
+- **Q-4** — Container integrity rules: whether a registration can hold gear, nesting, cycles, duplicates. Owner: product owner. Out of scope here (BR-013).
+- **Q-5** — Which profile fields a user may edit, including their own email, which is the backfill matching key. Owner: product owner. BR-008 keeps today's editable fields.
+
+## Bundle files
+
+- [Change log](/docs/requirements/log.md)
