@@ -48,6 +48,18 @@ INSERT INTO loadout_items (loadoutItemId, loadoutId, gearId, quantity) VALUES
 	return file
 }
 
+// migrateTo6 applies migrations up to 000006. The 000005 tests check that
+// migration on its own; later migrations have their own tests.
+func migrateTo6(t *testing.T, db *sql.DB) {
+	t.Helper()
+	stepMigrate(t, db, migrationsPath(t), func(m *migrate.Migrate) error {
+		if err := m.Migrate(6); err != nil && err != migrate.ErrNoChange {
+			return err
+		}
+		return nil
+	})
+}
+
 func openEnforced(t *testing.T, file string) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite3", utils.SQLiteDSN(file))
@@ -107,7 +119,7 @@ func TestMigration5IntegrityOnLegacyData(t *testing.T) {
 		t.Fatalf("legacy data should contain orphans: %+v, %v", before, err)
 	}
 
-	runMigrate(t, db, migrationsPath(t)) // pooled connections enforce foreign keys
+	migrateTo6(t, db) // pooled connections enforce foreign keys
 
 	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 6 {
 		t.Fatalf("version = %d, want 6", v)
@@ -230,7 +242,7 @@ func queryPlan(t *testing.T, db *sql.DB, q string) string {
 func TestMigration5DownUpAndReplay(t *testing.T) {
 	db := openEnforced(t, legacyDB(t))
 	path := migrationsPath(t)
-	runMigrate(t, db, path)
+	migrateTo6(t, db)
 
 	// Steps down through 000006 (trim emails) and 000005.
 	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Steps(-2) })
@@ -262,7 +274,7 @@ func TestMigration5DownUpAndReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runMigrate(t, db, path) // up again over data that violates the rule once more
+	migrateTo6(t, db) // up again over data that violates the rule once more
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM loadout_items WHERE quantity <= 0`); n != 0 {
 		t.Fatalf("re-up left %d bad quantities", n)
 	}
@@ -307,7 +319,7 @@ func TestMigration5DownUpAndReplay(t *testing.T) {
 // A database that is already consistent migrates without touching anything.
 func TestMigration5OnCleanDatabase(t *testing.T) {
 	db := openEnforced(t, filepath.Join(t.TempDir(), "clean.db"))
-	runMigrate(t, db, migrationsPath(t))
+	migrateTo6(t, db)
 	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 6 {
 		t.Fatalf("version = %d", v)
 	}

@@ -2494,7 +2494,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh.",
+                "description": "Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh. The permanent admin (the first admin) can never lose admin status: revoking it is refused with 403 for every caller, and granting it is a no-op success. Any other admin may be revoked, including by themselves.",
                 "consumes": [
                     "application/json"
                 ],

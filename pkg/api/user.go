@@ -1,6 +1,7 @@
 package endpoints
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -368,6 +369,20 @@ func parseUserID(c *gin.Context, log *zap.SugaredLogger) (int64, bool) {
 	return id, true
 }
 
+var (
+	errUserNotFound   = &opError{http.StatusNotFound, "user not found"}
+	errPermanentAdmin = &opError{http.StatusForbidden, "the permanent admin cannot lose admin status or be deleted"}
+)
+
+// isPermanentAdmin reports whether userID is the permanent admin (BR-019).
+func isPermanentAdmin(ctx context.Context, q sqlRunner, userID int64) (bool, error) {
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM permanent_admin WHERE userId = ?`, userID).Scan(&n); err != nil {
+		return false, fmt.Errorf("check permanent admin: %w", err)
+	}
+	return n > 0, nil
+}
+
 func internalError(c *gin.Context, log *zap.SugaredLogger, err error) {
 	log.Error(err.Error())
 	c.AbortWithStatusJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
@@ -543,7 +558,7 @@ func UpdateUser(c *gin.Context) {
 // SetUserAdmin grants or revokes a user's admin status
 //
 //	@Summary		Set admin status of user with ID
-//	@Description	Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh.
+//	@Description	Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh. The permanent admin (the first admin) can never lose admin status: revoking it is refused with 403 for every caller, and granting it is a no-op success. Any other admin may be revoked, including by themselves.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
@@ -577,18 +592,41 @@ func SetUserAdmin(c *gin.Context) {
 		return
 	}
 
-	res, err := db.ExecContext(c.Request.Context(), `UPDATE users SET userIsAdmin = ? WHERE userId = ?`, *body.UserIsAdmin, targetID)
+	// The permanent-admin check and the change are one transaction (the
+	// database takes the write lock at begin), so a concurrent request cannot
+	// slip a revocation in between (BR-019).
+	err := inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		var exists int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE userId = ?`, targetID).Scan(&exists); err != nil {
+			return err
+		}
+		if exists == 0 {
+			return errUserNotFound
+		}
+		if !*body.UserIsAdmin {
+			permanent, err := isPermanentAdmin(ctx, tx, targetID)
+			if err != nil {
+				return err
+			}
+			if permanent {
+				return errPermanentAdmin
+			}
+		}
+		// Granting the permanent admin status it already has is a no-op.
+		res, err := tx.ExecContext(ctx, `UPDATE users SET userIsAdmin = ? WHERE userId = ?`, *body.UserIsAdmin, targetID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n != 1 {
+			return fmt.Errorf("admin status update of user %d affected %d rows", targetID, n)
+		}
+		return nil
+	})
 	if err != nil {
-		internalError(c, log, err)
-		return
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		internalError(c, log, err)
-		return
-	}
-	if n == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+		respondUserGearError(c, log, err)
 		return
 	}
 
@@ -639,6 +677,16 @@ func DeleteUser(c *gin.Context) {
 			return
 		}
 		internalError(c, log, err)
+		return
+	}
+
+	// The permanent admin is never deleted through the API, not even by
+	// themselves (BR-019 AC-5). The check shares the transaction with the delete.
+	if permanent, err := isPermanentAdmin(ctx, tx, targetID); err != nil {
+		internalError(c, log, err)
+		return
+	} else if permanent {
+		c.AbortWithStatusJSON(errPermanentAdmin.status, models.Error{Error: errPermanentAdmin.msg})
 		return
 	}
 
