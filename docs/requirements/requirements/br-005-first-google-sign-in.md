@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-005 — First Google sign-in creates a new account only when no existing account claims the email
 
-**Status:** Accepted with provisional conditions. **Priority:** P1 (review SEC-08). **Basis:** the API creates an account on first Google sign-in today, and this requirement keeps that behavior. Who may sign in at all is controlled by the Google OAuth configuration. AC-2 is derived from anchor decision D2. AC-3 and AC-4 are provisional defaults.
+**Implementation:** implemented in wave 5. A new account is created, non-admin and bound to the subject, only for a verified email that no account uses (AC-1). An unverified email, an email used by an account bound to another subject, an email used by an account excluded from backfill (see BR-004), or several unbound accounts sharing it are 403 with nothing created or linked (AC-2 to AC-4). The email comparison follows BR-004 AC-4 (AC-5). A token without an email and without a bound subject is 400, as before. **Status:** Accepted with provisional conditions. **Priority:** P1 (review SEC-08). **Basis:** the API creates an account on first Google sign-in today, and this requirement keeps that behavior. Who may sign in at all is controlled by the Google OAuth configuration. AC-2 is derived from anchor decision D2. AC-3 and AC-4 are provisional defaults.
 
 **Statement:**
 When a sign-in carries Google subject S, and no account is bound to S, and no account is eligible for backfill under [BR-004](/docs/requirements/requirements/br-004-legacy-account-subject-backfill.md), the API shall create a new account bound to S only if the token's `email_verified` claim is true and no existing account has the token's email. Otherwise the API shall refuse the sign-in.

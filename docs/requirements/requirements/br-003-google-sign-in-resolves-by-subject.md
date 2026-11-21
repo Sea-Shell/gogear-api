@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-003 — Google sign-in identifies accounts by Google subject only
 
-**Status:** Accepted. **Priority:** P1 (review SEC-08). **Basis:** sourced from anchor decision D2. AC-3 and AC-4 are necessary consequences of it.
+**Implementation:** implemented in wave 5. Accounts carry a nullable, unique `googleSubject` (migration 000004). Sign-in looks up a bound account by subject alone, before it reads the email, so a changed or unverified token email still reaches it (AC-1) and another subject carrying the email never does (AC-2). A token with a missing or blank subject is 401 and changes nothing (AC-3); the email fallback is gone. The unique index and the conditional bind (`googleSubject IS NULL`) keep one subject per account and never replace a binding (AC-4). Token validation sits behind a seam (`GoogleTokenValidator`), so tests inject claims and run the real handler against a migrated database. **Status:** Accepted. **Priority:** P1 (review SEC-08). **Basis:** sourced from anchor decision D2. AC-3 and AC-4 are necessary consequences of it.
 
 **Terms:**
 - *Google subject* (`sub`): the stable account identifier in a Google ID token that the API has validated.

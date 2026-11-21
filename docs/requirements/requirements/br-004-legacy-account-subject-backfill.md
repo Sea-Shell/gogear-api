@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-004 — Legacy accounts get their Google subject filled in once, by verified email
 
-**Status:** Accepted. **Priority:** P1 (review SEC-08). **Basis:** the statement and AC-1, AC-2 and AC-6 are sourced from anchor decision D2. AC-3 and AC-7 are derived from it. AC-4 and AC-5 are provisional defaults.
+**Implementation:** implemented in wave 5. Lookup, binding and account creation run in one transaction (the database takes the write lock at begin), so racing subjects bind at most one (AC-7) and a failed bind issues no token. Eligibility is an unbound account with exactly the trimmed, case-sensitive token email (AC-3, AC-4); `email_verified` must be true (AC-2); several eligible accounts refuse with 403 (AC-5). **Decision beyond the text:** an account whose owner changed the profile email (`userEmailEdited`, set by profile update when the email value changes) is never eligible, because users can set their email to anyone's (BR-008) and would otherwise capture that person's first sign-in. Accounts that were never edited, including every account that exists before migration 000004, stay eligible. A non-eligible account that holds the email still counts as using it (BR-005). **Status:** Accepted. **Priority:** P1 (review SEC-08). **Basis:** the statement and AC-1, AC-2 and AC-6 are sourced from anchor decision D2. AC-3 and AC-7 are derived from it. AC-4 and AC-5 are provisional defaults.
 
 **Terms:**
 - *Unbound account*: an existing account with no stored Google subject. This includes every account created before this requirement and accounts created directly by an admin ([BR-011](/docs/requirements/requirements/br-011-direct-user-creation-admin-only.md)).

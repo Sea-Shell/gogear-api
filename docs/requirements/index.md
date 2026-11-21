@@ -6,7 +6,7 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, and BR-001 (admin-only catalog) as of wave 4; BR-002 to BR-005 are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, BR-012 and BR-013 (inventory registrations, container links) as of wave 3, BR-001 (admin-only catalog) as of wave 4, and BR-003 to BR-005 (Google identity binding) as of wave 5; BR-002 is planned, not implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
 
 **Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
 
@@ -85,7 +85,14 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Catalog delete reads only the record name, answers 404 for an unknown ID, and reports the ID rather than a pointer. Its message text changed to `success! <Type> with ID <n> and name <name> was deleted`.
   - Request and config logging (review SEC-11, not a requirement): debug config output reports secrets only as set/unset. The request log is written after the handler with the final status, latency, route template and the number of query parameters, and never query names or values. A request whose handler panics is logged as a 500, the panic handler does not write the query, and gin runs in release mode unless `GIN_MODE` is set.
   - Not changed: catalog foreign keys are not enforced, so deleting a category or manufacturer still leaves gear pointing at it (integrity wave).
-- **Not yet implemented:** BR-002 (planned), BR-003, BR-004, BR-005.
+- **Wave 5 (implemented):** BR-003, BR-004, BR-005 (review SEC-08). Decisions made while implementing, within the requirements:
+  - Storage is a nullable `users.googleSubject` with a unique index (migration 000004), plus `users.userEmailEdited` (default 0). The migration applies to existing databases and leaves every existing account unbound, so the next Google sign-in of each existing user backfills it.
+  - **Planted email:** a profile update that changes the email sets `userEmailEdited`, and such an account is never eligible for backfill. Otherwise a user could set their email to someone else's and capture that person's first Google sign-in. An excluded account that holds the email still blocks creation of a new account for it (403), because BR-005 allows creation only when no account uses the email. The edit flag is not cleared; there is no way yet to restore eligibility (a Q-5 follow-up for the product owner).
+  - A token without a subject is 401 (treated as an invalid token). The P-6 refusals are 403. A token without an email that matches no bound subject is 400, as before.
+  - Sign-in by a bound subject needs no email and no `email_verified`; the stored account's name, email and admin status are never updated from the token.
+  - A sign-in that creates an account stores the Google email as username, name fallback and email, as before.
+  - Not changed: the Swagger annotations on the callback, and Google-subject handling outside sign-in (no endpoint unbinds or rebinds).
+- **Not yet implemented:** BR-002 (planned).
 
 ## Provisional defaults (open to product-owner change)
 
