@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Sea-Shell/gogear-api/pkg/models"
 )
 
 // Adversarial regression tests for BR-014..BR-018 and OC-001 (loadouts, loadout
@@ -713,6 +715,30 @@ func TestLoadoutItemsOwned_QueryBindsOwner(t *testing.T) {
 		if err != nil || items == nil || len(*items) != 0 {
 			t.Errorf("user %d read alice's items: %v, %v; want none", who, items, err)
 		}
+	}
+}
+
+// The item list answers from a query that binds the owner itself, not only
+// from the ownership check before it (OC-001 G-2). The loadout changes owner
+// between the check and the item query, as a concurrent request could make it
+// happen; Alice must then get no items instead of the new owner's.
+func TestListLoadoutItems_OwnerChangedAfterCheckReturnsNoItems(t *testing.T) {
+	f := newLoFixture(t)
+	onFirstRead(t, "loadout_items", "loadoutItemId", func() {
+		if _, err := f.env.DB.Exec(`UPDATE loadouts SET userId = ? WHERE loadoutId = ?`, f.bob, f.l1); err != nil {
+			t.Error(err)
+		}
+	})
+
+	w := f.env.Do(http.MethodGet, loPath(f.l1, "item/list"), f.aTok, nil)
+	if f.env.Count("loadouts", "loadoutId = ? AND userId = ?", f.l1, f.bob) != 1 {
+		t.Fatal("test hook did not run: the loadout still belongs to Alice")
+	}
+	expectStatus(t, w, http.StatusOK)
+	var items []models.LoadoutItem
+	decodeJSON(t, w, &items)
+	if len(items) != 0 {
+		t.Fatalf("Alice received %d items of a loadout she no longer owns: %s", len(items), w.Body)
 	}
 }
 

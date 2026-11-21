@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,11 +19,48 @@ import (
 	"github.com/Sea-Shell/gogear-api/pkg/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/oauth2"
 )
+
+// harnessDriver is go-sqlite3 plus an authorizer that reports every column
+// read at statement-prepare time to readHook. A test uses it to change stored
+// data at an exact point between two statements of one request, which is how
+// the "owner changed after the check" cases are exercised deterministically.
+const harnessDriver = "sqlite3_harness"
+
+var readHook atomic.Pointer[func(table, column string)]
+
+func init() {
+	sql.Register(harnessDriver, &sqlite3.SQLiteDriver{ConnectHook: func(c *sqlite3.SQLiteConn) error {
+		c.RegisterAuthorizer(func(op int, arg1, arg2, _ string) int {
+			if op == sqlite3.SQLITE_READ {
+				if h := readHook.Load(); h != nil {
+					(*h)(arg1, arg2)
+				}
+			}
+			return sqlite3.SQLITE_OK
+		})
+		return nil
+	}})
+}
+
+// onFirstRead runs fn once, when a statement that reads table.column is next
+// prepared. It is removed when the test ends.
+func onFirstRead(t *testing.T, table, column string, fn func()) {
+	t.Helper()
+	var fired atomic.Bool
+	h := func(tb, col string) {
+		if tb == table && col == column && fired.CompareAndSwap(false, true) {
+			fn()
+		}
+	}
+	readHook.Store(&h)
+	t.Cleanup(func() { readHook.Store(nil) })
+}
 
 // Authorization test harness.
 //
@@ -75,7 +113,7 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 
 	// A file database: unlike :memory:, every pooled connection sees the same
 	// data, which transactional handlers need.
-	db, err := sql.Open("sqlite3", utils.SQLiteDSN(filepath.Join(t.TempDir(), "authz.db")))
+	db, err := sql.Open(harnessDriver, utils.SQLiteDSN(filepath.Join(t.TempDir(), "authz.db")))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
