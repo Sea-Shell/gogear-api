@@ -88,7 +88,8 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	v1.PUT("/category/insert", InsertCategory)
 	v1.DELETE("/category/:category/delete", DeleteCategory)
 	router.POST("/auth/refresh", utils.JWTMiddleware(), RefreshToken)
-	router.GET("/api/v1/public/loadout/:slug", GetPublicLoadout)
+	RegisterLoadoutRoutes(v1.Group("/loadout"))
+	RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
 
 	return &authzEnv{T: t, DB: db, Router: router, V1: v1, Auth: auth}
 }

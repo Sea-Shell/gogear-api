@@ -234,9 +234,7 @@ func main() {
 	authGroup.POST("/refresh", utils.JWTMiddleware(), endpoints.RefreshToken)
 
 	// Public loadout routes (no JWT required)
-	publicLoadoutGroup := router.Group("/api/v1/public")
-	publicLoadoutGroup.GET("/loadout/:slug", endpoints.GetPublicLoadout)
-	publicLoadoutGroup.GET("/loadout/:slug/items", endpoints.GetPublicLoadoutItems)
+	endpoints.RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
 
 	// User endpoints
 	endpoints.RegisterUserRoutes(userGroup)
@@ -282,20 +280,8 @@ func main() {
 	manufactureGroup.DELETE("/:manufacture/delete", endpoints.DeleteManufature)
 	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
 
-	// Loadout endpoints (protected)
-	loadoutGroup := v1.Group("/loadout")
-	loadoutGroup.PUT("/insert", endpoints.InsertLoadout)
-	loadoutGroup.GET("/list", endpoints.ListLoadouts)
-	loadoutGroup.GET("/:loadout/get", endpoints.GetLoadout)
-	loadoutGroup.POST("/:loadout/update", endpoints.UpdateLoadout)
-	loadoutGroup.DELETE("/:loadout/delete", endpoints.DeleteLoadout)
-	loadoutGroup.POST("/:loadout/import", endpoints.ImportLoadout)
-
-	// Loadout Item endpoints (protected, nested under loadout)
-	loadoutGroup.PUT("/:loadout/item/insert", endpoints.InsertLoadoutItem)
-	loadoutGroup.GET("/:loadout/item/list", endpoints.ListLoadoutItems)
-	loadoutGroup.POST("/:loadout/item/:item/update", endpoints.UpdateLoadoutItem)
-	loadoutGroup.DELETE("/:loadout/item/:item/delete", endpoints.DeleteLoadoutItem)
+	// Loadout and loadout item endpoints (protected)
+	endpoints.RegisterLoadoutRoutes(v1.Group("/loadout"))
 
 	// Swagger API documentation
 	swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

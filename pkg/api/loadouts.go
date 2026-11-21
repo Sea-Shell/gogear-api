@@ -6,19 +6,36 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	models "github.com/Sea-Shell/gogear-api/pkg/models"
-	utils "github.com/Sea-Shell/gogear-api/pkg/utils"
 
 	gin "github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	zap "go.uber.org/zap"
 )
 
+// Every write below binds the loadout ID, the owner (the authenticated
+// subject) and any parent in the same SQL statement, and checks RowsAffected
+// (OC-001 G-2, G-4). Owner, target and parent values in a request body never
+// take effect; a conflicting value is refused with 400 (BR-017). A loadout that
+// is unknown, foreign or wrongly addressed gives one identical 404 (BR-018).
+
+// parseLoadoutIDParam reads the :loadout path value. A malformed ID is 400
+// before any ownership check, which reveals nothing about stored records.
+func parseLoadoutIDParam(c *gin.Context, name string) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param(name), 10, 64)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "invalid " + name + " ID"})
+		return 0, false
+	}
+	return id, true
+}
+
 // InsertLoadout creates a new loadout for the authenticated user.
 //
 //	@Summary		Insert loadout
-//	@Description	Create a new loadout for the authenticated user
+//	@Description	Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -26,52 +43,58 @@ import (
 //	@Param			request	body		models.LoadoutNoID	true	"Loadout data"
 //	@Success		201		{object}	models.Loadout
 //	@Failure		400		{object}	models.Error
+//	@Failure		409		{object}	models.Error
 //	@Failure		500		{object}	models.Error
 //	@Router			/api/v1/loadout/insert [put]
 func InsertLoadout(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+	userID := c.MustGet("user_id_int64").(int64)
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		log.Errorf("read body: %v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 		return
 	}
 
-	var body models.LoadoutNoID
+	var body struct {
+		UserID      *int64 `json:"user_id"`
+		Name        string `json:"loadout_name"`
+		Description string `json:"loadout_description"`
+		IsPublic    bool   `json:"loadout_is_public"`
+		Slug        string `json:"loadout_slug"`
+	}
 	if err := json.Unmarshal(data, &body); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
 		return
 	}
-	body.UserID = c.MustGet("user_id_int64").(int64)
+	if body.UserID != nil && *body.UserID != userID {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "user_id does not match the authenticated user"})
+		return
+	}
 
-	result, err := db.Exec(
-		`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug) VALUES (?, ?, ?, ?, ?)`,
-		body.UserID, body.LoadoutName, body.LoadoutDescription, body.LoadoutIsPublic, body.LoadoutSlug,
-	)
+	var created *models.Loadout
+	err = inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(c.Request.Context(),
+			`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug) VALUES (?, ?, ?, ?, ?)`,
+			userID, body.Name, body.Description, body.IsPublic, nullableSlug(body.Slug))
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		created, err = LoadoutGetOwned(c.Request.Context(), tx, id, userID)
+		return err
+	})
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		respondOpError(c, log, err)
 		return
 	}
 
-	lastID, err := result.LastInsertId()
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	createdObject, err := utils.GenericGet[models.Loadout]("loadouts", int(lastID), nil, db)
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	c.IndentedJSON(http.StatusCreated, createdObject)
+	c.IndentedJSON(http.StatusCreated, created)
 }
 
 // ListLoadouts returns all loadouts for the authenticated user.
@@ -93,12 +116,7 @@ func ListLoadouts(c *gin.Context) {
 	results, err := LoadoutListByUser(db, userID)
 	if err != nil {
 		log.Errorf("Error listing loadouts: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	if results == nil {
-		c.IndentedJSON(http.StatusOK, []models.Loadout{})
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 		return
 	}
 
@@ -108,32 +126,33 @@ func ListLoadouts(c *gin.Context) {
 // GetLoadout returns a single loadout by ID.
 //
 //	@Summary		Get loadout
-//	@Description	Get a single loadout by ID
+//	@Description	Get a single loadout by ID. Unknown and other users' loadouts both return 404.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
 //	@Produce		json
 //	@Param			loadout	path		int	true	"Loadout ID"
 //	@Success		200		{object}	models.Loadout
+//	@Failure		400		{object}	models.Error
 //	@Failure		404		{object}	models.Error
 //	@Router			/api/v1/loadout/{loadout}/get [get]
 func GetLoadout(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+	userID := c.MustGet("user_id_int64").(int64)
 
-	loadoutParam, err := strconv.Atoi(c.Param("loadout"))
-	if err != nil {
-		log.Errorf("Invalid loadout id: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
 		return
 	}
 
-	userID := c.MustGet("user_id_int64").(int64)
-
-	loadout, err := utils.GenericGet[models.Loadout]("loadouts", loadoutParam, nil, db)
-	if err != nil || loadout.UserID != userID {
-		log.Errorf("Loadout not found: %#v", err)
-		c.IndentedJSON(http.StatusNotFound, models.Error{Error: "Loadout not found"})
+	loadout, err := LoadoutGetOwned(c.Request.Context(), db, loadoutID, userID)
+	if err != nil {
+		respondOpError(c, log, err)
+		return
+	}
+	if loadout == nil {
+		c.IndentedJSON(http.StatusNotFound, models.Error{Error: errLoadoutNotFound.msg})
 		return
 	}
 
@@ -143,7 +162,7 @@ func GetLoadout(c *gin.Context) {
 // UpdateLoadout updates an existing loadout.
 //
 //	@Summary		Update loadout
-//	@Description	Update an existing loadout
+//	@Description	Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -151,43 +170,92 @@ func GetLoadout(c *gin.Context) {
 //	@Param			loadout	path		int						true	"Loadout ID"
 //	@Param			request	body		models.LoadoutUpdate	true	"Updated loadout data"
 //	@Success		200		{object}	models.Status
-//	@Failure		403		{object}	models.Error
+//	@Failure		400		{object}	models.Error
 //	@Failure		404		{object}	models.Error
+//	@Failure		409		{object}	models.Error
 //	@Router			/api/v1/loadout/{loadout}/update [post]
 func UpdateLoadout(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 	userID := c.MustGet("user_id_int64").(int64)
 
-	loadoutParam, err := strconv.Atoi(c.Param("loadout"))
-	if err != nil {
-		log.Errorf("Invalid loadout id: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	// Ownership check: verify loadout belongs to user
-	existing, err := utils.GenericGet[models.Loadout]("loadouts", loadoutParam, nil, db)
-	if err != nil {
-		log.Errorf("Loadout not found: %#v", err)
-		c.IndentedJSON(http.StatusNotFound, models.Error{Error: "Loadout not found"})
-		return
-	}
-	if existing.UserID != userID {
-		c.IndentedJSON(http.StatusForbidden, models.Error{Error: "Access denied"})
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
 		return
 	}
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		log.Errorf("read body: %v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 		return
 	}
 
-	if err := utils.GenericUpdate[models.LoadoutUpdate]("loadouts", data, db); err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	ctx := c.Request.Context()
+	err = inTx(ctx, db, func(tx *sql.Tx) error {
+		// 404 takes precedence over 400 (BR-018 AC-4).
+		owned, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		if owned == nil {
+			return errLoadoutNotFound
+		}
+
+		var body struct {
+			LoadoutID   *int64  `json:"loadout_id"`
+			UserID      *int64  `json:"user_id"`
+			Name        *string `json:"loadout_name"`
+			Description *string `json:"loadout_description"`
+			IsPublic    *bool   `json:"loadout_is_public"`
+			Slug        *string `json:"loadout_slug"`
+		}
+		if err := json.Unmarshal(data, &body); err != nil {
+			return badRequest(err.Error())
+		}
+		if body.LoadoutID != nil && *body.LoadoutID != loadoutID {
+			return badRequest("loadout_id does not match the path")
+		}
+		if body.UserID != nil && *body.UserID != userID {
+			return badRequest("user_id does not match the authenticated user")
+		}
+
+		sets := []string{}
+		args := []any{}
+		if body.Name != nil {
+			sets, args = append(sets, "loadoutName = ?"), append(args, *body.Name)
+		}
+		if body.Description != nil {
+			sets, args = append(sets, "loadoutDescription = ?"), append(args, *body.Description)
+		}
+		if body.IsPublic != nil {
+			sets, args = append(sets, "loadoutIsPublic = ?"), append(args, *body.IsPublic)
+		}
+		if body.Slug != nil {
+			sets, args = append(sets, "loadoutSlug = ?"), append(args, nullableSlug(*body.Slug))
+		}
+		if len(sets) == 0 {
+			return badRequest("no updatable fields supplied")
+		}
+		sets = append(sets, "updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')")
+		args = append(args, loadoutID, userID)
+
+		res, err := tx.ExecContext(ctx,
+			`UPDATE loadouts SET `+strings.Join(sets, ", ")+` WHERE loadoutId = ? AND userId = ?`, args...)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return errLoadoutNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		respondOpError(c, log, err)
 		return
 	}
 
@@ -197,14 +265,14 @@ func UpdateLoadout(c *gin.Context) {
 // DeleteLoadout deletes a loadout by ID.
 //
 //	@Summary		Delete loadout
-//	@Description	Delete a loadout by ID
+//	@Description	Delete a loadout and its items. Unknown and other users' loadouts both return 404.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
 //	@Produce		json
 //	@Param			loadout	path		int	true	"Loadout ID"
 //	@Success		200		{object}	models.Status
-//	@Failure		403		{object}	models.Error
+//	@Failure		400		{object}	models.Error
 //	@Failure		404		{object}	models.Error
 //	@Router			/api/v1/loadout/{loadout}/delete [delete]
 func DeleteLoadout(c *gin.Context) {
@@ -212,29 +280,30 @@ func DeleteLoadout(c *gin.Context) {
 	db := c.MustGet("db").(*sql.DB)
 	userID := c.MustGet("user_id_int64").(int64)
 
-	loadoutParam, err := strconv.Atoi(c.Param("loadout"))
-	if err != nil {
-		log.Errorf("Invalid loadout id: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
 		return
 	}
 
-	// Ownership check: verify loadout belongs to user
-	existing, err := utils.GenericGet[models.Loadout]("loadouts", loadoutParam, nil, db)
+	ctx := c.Request.Context()
+	err := inTx(ctx, db, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `DELETE FROM loadouts WHERE loadoutId = ? AND userId = ?`, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return errLoadoutNotFound
+		}
+		// Foreign keys are not enforced, so remove the items explicitly.
+		_, err = tx.ExecContext(ctx, `DELETE FROM loadout_items WHERE loadoutId = ?`, loadoutID)
+		return err
+	})
 	if err != nil {
-		log.Errorf("Loadout not found: %#v", err)
-		c.IndentedJSON(http.StatusNotFound, models.Error{Error: "Loadout not found"})
-		return
-	}
-	if existing.UserID != userID {
-		c.IndentedJSON(http.StatusForbidden, models.Error{Error: "Access denied"})
-		return
-	}
-
-	_, err = utils.GenericDelete[models.Loadout]("loadouts", loadoutParam, db)
-	if err != nil {
-		log.Errorf("Error deleting loadout: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		respondOpError(c, log, err)
 		return
 	}
 
@@ -244,7 +313,7 @@ func DeleteLoadout(c *gin.Context) {
 // ImportLoadout imports gear IDs into a loadout as items.
 //
 //	@Summary		Import gear into loadout
-//	@Description	Import gear items into a loadout
+//	@Description	Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -253,73 +322,56 @@ func DeleteLoadout(c *gin.Context) {
 //	@Param			request	body		map[string][]int64	true	"Gear IDs to import"
 //	@Success		201		{object}	models.Status
 //	@Failure		400		{object}	models.Error
-//	@Failure		403		{object}	models.Error
 //	@Failure		404		{object}	models.Error
 //	@Failure		500		{object}	models.Error
 //	@Router			/api/v1/loadout/{loadout}/import [post]
 func ImportLoadout(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-
-	loadoutParam, err := strconv.Atoi(c.Param("loadout"))
-	if err != nil {
-		log.Errorf("Invalid loadout id: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-	loadoutID := int64(loadoutParam)
-
-	// Ownership check: verify loadout belongs to user
-	existing, err := utils.GenericGet[models.Loadout]("loadouts", loadoutParam, nil, db)
-	if err != nil {
-		log.Errorf("Loadout not found: %#v", err)
-		c.IndentedJSON(http.StatusNotFound, models.Error{Error: "Loadout not found"})
-		return
-	}
 	userID := c.MustGet("user_id_int64").(int64)
-	if existing.UserID != userID {
-		c.IndentedJSON(http.StatusForbidden, models.Error{Error: "Access denied"})
+
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
 		return
 	}
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		log.Errorf("read body: %v", err)
+		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 		return
 	}
 
-	var body struct {
-		GearIDs []int64 `json:"gear_ids"`
-	}
-	if err := json.Unmarshal(data, &body); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	for _, gearID := range body.GearIDs {
-		item := models.LoadoutItemNoID{
-			LoadoutID: loadoutID,
-			GearID:    gearID,
-			Quantity:  1,
-			Notes:     "",
-		}
-		itemData, err := json.Marshal(item)
+	ctx := c.Request.Context()
+	err = inTx(ctx, db, func(tx *sql.Tx) error {
+		owned, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
 		if err != nil {
-			c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			log.Error(err.Error())
-			return
+			return err
 		}
-		if _, err := utils.GenericInsert[models.LoadoutItem]("loadout_items", itemData, db); err != nil {
-			c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			log.Error(err.Error())
-			return
+		if owned == nil {
+			return errLoadoutNotFound
 		}
-	}
 
-	if err := LoadoutRecalculateWeight(db, loadoutID); err != nil {
-		log.Errorf("Error recalculating loadout weight: %#v", err)
+		var body struct {
+			GearIDs []int64 `json:"gear_ids"`
+		}
+		if err := json.Unmarshal(data, &body); err != nil {
+			return badRequest(err.Error())
+		}
+
+		for _, gearID := range body.GearIDs {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes)
+				 SELECT loadoutId, ?, 1, '' FROM loadouts WHERE loadoutId = ? AND userId = ?`,
+				gearID, loadoutID, userID); err != nil {
+				return err
+			}
+		}
+		return LoadoutRecalculateWeight(ctx, tx, loadoutID)
+	})
+	if err != nil {
+		respondOpError(c, log, err)
+		return
 	}
 
 	c.JSON(http.StatusCreated, models.Status{Status: "success"})

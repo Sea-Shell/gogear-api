@@ -179,22 +179,10 @@ func setupTestWithUser(t *testing.T, userID int64) (*sql.DB, *gin.Engine, *zap.S
 	v1 := router.Group("/api/v1")
 	v1.Use(testAuthMiddleware(userID))
 
-	loadoutGroup := v1.Group("/loadout")
-	loadoutGroup.PUT("/insert", InsertLoadout)
-	loadoutGroup.GET("/list", ListLoadouts)
-	loadoutGroup.GET("/:loadout/get", GetLoadout)
-	loadoutGroup.POST("/:loadout/update", UpdateLoadout)
-	loadoutGroup.DELETE("/:loadout/delete", DeleteLoadout)
-	loadoutGroup.POST("/:loadout/import", ImportLoadout)
-	loadoutGroup.PUT("/:loadout/item/insert", InsertLoadoutItem)
-	loadoutGroup.GET("/:loadout/item/list", ListLoadoutItems)
-	loadoutGroup.POST("/:loadout/item/:item/update", UpdateLoadoutItem)
-	loadoutGroup.DELETE("/:loadout/item/:item/delete", DeleteLoadoutItem)
+	RegisterLoadoutRoutes(v1.Group("/loadout"))
 
 	// Public routes (no auth)
-	pub := router.Group("/api/v1/public")
-	pub.GET("/loadout/:slug", GetPublicLoadout)
-	pub.GET("/loadout/:slug/items", GetPublicLoadoutItems)
+	RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
 
 	return db, router, logger
 }
@@ -214,21 +202,9 @@ func routerWithUser(db *sql.DB, logger *zap.SugaredLogger, userID int64) *gin.En
 	v1 := router.Group("/api/v1")
 	v1.Use(testAuthMiddleware(userID))
 
-	loadoutGroup := v1.Group("/loadout")
-	loadoutGroup.PUT("/insert", InsertLoadout)
-	loadoutGroup.GET("/list", ListLoadouts)
-	loadoutGroup.GET("/:loadout/get", GetLoadout)
-	loadoutGroup.POST("/:loadout/update", UpdateLoadout)
-	loadoutGroup.DELETE("/:loadout/delete", DeleteLoadout)
-	loadoutGroup.POST("/:loadout/import", ImportLoadout)
-	loadoutGroup.PUT("/:loadout/item/insert", InsertLoadoutItem)
-	loadoutGroup.GET("/:loadout/item/list", ListLoadoutItems)
-	loadoutGroup.POST("/:loadout/item/:item/update", UpdateLoadoutItem)
-	loadoutGroup.DELETE("/:loadout/item/:item/delete", DeleteLoadoutItem)
+	RegisterLoadoutRoutes(v1.Group("/loadout"))
 
-	pub := router.Group("/api/v1/public")
-	pub.GET("/loadout/:slug", GetPublicLoadout)
-	pub.GET("/loadout/:slug/items", GetPublicLoadoutItems)
+	RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
 
 	return router
 }
@@ -391,8 +367,8 @@ func TestUpdateLoadout_OtherUser(t *testing.T) {
 
 	body := `{"loadout_id":` + itoa64(loadoutID) + `,"loadout_name":"Hacked","loadout_description":"","loadout_is_public":false,"loadout_slug":"hacked"}`
 	w := authRequest(t, router2, http.MethodPost, "/api/v1/loadout/"+itoa64(loadoutID)+"/update", body)
-	if w.Code != http.StatusForbidden {
-		t.Errorf("TestUpdateLoadout_OtherUser: expected 403, got %d — body: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Errorf("TestUpdateLoadout_OtherUser: expected 404, got %d — body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -423,8 +399,8 @@ func TestDeleteLoadout_OtherUser(t *testing.T) {
 	router2 := routerWithUser(db, logger, 2)
 
 	w := authRequest(t, router2, http.MethodDelete, "/api/v1/loadout/"+itoa64(loadoutID)+"/delete", "")
-	if w.Code != http.StatusForbidden {
-		t.Errorf("TestDeleteLoadout_OtherUser: expected 403, got %d — body: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Errorf("TestDeleteLoadout_OtherUser: expected 404, got %d — body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -465,8 +441,8 @@ func TestImportLoadout_OtherUser(t *testing.T) {
 
 	body := `{"gear_ids":[1]}`
 	w := authRequest(t, router2, http.MethodPost, "/api/v1/loadout/"+itoa64(loadoutID)+"/import", body)
-	if w.Code != http.StatusForbidden {
-		t.Errorf("TestImportLoadout_OtherUser: expected 403, got %d — body: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Errorf("TestImportLoadout_OtherUser: expected 404, got %d — body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -586,8 +562,8 @@ func TestInsertLoadoutItem_OtherUser(t *testing.T) {
 
 	body := `{"gear_id":1,"quantity":1,"notes":""}`
 	w := authRequest(t, router2, http.MethodPut, "/api/v1/loadout/"+itoa64(loadoutID)+"/item/insert", body)
-	if w.Code != http.StatusForbidden {
-		t.Errorf("TestInsertLoadoutItem_OtherUser: expected 403, got %d — body: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Errorf("TestInsertLoadoutItem_OtherUser: expected 404, got %d — body: %s", w.Code, w.Body.String())
 	}
 }
 
