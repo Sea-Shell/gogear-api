@@ -266,6 +266,7 @@ func ListManufacture(c *gin.Context) {
 // @Param			request		body		models.Manufacture	true	"query params"	test
 // @Success		200			{object}	models.Status		"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		400		{object}	models.Error
 // @Router			/api/v1/manufacture/{manufacture}/update [post]
 func UpdateManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

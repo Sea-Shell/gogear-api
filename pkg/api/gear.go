@@ -525,6 +525,7 @@ func InsertGear(c *gin.Context) {
 //	@Param			request	body		models.Gear		true	"query params"	test
 //	@Success		200		{object}	models.Status	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
+//	@Failure		400		{object}	models.Error
 //	@Router			/api/v1/gear/{gear}/update [post]
 func UpdateGear(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

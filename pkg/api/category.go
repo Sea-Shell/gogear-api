@@ -255,6 +255,7 @@ func ListCategory(c *gin.Context) {
 // @Param			request		body		models.GearCategory	true	"Request body"
 // @Success		200			{object}	models.Status		"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		400		{object}	models.Error
 // @Router			/api/v1/category/{category}/update [post]
 func UpdateCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

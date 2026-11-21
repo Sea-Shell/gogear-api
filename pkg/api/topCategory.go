@@ -257,6 +257,7 @@ func ListTopCategory(c *gin.Context) {
 // @Param			request			body		models.GearTopCategory	true	"Request body"
 // @Success		200				{object}	models.Status			"status: success when all goes well"
 // @Failure		default			{object}	models.Error
+// @Failure		400		{object}	models.Error
 // @Router			/api/v1/topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")

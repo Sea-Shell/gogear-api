@@ -293,6 +293,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -831,6 +837,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -1681,6 +1693,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -2046,6 +2064,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
