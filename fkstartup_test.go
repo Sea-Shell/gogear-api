@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"testing"
 
+	"github.com/Sea-Shell/gogear-api/pkg/utils"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -61,5 +64,43 @@ func TestReportForeignKeyViolations_SilentWhenConsistent(t *testing.T) {
 	total, err := reportForeignKeyViolations(context.Background(), db, zap.New(core).Sugar())
 	if err != nil || total != 0 || logs.Len() != 0 {
 		t.Fatalf("total %d, err %v, %d log entries", total, err, logs.Len())
+	}
+}
+
+func openWithDSN(t *testing.T, dsn string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+// A database file name that switches enforcement off through the DSN options
+// is warned about at startup; the default configuration is not.
+func TestWarnIfForeignKeysOff(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name     string
+		file     string
+		wantOn   bool
+		wantWarn int
+	}{
+		{"default", filepath.Join(dir, "a.db"), true, 0},
+		{"_fk=0", filepath.Join(dir, "b.db") + "?_fk=0", false, 1},
+		{"_foreign_keys=off", filepath.Join(dir, "c.db") + "?_foreign_keys=off", false, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := openWithDSN(t, utils.SQLiteDSN(tc.file))
+			core, logs := observer.New(zapcore.DebugLevel)
+			if got := warnIfForeignKeysOff(context.Background(), db, zap.New(core).Sugar()); got != tc.wantOn {
+				t.Errorf("enforced = %v, want %v", got, tc.wantOn)
+			}
+			if n := logs.FilterLevelExact(zapcore.WarnLevel).Len(); n != tc.wantWarn {
+				t.Errorf("warnings = %d, want %d: %v", n, tc.wantWarn, logs.All())
+			}
+		})
 	}
 }

@@ -212,6 +212,24 @@ func reportForeignKeyViolations(ctx context.Context, db *sql.DB, log *zap.Sugare
 	return total, nil
 }
 
+// warnIfForeignKeysOff logs a warning when foreign-key enforcement is off on
+// the opened database. SQLiteDSN honours _fk=0 / _foreign_keys=off from the
+// configured file name, and with enforcement off the referential guarantees
+// the service relies on silently stop holding. It returns whether enforcement
+// is on.
+func warnIfForeignKeysOff(ctx context.Context, db *sql.DB, log *zap.SugaredLogger) bool {
+	var on int
+	if err := db.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&on); err != nil {
+		log.Warnf("Could not read PRAGMA foreign_keys: %v", err)
+		return false
+	}
+	if on == 0 {
+		log.Warn("Foreign-key enforcement is OFF (PRAGMA foreign_keys = 0); check the database.file options for _fk=0 or _foreign_keys=off. Rows can now reference missing parents")
+		return false
+	}
+	return true
+}
+
 // recoveryMiddleware turns a handler panic into a logged 500. It replaces
 // gin.Recovery, which writes the request line, query string included, to
 // stderr: query values carry OAuth codes and tokens (SEC-11).
@@ -337,6 +355,8 @@ func main() {
 	if err != nil {
 		log.Error(err)
 	}
+
+	warnIfForeignKeysOff(context.Background(), db, log)
 
 	if err := runMigrations(db, "migrations", log); err != nil {
 		log.Fatalf("Failed to run database migrations: %v", err)
