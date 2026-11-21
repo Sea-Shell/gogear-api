@@ -248,16 +248,10 @@ func main() {
 	gearGroup.PUT("/insert", endpoints.InsertGear)
 
 	// User Gear endpoints
-	userGearGroup.GET("/:user/list", endpoints.ListUserGear)
-	userGearGroup.GET("/registration/:usergear/get", endpoints.GetUserGear)
-	userGearGroup.POST("/registration/:usergear/update", endpoints.UpdateUserGear)
-	userGearGroup.DELETE("/registration/:usergear/delete", endpoints.DeleteUserGearRegistration)
-	userGearGroup.PUT("/insert", endpoints.InsertUserGear)
+	endpoints.RegisterUserGearRoutes(userGearGroup)
 
 	// Container endpoints
-	containerGroup.GET("/:container/list", endpoints.ListUserGearInContainer)
-	containerGroup.PUT("/insert", endpoints.InsertContainer)
-	containerGroup.DELETE("/:container/delete", endpoints.DeleteContainerRegistration)
+	endpoints.RegisterContainerRoutes(containerGroup)
 
 	// Top Category endpoints
 	topCategoryGroup.GET("/list", endpoints.ListTopCategory)

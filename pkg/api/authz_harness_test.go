@@ -90,6 +90,8 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	router.POST("/auth/refresh", utils.JWTMiddleware(), RefreshToken)
 	RegisterLoadoutRoutes(v1.Group("/loadout"))
 	RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
+	RegisterUserGearRoutes(v1.Group("/usergear"))
+	RegisterContainerRoutes(v1.Group("/container"))
 
 	return &authzEnv{T: t, DB: db, Router: router, V1: v1, Auth: auth}
 }

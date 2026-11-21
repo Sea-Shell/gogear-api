@@ -38,3 +38,21 @@ func RegisterPublicLoadoutRoutes(g *gin.RouterGroup) {
 	g.GET("/loadout/:slug", GetPublicLoadout)
 	g.GET("/loadout/:slug/items", GetPublicLoadoutItems)
 }
+
+// RegisterUserGearRoutes wires the gear registration (inventory) endpoints onto
+// the given group (normally /api/v1/usergear, behind the JWT middleware).
+func RegisterUserGearRoutes(g *gin.RouterGroup) {
+	g.GET("/:user/list", ListUserGear)
+	g.GET("/registration/:usergear/get", GetUserGear)
+	g.POST("/registration/:usergear/update", UpdateUserGear)
+	g.DELETE("/registration/:usergear/delete", DeleteUserGearRegistration)
+	g.PUT("/insert", InsertUserGear)
+}
+
+// RegisterContainerRoutes wires the container link endpoints onto the given
+// group (normally /api/v1/container, behind the JWT middleware).
+func RegisterContainerRoutes(g *gin.RouterGroup) {
+	g.GET("/:container/list", ListUserGearInContainer)
+	g.PUT("/insert", InsertContainer)
+	g.DELETE("/:container/delete", DeleteContainerRegistration)
+}

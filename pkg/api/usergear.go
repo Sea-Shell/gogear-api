@@ -3,22 +3,26 @@ package endpoints
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
 	models "github.com/Sea-Shell/gogear-api/pkg/models"
-	utils "github.com/Sea-Shell/gogear-api/pkg/utils"
 
 	gin "github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	zap "go.uber.org/zap"
 )
+
+// Gear registrations (inventory). Every operation is scoped to the
+// authenticated user, taken from the verified token and never from the body or
+// a query parameter, and the owner is bound in the same SQL statement that
+// reads or changes the data (BR-012, OC-001). A registration that is unknown or
+// owned by someone else gives one identical 404 (BR-018). A conflicting owner or
+// registration ID in a body is 400 (BR-017). Admins get no exception (P-3).
 
 // ListUserGear list the users registered gear
 //
@@ -39,260 +43,70 @@ import (
 //	@Failure		default		{object}	models.Error
 //	@Router			/api/v1/usergear/{user}/list [get]
 func ListUserGear(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
-	currentQueryParameters := c.Request.URL.Query()
-
-	page := c.Query("page")
-	limit := c.Query("limit")
-	userID := c.Param("user")
-	topCategories := c.QueryArray("topCategory")
-	categories := c.QueryArray("category")
-	manufacturers := c.QueryArray("manufacture")
-	container, containerBool := c.GetQuery("container")
-
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+	callerID := c.MustGet("user_id_int64").(int64)
 
-	log.Debugf("Request parameters: %#v", c.Request.URL.Query())
-
-	if userID == "" {
-		log.Errorf("Error userID was not supplied")
-		c.IndentedJSON(http.StatusNoContent, models.Error{Error: "userId supplied was not valid"})
-		return
-	}
-
-	if limit == "" {
-		limit = "30"
-	}
-
-	if page == "" || page == "0" {
-		page = "1"
-	}
-
-	if !containerBool {
-		container = "all"
-	}
-
-	userIDInt, err := strconv.Atoi(userID)
+	requested, err := strconv.ParseInt(c.Param("user"), 10, 64)
 	if err != nil {
-		log.Errorf("Error setting userID to int: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "invalid user ID"})
+		return
+	}
+	if requested != callerID {
+		c.IndentedJSON(http.StatusForbidden, models.Error{Error: "not allowed to view registrations for this user"})
+		return
+	}
+	page, limit, ok := parsePaging(c)
+	if !ok {
 		return
 	}
 
-	subjectAny, hasSubject := c.Get("user_id")
-	if !hasSubject {
-		log.Warn("JWT subject missing from context")
-		c.IndentedJSON(http.StatusUnauthorized, models.Error{Error: "authentication context missing"})
-		return
-	}
-
-	subject, _ := subjectAny.(string)
-	subject = strings.TrimSpace(subject)
-
-	isAdmin := false
-	if adminAny, ok := c.Get("user_is_admin"); ok {
-		if adminFlag, ok := adminAny.(bool); ok {
-			isAdmin = adminFlag
-		}
-	}
-
-	if !isAdmin {
-		subjectID, parseErr := strconv.Atoi(subject)
-		if parseErr != nil || subjectID != userIDInt {
-			log.Warnw("non-admin attempted to view other user's gear", "requested_user", userIDInt, "subject", subject)
-			c.IndentedJSON(http.StatusForbidden, models.Error{Error: "not allowed to view registrations for this user"})
-			return
-		}
-	}
-
-	pageInt, err := strconv.Atoi(page)
-	if err != nil {
-		log.Errorf("Error setting page to int: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	limitInt, err := strconv.Atoi(limit)
-	if err != nil {
-		log.Errorf("Error setting limit to int: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	if pageInt <= 0 {
-		log.Errorf("Error page is less than 0: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid page number"})
-		return
-	}
-
-	if limitInt <= 0 {
-		log.Errorf("Error limit is less than 0: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "Invalid limit number"})
-		return
-	}
-
-	conditions := []string{}
-
-	if userID != "" {
-		userIDQ := fmt.Sprintf("user_gear_registrations.userId = %d", userIDInt)
-		conditions = append(conditions, userIDQ)
-	}
-
-	for _, topCategory := range topCategories {
-		topCategoryInt, err := strconv.Atoi(topCategory)
-		if err != nil {
-			continue
-		}
-		topcat := fmt.Sprintf("gear.gearTopCategoryId = %d", topCategoryInt)
-		conditions = append(conditions, topcat)
-	}
-
-	for _, category := range categories {
-		categoryInt, err := strconv.Atoi(category)
-		if err != nil {
-			continue
-		}
-		cat := fmt.Sprintf("gear.gearCategoryId = %d", categoryInt)
-		conditions = append(conditions, cat)
-	}
-
-	for _, manufacture := range manufacturers {
-		manufactureInt, err := strconv.Atoi(manufacture)
-		if err != nil {
-			continue
-		}
-		manufac := fmt.Sprintf("gear.gearManufactureId = %d", manufactureInt)
-		conditions = append(conditions, manufac)
-	}
-
-	switch container {
-	case "true":
-		containerCond := "gear.gearIsContainer = 1"
-		conditions = append(conditions, containerCond)
-	case "false":
-		containerCond := "gear.gearIsContainer = 0"
-		conditions = append(conditions, containerCond)
-	}
-
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	var extra []string
-	extra = append(extra, " LEFT JOIN user_container_registration ON user_container_registration.userGearRegistrationId = user_gear_registrations.userGearRegistrationId")
-	extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
-	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.userId = users.userId")
-	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
-	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
-	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-	extraSQL := strings.Join(extra, " ")
-
-	baseCountQuery := "SELECT COUNT(*) FROM user_gear_registrations"
-	countQuery := baseCountQuery + extraSQL + whereClause
-
-	var totalCount int
-	err = db.QueryRow(countQuery).Scan(&totalCount)
-	if err != nil {
-		log.Errorf("Error getting GearCount database: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	start := strconv.Itoa((pageInt - 1) * limitInt)
-	totalPages := int(math.Ceil(float64(totalCount) / float64(limitInt)))
-
-	startInt, err := strconv.Atoi(start)
-	if err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	var paramTopCategory models.UserGear
-	fields := utils.GetDBFieldNames(reflect.TypeOf(paramTopCategory))
-
-	baseQuery := fmt.Sprintf(`SELECT %s FROM user_gear_registrations`, strings.Join(fields, ", "))
-
-	queryLimit := fmt.Sprintf(" LIMIT %v, %v", startInt, limitInt)
-
-	query := baseQuery + extraSQL + whereClause + queryLimit
-
-	log.Debugf("Query: %s", query)
-
-	rows, err := db.Query(query)
-	if err != nil {
-		log.Errorf("Query error: %#v", err.Error())
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	dest, err := utils.GetScanFields(paramTopCategory)
-	if err != nil {
-		log.Errorf("Error getting destination arguments: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	var gearTopCategoryList []models.UserGear
-
-	for rows.Next() {
-		err = rows.Scan(dest...)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				log.Errorf("No gear found")
-				c.IndentedJSON(http.StatusNotFound, models.Error{Error: "No results"})
-				return
+	// Filters are parsed as integers and bound; a value that is not an integer
+	// is ignored, so it can never change the meaning of the query.
+	where := []string{"ugr.userId = ?"}
+	args := []any{callerID}
+	addIntFilters := func(column string, values []string) {
+		for _, v := range values {
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+				where = append(where, column+" = ?")
+				args = append(args, n)
 			}
-			log.Errorf("Scan error: %#v", err)
-			c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			return
 		}
-
-		for i := 0; i < reflect.TypeOf(paramTopCategory).NumField(); i++ {
-			reflect.ValueOf(&paramTopCategory).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
-		}
-
-		gearTopCategoryList = append(gearTopCategoryList, paramTopCategory)
 	}
+	addIntFilters("g.gearTopCategoryId", c.QueryArray("topCategory"))
+	addIntFilters("g.gearCategoryId", c.QueryArray("category"))
+	addIntFilters("g.gearManufactureId", c.QueryArray("manufacture"))
+	switch c.Query("container") {
+	case "true":
+		where = append(where, "g.gearIsContainer = 1")
+	case "false":
+		where = append(where, "g.gearIsContainer = 0")
+	}
+	whereSQL := " WHERE " + strings.Join(where, " AND ")
 
-	if err := rows.Err(); err != nil {
-		log.Errorf("Row iteration error: %#v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+	ctx := c.Request.Context()
+	var total int
+	if err := db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM user_gear_registrations ugr LEFT JOIN gear g ON g.gearId = ugr.gearId`+whereSQL, args...).Scan(&total); err != nil {
+		respondInternal(c, log, "count registrations", err)
 		return
 	}
 
-	payload := models.ResponsePayload{
-		TotalItemCount: totalCount,
-		CurrentPage:    pageInt,
-		ItemLimit:      limitInt,
-		TotalPages:     totalPages,
-		Items:          gearTopCategoryList,
+	rows, err := db.QueryContext(ctx,
+		`SELECT `+userGearColumns+` FROM user_gear_registrations ugr`+userGearCatalogJoins+userGearOwnLinkJoin+
+			whereSQL+` ORDER BY ugr.userGearRegistrationId LIMIT ? OFFSET ?`,
+		append(args, limit, int64(page-1)*int64(limit))...)
+	if err != nil {
+		respondInternal(c, log, "list registrations", err)
+		return
+	}
+	items, err := scanUserGearRows(rows)
+	if err != nil {
+		respondInternal(c, log, "list registrations", err)
+		return
 	}
 
-	if pageInt < totalPages {
-		currentQueryParameters.Set("page", strconv.Itoa(pageInt+1))
-		nextPage := url.URL{
-			Path:     c.Request.URL.Path,
-			RawQuery: currentQueryParameters.Encode(),
-		}
-		payload.NextPage = new(string)
-		*payload.NextPage = nextPage.String()
-	}
-
-	if pageInt > 1 {
-		currentQueryParameters.Set("page", strconv.Itoa(pageInt-1))
-		prevPage := url.URL{
-			Path:     c.Request.URL.Path,
-			RawQuery: currentQueryParameters.Encode(),
-		}
-		payload.PrevPage = new(string)
-		*payload.PrevPage = prevPage.String()
-	}
-
-	c.IndentedJSON(http.StatusOK, payload)
+	c.IndentedJSON(http.StatusOK, pagePayload(c, items, total, page, limit))
 }
 
 // GetUserGear retrives the users full gear list
@@ -307,57 +121,30 @@ func ListUserGear(c *gin.Context) {
 //	@Success		200			{object}	models.UserGear	"desc"
 //	@Router			/api/v1/usergear/registration/{usergear}/get [get]
 func GetUserGear(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	function := "usergear"
+	callerID := c.MustGet("user_id_int64").(int64)
 
-	topCategories := c.QueryArray("topCategory")
-	categories := c.QueryArray("category")
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-	}
-
-	conditions := []string{}
-
-	for _, topCategory := range topCategories {
-		topcat := fmt.Sprintf("gear_category.categoryTopCategoryId = %s", topCategory)
-		conditions = append(conditions, topcat)
-	}
-
-	for _, category := range categories {
-		topcat := fmt.Sprintf("gear_category.categoryId = %s", category)
-		conditions = append(conditions, topcat)
-	}
-
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = " WHERE " + strings.Join(conditions, " OR ")
-	}
-
-	var extra []string
-	extra = append(extra, " LEFT JOIN user_container_registration ON user_container_registration.userGearRegistrationId = user_gear_registrations.userGearRegistrationId")
-	extra = append(extra, " LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId")
-	extra = append(extra, "LEFT JOIN users ON user_gear_registrations.userId = users.userId")
-	extra = append(extra, "LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId")
-	extra = append(extra, "LEFT JOIN gear_top_category ON gear.gearTopCategoryId = gear_top_category.topCategoryId")
-	extra = append(extra, "LEFT JOIN gear_category ON gear.gearCategoryId = gear_category.categoryId ")
-
-	extra = append(extra, whereClause)
-
-	results, err := utils.GenericGet[models.UserGear]("user_gear_registrations", urlParameter, extra, db)
-	if err != nil {
-		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	id, ok := parseInt64Param(c, "usergear")
+	if !ok {
 		return
 	}
 
-	log.Infof("Successfully fetched %s with ID %s", function, urlParameter)
-	c.IndentedJSON(http.StatusOK, results)
+	// No query-string filtering on a single record: the record is selected by
+	// path ID and owner only.
+	reg, err := scanUserGear(db.QueryRowContext(c.Request.Context(),
+		`SELECT `+userGearColumns+` FROM user_gear_registrations ugr`+userGearCatalogJoins+userGearOwnLinkJoin+
+			` WHERE ugr.userGearRegistrationId = ? AND ugr.userId = ?`, id, callerID))
+	if isNoRows(err) {
+		c.IndentedJSON(errRegistrationNotFound.status, models.Error{Error: errRegistrationNotFound.msg})
+		return
+	}
+	if err != nil {
+		respondInternal(c, log, "get registration", err)
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, reg)
 }
 
 // InsertUserGear puts gear on the users gear list
@@ -372,22 +159,34 @@ func GetUserGear(c *gin.Context) {
 //	@Success		200		{object}	models.Status			"status: success when all goes well"
 //	@Router			/api/v1/usergear/insert [put]
 func InsertUserGear(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+	callerID := c.MustGet("user_id_int64").(int64)
 
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		respondInternal(c, log, "read body", err)
+		return
+	}
+	var body struct {
+		GearID             int64  `json:"usergear_gear_id"`
+		UserID             *int64 `json:"usergear_user_id"`
+		MaxContainerWeight *int32 `json:"max_container_weight"`
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
+	}
+	if body.UserID != nil && *body.UserID != callerID {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "usergear_user_id does not match the authenticated user"})
 		return
 	}
 
-	_, err = utils.GenericInsert[models.UserGearLink]("user_gear_registrations", data, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	// The owner is the caller. A registration ID in the body is not read.
+	if _, err := db.ExecContext(c.Request.Context(),
+		`INSERT INTO user_gear_registrations (gearId, userId, maxContainerWeight) VALUES (?, ?, ?)`,
+		body.GearID, callerID, body.MaxContainerWeight); err != nil {
+		respondInternal(c, log, "insert registration", err)
 		return
 	}
 
@@ -407,99 +206,71 @@ func InsertUserGear(c *gin.Context) {
 //	@Success		200			{object}	models.Status		"status: success when all goes well"
 //	@Router			/api/v1/usergear/registration/{usergear}/update [post]
 func UpdateUserGear(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	registrationID, err := strconv.Atoi(c.Param("usergear"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	callerID := c.MustGet("user_id_int64").(int64)
+
+	id, ok := parseInt64Param(c, "usergear")
+	if !ok {
 		return
 	}
-
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		respondInternal(c, log, "read body", err)
 		return
 	}
-
-	var payload models.UserGearLink
-	if err := json.Unmarshal(data, &payload); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	var body struct {
+		RegistrationID     *int64 `json:"usergear_registration_id"`
+		UserID             *int64 `json:"usergear_user_id"`
+		MaxContainerWeight *int32 `json:"max_container_weight"`
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 		return
 	}
-
-	if payload.UserGearRegistrationID != nil && *payload.UserGearRegistrationID != int64(registrationID) {
-		c.JSON(http.StatusBadRequest, models.Error{Error: "request body registration ID does not match route parameter"})
+	if err := json.Unmarshal(data, &raw); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 		return
 	}
+	_, setWeight := raw["max_container_weight"]
 
-	existing, err := utils.GenericGet[models.UserGearLink]("user_gear_registrations", registrationID, nil, db)
-	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if err == sql.ErrNoRows {
-			statusCode = http.StatusNotFound
+	// Only the maximum container weight is updatable. The gear and the owner
+	// of a registration never change, whatever the body says.
+	err = inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		// A foreign or unknown target is 404 before any body conflict is reported.
+		owned, err := registrationOwned(ctx, tx, id, callerID)
+		if err != nil {
+			return err
 		}
-		c.JSON(statusCode, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	subjectAny, hasSubject := c.Get("user_id")
-	if !hasSubject {
-		c.JSON(http.StatusUnauthorized, models.Error{Error: "authentication context missing"})
-		log.Error("authentication context missing")
-		return
-	}
-
-	subject, _ := subjectAny.(string)
-	subject = strings.TrimSpace(subject)
-
-	isAdmin := false
-	if adminAny, ok := c.Get("user_is_admin"); ok {
-		if adminFlag, ok := adminAny.(bool); ok {
-			isAdmin = adminFlag
+		if !owned {
+			return errRegistrationNotFound
 		}
-	}
-
-	if !isAdmin {
-		subjectID, parseErr := strconv.Atoi(subject)
-		if parseErr != nil || subjectID != int(existing.UserGearUserID) {
-			c.JSON(http.StatusForbidden, models.Error{Error: "not allowed to update this registration"})
-			log.Error("not allowed to update this registration")
-			return
+		if body.RegistrationID != nil && *body.RegistrationID != id {
+			return badRequest("request body registration ID does not match route parameter")
 		}
-	}
-
-	var rawPayload map[string]json.RawMessage
-	if err := json.Unmarshal(data, &rawPayload); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	payload.UserGearRegistrationID = new(int64)
-	*payload.UserGearRegistrationID = int64(registrationID)
-	payload.UserGearGearID = existing.UserGearGearID
-	payload.UserGearUserID = existing.UserGearUserID
-	if _, hasMaxContainerWeight := rawPayload["max_container_weight"]; !hasMaxContainerWeight {
-		payload.MaxContainerWeight = existing.MaxContainerWeight
-	}
-
-	updatedData, err := json.Marshal(payload)
+		if body.UserID != nil && *body.UserID != callerID {
+			return badRequest("usergear_user_id does not match the authenticated user")
+		}
+		if !setWeight {
+			return nil
+		}
+		res, err := tx.ExecContext(ctx,
+			`UPDATE user_gear_registrations SET maxContainerWeight = ? WHERE userGearRegistrationId = ? AND userId = ?`,
+			body.MaxContainerWeight, id, callerID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n != 1 {
+			return errRegistrationNotFound
+		}
+		return nil
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	err = utils.GenericUpdate[models.UserGearLink]("user_gear_registrations", updatedData, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		respondUserGearError(c, log, err)
 		return
 	}
 
@@ -519,83 +290,72 @@ func UpdateUserGear(c *gin.Context) {
 //	@Failure		default		{object}	models.Error
 //	@Router			/api/v1/usergear/registration/{usergear}/delete [delete]
 func DeleteUserGearRegistration(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	function := "usergear"
+	callerID := c.MustGet("user_id_int64").(int64)
 
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	id, ok := parseInt64Param(c, "usergear")
+	if !ok {
 		return
 	}
 
-	const detailQuery = `SELECT gear.gearName, users.userUsername, users.userId
-		FROM user_gear_registrations
-		LEFT JOIN gear ON user_gear_registrations.gearId = gear.gearId
-		LEFT JOIN users ON user_gear_registrations.userId = users.userId
-		WHERE user_gear_registrations.userGearRegistrationId = ?
-		LIMIT 1`
-
-	var gearName sql.NullString
-	var userUsername sql.NullString
-	var userID sql.NullInt64
-
-	if err := db.QueryRow(detailQuery, urlParameter).Scan(&gearName, &userUsername, &userID); err != nil {
-		if err == sql.ErrNoRows {
-			log.Warnw("user gear registration not found", "registration_id", urlParameter)
-			c.IndentedJSON(http.StatusNotFound, models.Error{Error: "registration not found"})
-			return
+	var gearName, username sql.NullString
+	err := inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		err := tx.QueryRowContext(ctx,
+			`SELECT g.gearName, u.userUsername
+			 FROM user_gear_registrations ugr
+			 LEFT JOIN gear g ON g.gearId = ugr.gearId
+			 LEFT JOIN users u ON u.userId = ugr.userId
+			 WHERE ugr.userGearRegistrationId = ? AND ugr.userId = ?`, id, callerID).Scan(&gearName, &username)
+		if isNoRows(err) {
+			return errRegistrationNotFound
 		}
-		log.Errorw("failed to inspect registration before deletion", "error", err, "registration_id", urlParameter)
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	_, err = db.Exec("DELETE FROM user_container_registration WHERE userGearRegistrationId = ? OR userContainerId = ?", urlParameter, urlParameter)
+		if err != nil {
+			return err
+		}
+		// The registration goes first, bound to its owner; if nothing was
+		// deleted no container link is touched. The links of the deleted
+		// registration follow in the same transaction (foreign keys are not
+		// enforced).
+		res, err := tx.ExecContext(ctx,
+			`DELETE FROM user_gear_registrations WHERE userGearRegistrationId = ? AND userId = ?`, id, callerID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n != 1 {
+			return errRegistrationNotFound
+		}
+		_, err = tx.ExecContext(ctx,
+			`DELETE FROM user_container_registration WHERE userGearRegistrationId = ? OR userContainerId = ?`, id, id)
+		return err
+	})
 	if err != nil {
-		log.Errorw("failed to clear container links before deleting registration", "error", err, "registration_id", urlParameter)
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := db.Exec("DELETE FROM user_gear_registrations WHERE userGearRegistrationId = ?", urlParameter)
-	if err != nil {
-		log.Errorw("failed to delete user gear registration", "error", err, "registration_id", urlParameter)
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.Errorw("unable to determine rows affected during deletion", "error", err, "registration_id", urlParameter)
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		return
-	}
-
-	if rowsAffected == 0 {
-		log.Warnw("delete attempted but no rows removed", "registration_id", urlParameter)
-		c.IndentedJSON(http.StatusNotFound, models.Error{Error: "registration not found"})
+		respondUserGearError(c, log, err)
 		return
 	}
 
 	gearLabel := gearName.String
 	if gearLabel == "" {
-		gearLabel = fmt.Sprintf("registration #%d", urlParameter)
+		gearLabel = fmt.Sprintf("registration #%d", id)
 	}
-
-	userLabel := userUsername.String
+	userLabel := username.String
 	if userLabel == "" {
-		if userID.Valid {
-			userLabel = fmt.Sprintf("#%d", userID.Int64)
-		} else {
-			userLabel = "unknown user"
-		}
+		userLabel = fmt.Sprintf("#%d", callerID)
 	}
+	log.Infow("user gear registration deleted", "registration_id", id, "gear", gearLabel, "user", userLabel)
+	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User gear registration linking %s to user %s was deleted", gearLabel, userLabel)})
+}
 
-	statusMessage := fmt.Sprintf("success! User gear registration linking %s to user %s was deleted", gearLabel, userLabel)
-	log.Infow("user gear registration deleted", "registration_id", urlParameter, "gear", gearLabel, "user", userLabel)
-	c.JSON(http.StatusOK, map[string]string{"status": statusMessage})
+// respondUserGearError writes the response for an error from inTx: a refusal
+// keeps its status, anything else is a logged 500 with a generic body.
+func respondUserGearError(c *gin.Context, log interface{ Errorf(string, ...any) }, err error) {
+	var oe *opError
+	if errors.As(err, &oe) {
+		c.IndentedJSON(oe.status, models.Error{Error: oe.msg})
+		return
+	}
+	respondInternal(c, log, "registration operation failed", err)
 }
