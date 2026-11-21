@@ -505,9 +505,13 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// userPassword and userIsAdmin are deliberately not in the SET list.
+	// Changing the email marks the account as never eligible for the Google
+	// subject backfill (BR-004): the email is no longer one the account was
+	// created with, so it cannot vouch for a Google identity.
 	res, err := tx.ExecContext(ctx,
-		`UPDATE users SET userUsername = COALESCE(?, userUsername), userName = COALESCE(?, userName), userEmail = COALESCE(?, userEmail) WHERE userId = ?`,
-		body.UserUsername, body.UserName, body.UserEmail, targetID)
+		`UPDATE users SET userUsername = COALESCE(?, userUsername), userName = COALESCE(?, userName), userEmail = COALESCE(?, userEmail),
+		userEmailEdited = CASE WHEN ? IS NOT NULL AND ? <> userEmail THEN 1 ELSE userEmailEdited END WHERE userId = ?`,
+		body.UserUsername, body.UserName, body.UserEmail, body.UserEmail, body.UserEmail, targetID)
 	if err != nil {
 		internalError(c, log, err)
 		return

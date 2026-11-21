@@ -2,8 +2,10 @@ package endpoints
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +21,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
+	"golang.org/x/oauth2"
 )
 
 // Authorization test harness.
@@ -45,6 +48,7 @@ func harnessAuth() *models.Auth {
 		JWTAudience:      harnessClientAud,
 		JWTAdminAudience: harnessAdminAudience,
 		JWTExpiryMinutes: 60,
+		GoogleClientID:   "harness-google-client",
 	}
 }
 
@@ -55,6 +59,10 @@ type authzEnv struct {
 	V1     *gin.RouterGroup // /api/v1, behind the real JWT middleware
 	Auth   *models.Auth
 	Logs   *observer.ObservedLogs // everything the handlers logged
+
+	// google is what the injected Google validator returns (nil: the token is
+	// invalid). Set it with GoogleSignIn.
+	google *GoogleIdentity
 }
 
 func newAuthzEnv(t *testing.T) *authzEnv {
@@ -78,10 +86,20 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	logger := zap.New(core).Sugar()
 	router := gin.New()
 	router.Use(gin.Recovery()) // a handler panic is a 500, as in production
+	env := &authzEnv{T: t, DB: db, Router: router, Auth: auth, Logs: logs}
 	router.Use(func(c *gin.Context) {
 		c.Set("db", db)
 		c.Set("logger", logger)
 		c.Set("auth", auth)
+		c.Set("oauth", &oauth2.Config{})
+		// Google token validation is injected: no network in tests.
+		c.Set(googleValidatorContextKey, GoogleTokenValidator(func(_ context.Context, _, _ string) (*GoogleIdentity, error) {
+			if env.google == nil {
+				return nil, errors.New("invalid token")
+			}
+			id := *env.google
+			return &id, nil
+		}))
 		c.Next()
 	})
 
@@ -91,12 +109,14 @@ func newAuthzEnvWithAuth(t *testing.T, auth *models.Auth) *authzEnv {
 	RegisterUserRoutes(v1.Group("/users"))
 	RegisterCatalogRoutes(v1)
 	router.POST("/auth/refresh", utils.JWTMiddleware(), RefreshToken)
+	router.POST("/auth/google/callback", GoogleAuthCallback)
 	RegisterLoadoutRoutes(v1.Group("/loadout"))
 	RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
 	RegisterUserGearRoutes(v1.Group("/usergear"))
 	RegisterContainerRoutes(v1.Group("/container"))
 
-	return &authzEnv{T: t, DB: db, Router: router, V1: v1, Auth: auth, Logs: logs}
+	env.V1 = v1
+	return env
 }
 
 // SignToken signs an HS256 service token with explicit claims.
