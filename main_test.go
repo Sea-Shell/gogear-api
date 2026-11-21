@@ -120,8 +120,8 @@ func TestMigrationsUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 4 {
-		t.Errorf("expected version 4, got %d", version)
+	if version != 5 {
+		t.Errorf("expected version 5, got %d", version)
 	}
 	if dirty {
 		t.Error("expected clean migration")
@@ -145,7 +145,7 @@ func TestMigrationsUpDown(t *testing.T) {
 		t.Fatal("loadouts should exist after up")
 	}
 
-	// Down rolls back ALL migrations (V004 to V001)
+	// Down rolls back ALL migrations (V005 to V001)
 	runMigrateDown(t, db, path)
 
 	// After full rollback, baseline tables (V001) are also dropped
@@ -179,14 +179,14 @@ func TestMigrationsIdempotentUp(t *testing.T) {
 	runMigrate(t, db, path)
 	runMigrate(t, db, path)
 
-	// Should still be at version 4
+	// Should still be at version 5
 	var version int
 	err := db.QueryRow("SELECT version FROM schema_migrations").Scan(&version)
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 4 {
-		t.Errorf("expected version 4 after second up, got %d", version)
+	if version != 5 {
+		t.Errorf("expected version 5 after second up, got %d", version)
 	}
 }
 
@@ -261,7 +261,7 @@ func TestMigration4GoogleSubjectOnExistingDatabase(t *testing.T) {
 		t.Fatal("two accounts bound to one subject")
 	}
 
-	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Steps(-1) })
+	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Migrate(3) })
 	cols = userColumns(t, db)
 	if cols["googleSubject"] || cols["userEmailEdited"] || !cols["userEmail"] {
 		t.Fatalf("columns after down: %v", cols)

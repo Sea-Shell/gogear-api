@@ -152,6 +152,9 @@ func InsertContainer(c *gin.Context) {
 			 WHERE (SELECT COUNT(*) FROM user_gear_registrations
 			        WHERE userGearRegistrationId IN (?, ?) AND userId = ?) = 2`,
 			containerID, contentID, containerID, contentID, callerID)
+		if isUniqueViolation(err) {
+			return &opError{http.StatusConflict, "registration is already in this container"}
+		}
 		if err != nil {
 			return err
 		}
