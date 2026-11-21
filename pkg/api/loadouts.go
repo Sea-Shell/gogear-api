@@ -3,6 +3,7 @@ package endpoints
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -360,11 +361,18 @@ func ImportLoadout(c *gin.Context) {
 		}
 
 		for _, gearID := range body.GearIDs {
-			if _, err := tx.ExecContext(ctx,
+			res, err := tx.ExecContext(ctx,
 				`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes)
 				 SELECT loadoutId, ?, 1, '' FROM loadouts WHERE loadoutId = ? AND userId = ?`,
-				gearID, loadoutID, userID); err != nil {
+				gearID, loadoutID, userID)
+			if err != nil {
 				return err
+			}
+			// Exactly one row per gear: anything else rolls the import back.
+			if n, err := res.RowsAffected(); err != nil {
+				return err
+			} else if n != 1 {
+				return fmt.Errorf("import gear %d: inserted %d rows, want 1", gearID, n)
 			}
 		}
 		return LoadoutRecalculateWeight(ctx, tx, loadoutID)

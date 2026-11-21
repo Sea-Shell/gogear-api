@@ -655,3 +655,83 @@ func TestDeleteLoadout_OwnerDeletesOnlyOwn(t *testing.T) {
 		t.Fatal("own loadout or its items still stored")
 	}
 }
+
+// ---- BR-014 AC-2: a foreign public loadout is public only on the public route ----
+
+func TestLoadout_ForeignPublicNotReadableOrWritableThroughAuthenticatedRoutes(t *testing.T) {
+	f := newLoFixture(t) // alice's l1 is public
+	before := f.env.snapshot()
+
+	// The public route does serve it, so the refusals below are about the route, not the data.
+	expectStatus(t, f.env.Do(http.MethodGet, "/api/v1/public/loadout/"+f.pubSlug, "", nil), http.StatusOK)
+
+	for _, o := range []struct {
+		name, method, path string
+		body               any
+	}{
+		{"get", http.MethodGet, loPath(f.l1, "get"), nil},
+		{"item list", http.MethodGet, loPath(f.l1, "item/list"), nil},
+		{"update", http.MethodPost, loPath(f.l1, "update"), map[string]any{"loadout_name": "HACKED"}},
+		{"delete", http.MethodDelete, loPath(f.l1, "delete"), nil},
+		{"import", http.MethodPost, loPath(f.l1, "import"), map[string]any{"gear_ids": []int64{f.g100}}},
+		{"item insert", http.MethodPut, loPath(f.l1, "item/insert"), map[string]any{"gear_id": f.g100, "quantity": 1}},
+		{"item update", http.MethodPost, itemPath(f.l1, f.i1a, "update"), map[string]any{"quantity": 9}},
+		{"item delete", http.MethodDelete, itemPath(f.l1, f.i1a, "delete"), nil},
+	} {
+		w := f.env.Do(o.method, o.path, f.bTok, o.body)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("bob %s on alice's public loadout: status %d, want 404; body %s", o.name, w.Code, w.Body)
+		}
+		if strings.Contains(w.Body.String(), "orig-name") || strings.Contains(w.Body.String(), f.pubSlug) {
+			t.Errorf("bob %s: response leaks the loadout: %s", o.name, w.Body)
+		}
+	}
+
+	// It does not appear in bob's own list either.
+	w := f.env.Do(http.MethodGet, "/api/v1/loadout/list", f.bTok, nil)
+	expectStatus(t, w, http.StatusOK)
+	if strings.Contains(w.Body.String(), f.pubSlug) {
+		t.Errorf("bob's list contains alice's public loadout: %s", w.Body)
+	}
+	if got := f.env.snapshot(); got != before {
+		t.Fatalf("refused requests changed stored data:\nbefore:\n%s\nafter:\n%s", before, got)
+	}
+}
+
+// ---- OC-001 G-2: the item query binds the owner itself ---------------------
+
+func TestLoadoutItemsOwned_QueryBindsOwner(t *testing.T) {
+	f := newLoFixture(t)
+	ctx := t.Context()
+
+	items, err := LoadoutItemsOwned(ctx, f.env.DB, f.l1, f.alice)
+	if err != nil || len(*items) != 2 {
+		t.Fatalf("owner read: %v, %v; want 2 items", items, err)
+	}
+	for _, who := range []int64{f.bob, 999999} {
+		items, err := LoadoutItemsOwned(ctx, f.env.DB, f.l1, who)
+		if err != nil || items == nil || len(*items) != 0 {
+			t.Errorf("user %d read alice's items: %v, %v; want none", who, items, err)
+		}
+	}
+}
+
+// ---- COR-04: import checks that each insert added exactly one row ----------
+
+func TestImportLoadout_SkippedInsertRollsBack(t *testing.T) {
+	f := newLoFixture(t)
+	skipped := f.env.seedGearW(1)
+	// The trigger makes the insert of this gear a silent no-op: no error, zero rows.
+	if _, err := f.env.DB.Exec(`CREATE TRIGGER skip_gear BEFORE INSERT ON loadout_items WHEN NEW.gearId = ` + fmt.Sprint(skipped) +
+		` BEGIN SELECT RAISE(IGNORE); END`); err != nil {
+		t.Fatal(err)
+	}
+	before := f.env.snapshot()
+	w := f.env.Do(http.MethodPost, loPath(f.l2, "import"), f.aTok, map[string]any{"gear_ids": []int64{f.g100, skipped}})
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status %d, want 500; body %s", w.Code, w.Body)
+	}
+	if got := f.env.snapshot(); got != before {
+		t.Fatalf("import with a skipped insert left effects:\nbefore:\n%s\nafter:\n%s", before, got)
+	}
+}

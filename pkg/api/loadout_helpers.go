@@ -93,15 +93,34 @@ func LoadoutListByUser(db *sql.DB, userID int64) (*[]models.Loadout, error) {
 }
 
 // LoadoutItemsByLoadout returns all items belonging to a loadout. The result
-// is never nil, so it encodes as [] when empty.
+// is never nil, so it encodes as [] when empty. It does not check ownership:
+// use it only for a loadout already known to be public.
 func LoadoutItemsByLoadout(db *sql.DB, loadoutID int64) (*[]models.LoadoutItem, error) {
 	rows, err := db.Query(
 		`SELECT loadoutItemId, loadoutId, gearId, quantity, notes FROM loadout_items WHERE loadoutId = ? ORDER BY loadoutItemId`, loadoutID)
 	if err != nil {
 		return nil, fmt.Errorf("query loadout items: %w", err)
 	}
-	defer rows.Close()
+	return scanLoadoutItems(rows)
+}
 
+// LoadoutItemsOwned returns the items of loadoutID only when it belongs to
+// userID; the owner is bound in the query itself (OC-001 G-2), so the result
+// is empty for anyone else's loadout.
+func LoadoutItemsOwned(ctx context.Context, db *sql.DB, loadoutID, userID int64) (*[]models.LoadoutItem, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT li.loadoutItemId, li.loadoutId, li.gearId, li.quantity, li.notes
+		 FROM loadout_items li
+		 JOIN loadouts l ON l.loadoutId = li.loadoutId AND l.userId = ?
+		 WHERE li.loadoutId = ? ORDER BY li.loadoutItemId`, userID, loadoutID)
+	if err != nil {
+		return nil, fmt.Errorf("query loadout items: %w", err)
+	}
+	return scanLoadoutItems(rows)
+}
+
+func scanLoadoutItems(rows *sql.Rows) (*[]models.LoadoutItem, error) {
+	defer rows.Close()
 	items := []models.LoadoutItem{}
 	for rows.Next() {
 		var it models.LoadoutItem

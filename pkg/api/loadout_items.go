@@ -164,7 +164,7 @@ func ListLoadoutItems(c *gin.Context) {
 		return
 	}
 
-	items, err := LoadoutItemsByLoadout(db, loadoutID)
+	items, err := LoadoutItemsOwned(c.Request.Context(), db, loadoutID, userID)
 	if err != nil {
 		respondOpError(c, log, err)
 		return
