@@ -142,6 +142,10 @@ func main() {
 		log.Fatalf("Failed to load config file: %v", err)
 	}
 
+	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
+		log.Fatalf("Invalid auth configuration: %v", err)
+	}
+
 	logLevel := utils.GetLogLevel(config.General.LogLevel)
 	log := makeLogger(logLevel)
 	defer log.Sync()

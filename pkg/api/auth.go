@@ -79,11 +79,8 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
-	if adminAny, ok := c.Get("user_is_admin"); ok {
-		if isAdmin, ok := adminAny.(bool); ok && isAdmin {
-			user.UserIsAdmin = true
-		}
-	}
+	// The role comes from the stored account only, never from the presented
+	// token (BR-006): a demoted admin refreshes into a non-admin token.
 
 	token, expiresAt, err := issueServiceToken(authConfig, user)
 	if err != nil {
@@ -419,14 +416,15 @@ func findUserByID(ctx context.Context, db *sql.DB, id int64) (*models.User, erro
 	return user, nil
 }
 
+// resolveUserForSubject finds the account a service token's subject names.
+// The subject is the numeric user ID; there is deliberately no email fallback
+// (BR-006 AC-3).
 func resolveUserForSubject(ctx context.Context, db *sql.DB, subject string) (*models.User, error) {
-	if id, err := strconv.ParseInt(subject, 10, 64); err == nil {
-		if user, err := findUserByID(ctx, db, id); err == nil {
-			return user, nil
-		}
+	id, err := strconv.ParseInt(subject, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("token subject %q is not a user ID", subject)
 	}
-
-	return findUserByEmail(ctx, db, subject)
+	return findUserByID(ctx, db, id)
 }
 
 func issueServiceToken(authConfig *models.Auth, user *models.User) (string, time.Time, error) {

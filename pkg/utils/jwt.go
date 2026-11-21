@@ -13,6 +13,23 @@ import (
 	zap "go.uber.org/zap"
 )
 
+// ValidateAuthAudiences rejects token configurations where admin capability
+// could not be told apart from client capability: an empty or blank client or
+// admin audience, or both equal. Call it at startup (BR-006 AC-4).
+func ValidateAuthAudiences(auth *models.Auth) error {
+	client := strings.TrimSpace(auth.JWTAudience)
+	admin := strings.TrimSpace(auth.JWTAdminAudience)
+	switch {
+	case client == "":
+		return errors.New("jwt-audience must not be empty")
+	case admin == "":
+		return errors.New("jwt-admin-audience must not be empty")
+	case client == admin:
+		return errors.New("jwt-audience and jwt-admin-audience must differ")
+	}
+	return nil
+}
+
 // JWTMiddleware validates Bearer tokens issued by this service and attaches the claims to the request context.
 func JWTMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -109,6 +126,14 @@ func JWTMiddleware() gin.HandlerFunc {
 			allowedAudiences = append(allowedAudiences, adminAud)
 		}
 
+		// Defense in depth for BR-006 AC-4: if the admin audience is unset or
+		// equal to the client audience it cannot identify admins, so nobody is
+		// treated as admin. Startup validation rejects such configuration.
+		adminAudience := strings.TrimSpace(authConfig.JWTAdminAudience)
+		if adminAudience == strings.TrimSpace(authConfig.JWTAudience) {
+			adminAudience = ""
+		}
+
 		userIsAdmin := false
 		if len(allowedAudiences) > 0 {
 			if len(claims.Audience) == 0 {
@@ -122,7 +147,7 @@ func JWTMiddleware() gin.HandlerFunc {
 				for _, allowed := range allowedAudiences {
 					if tokenAud == allowed {
 						matched = true
-						if allowed == strings.TrimSpace(authConfig.JWTAdminAudience) && allowed != "" {
+						if allowed == adminAudience {
 							userIsAdmin = true
 						}
 						break
