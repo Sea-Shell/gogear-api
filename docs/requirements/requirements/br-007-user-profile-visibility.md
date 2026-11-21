@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-007 — Other users' email and admin status are hidden from non-admins
 
-**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. **Status:** Accepted. **Priority:** P0 (review SEC-02, disclosure part). **Basis:** sourced from anchor decision D3. AC-5 keeps existing behavior unchanged.
+**Implementation:** implemented in wave 1 (users, roles, token refresh), with adversarial tests in `pkg/api`. Review follow-up on AC-6: name fields. The profile views and the user search hide a username or name that contains `@` or the user's stored email from non-admin viewers of other users, and the search applies the same rule in SQL (`TestUserDirectory_AnyEmailLikeNameIsHiddenAndNotSearchable`). The registration and container responses carry the owner's `user_username` and `user_name`, but every one of those queries is owner-scoped, so they can only be the caller's own; no non-owner, including an admin, receives another user's name fields, even with legacy cross-owner links (`TestUserGear_ResponsesNeverCarryOtherUsersNames`). **Status:** Accepted. **Priority:** P0 (review SEC-02, disclosure part). **Basis:** sourced from anchor decision D3. AC-5 keeps existing behavior unchanged.
 
 **Statement:**
 The API shall let any authenticated user list user profiles and view a single user profile. When the caller is not an admin, the response shall not reveal the email address or admin status of any user other than the caller.

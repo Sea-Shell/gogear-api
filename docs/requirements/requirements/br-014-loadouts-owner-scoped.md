@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-014 — Loadouts are readable and changeable only by their owner
 
-**Implementation:** implemented in wave 2 (loadouts), with adversarial tests in `pkg/api/loadout_authz_test.go`. Update, delete and import bind loadout ID and owner in one statement and check the affected row count; a body `loadout_id` or `user_id` that differs from the path or caller is refused with 400. **Status:** Accepted. **Priority:** P0 (review SEC-03). **Basis:** sourced from anchor decision D4. AC-3 is derived from it. AC-6 is a provisional default.
+**Implementation:** implemented in wave 2 (loadouts), with adversarial tests in `pkg/api/loadout_authz_test.go`. Update, delete and import bind loadout ID and owner in one statement and check the affected row count (import checks that each gear insert adds exactly one row, otherwise it rolls back); a foreign public loadout is refused on every authenticated route and only the public route serves it (`TestLoadout_ForeignPublicNotReadableOrWritableThroughAuthenticatedRoutes`); a body `loadout_id` or `user_id` that differs from the path or caller is refused with 400. **Status:** Accepted. **Priority:** P0 (review SEC-03). **Basis:** sourced from anchor decision D4. AC-3 is derived from it. AC-6 is a provisional default.
 
 **Statement:**
 Through its authenticated loadout operations, the API shall list, return, update, delete and import into a loadout only for the authenticated user who owns it. New loadouts shall always be owned by the caller.
