@@ -695,3 +695,59 @@ func TestContainerDelete_OwnerOfContainerOnly(t *testing.T) {
 	}
 	expectStatus(t, e.Do("DELETE", ctDelete(aLink), w.tokA, nil), 404) // already gone
 }
+
+// --- BR-007 AC-6: other users' name fields never reach a caller -------------
+
+// Google sign-in stores the email as username and name. The registration and
+// container responses carry the owner's username and name; because every query
+// is owner-scoped, they can only ever be the caller's own, even with legacy
+// cross-owner links in the data.
+func TestUserGear_ResponsesNeverCarryOtherUsersNames(t *testing.T) {
+	w := newCTWorld(t)
+	e := w.env
+	const leak = "gina-google@example.com"
+	gina := e.SeedUser(leak, leak, false)
+	if _, err := e.DB.Exec(`UPDATE users SET userName = ? WHERE userId = ?`, leak, gina); err != nil {
+		t.Fatal(err)
+	}
+	gReg := e.SeedRegistration(gina, w.gear)
+	gBox := e.SeedRegistration(gina, e.seedGearX(true, false, 1, 1))
+	e.SeedContainerLink(w.aBox, gReg)   // legacy: gina's gear in alice's container
+	e.SeedContainerLink(gBox, w.aThing) // legacy: alice's gear in gina's container
+	e.SeedContainerLink(gBox, gReg)
+
+	for name, tok := range map[string]string{"alice": w.tokA, "admin": w.tokC, "bob": w.tokB} {
+		for _, p := range []string{
+			ugList(gina, ""), ugPath(gReg, "get"), ctList(gBox, ""), ugList(w.alice, ""), ctList(w.aBox, ""), ugPath(w.aReg1, "get"),
+		} {
+			r := e.Do("GET", p, tok, nil)
+			if strings.Contains(r.Body.String(), leak) || strings.Contains(r.Body.String(), "gina") {
+				t.Errorf("%s GET %s (status %d) discloses gina's name fields: %s", name, p, r.Code, r.Body.String())
+			}
+		}
+	}
+}
+
+// --- atomicity of registration delete: failure after the first change ------
+
+func TestUserGearDelete_FailureAfterFirstWriteRollsBack(t *testing.T) {
+	w := newUGWorld(t)
+	e := w.env
+	box := e.SeedRegistration(w.alice, w.gear)
+	e.SeedContainerLink(box, w.aReg1)
+	before := e.ugSnapshot()
+	// The registration delete succeeds; removing its links then fails.
+	if _, err := e.DB.Exec(`CREATE TRIGGER fail_link_delete BEFORE DELETE ON user_container_registration BEGIN SELECT RAISE(ABORT, 'injected failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	r := e.Do("DELETE", ugPath(box, "delete"), w.tokA, nil)
+	if r.Code != 500 {
+		t.Fatalf("status %d, want 500; body: %s", r.Code, r.Body.String())
+	}
+	if e.Count("user_gear_registrations", "userGearRegistrationId = ?", box) != 1 {
+		t.Fatal("registration was deleted although removing its links failed")
+	}
+	if e.ugSnapshot() != before {
+		t.Fatal("failed delete left a partial effect")
+	}
+}
