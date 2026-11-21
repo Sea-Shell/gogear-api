@@ -40,6 +40,10 @@ func googleValidatorFrom(c *gin.Context) GoogleTokenValidator {
 // validateGoogleIDToken verifies the token with Google's keys and extracts the
 // claims sign-in needs.
 func validateGoogleIDToken(ctx context.Context, rawToken, audience string) (*GoogleIdentity, error) {
+	// idtoken.Validate skips the audience check for "".
+	if strings.TrimSpace(audience) == "" {
+		return nil, errors.New("google client id is not configured")
+	}
 	payload, err := idtoken.Validate(ctx, rawToken, audience)
 	if err != nil {
 		return nil, err
@@ -112,7 +116,7 @@ func resolveGoogleAccount(ctx context.Context, tx *sql.Tx, id *GoogleIdentity) (
 		return nil, err
 	}
 
-	email := strings.TrimSpace(id.Email)
+	email := normalizeEmail(id.Email)
 	if email == "" {
 		return nil, errGoogleEmailMissing
 	}
@@ -123,7 +127,7 @@ func resolveGoogleAccount(ctx context.Context, tx *sql.Tx, id *GoogleIdentity) (
 	// An account that uses the email but cannot be backfilled blocks creation
 	// (BR-005 AC-2), so count every account with the email first.
 	rows, err := tx.QueryContext(ctx,
-		`SELECT userId, googleSubject IS NOT NULL, userEmailEdited FROM users WHERE trim(userEmail) = ?`, email)
+		`SELECT userId, googleSubject IS NOT NULL, userEmailEdited FROM users WHERE trim(userEmail, ?) = ?`, emailWhitespace, email)
 	if err != nil {
 		return nil, err
 	}

@@ -109,8 +109,8 @@ func TestMigration5IntegrityOnLegacyData(t *testing.T) {
 
 	runMigrate(t, db, migrationsPath(t)) // pooled connections enforce foreign keys
 
-	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 5 {
-		t.Fatalf("version = %d, want 5", v)
+	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 6 {
+		t.Fatalf("version = %d, want 6", v)
 	}
 	if scalar[int](t, db, `PRAGMA foreign_keys`) != 1 {
 		t.Fatal("foreign keys not enforced during the test")
@@ -121,7 +121,7 @@ func TestMigration5IntegrityOnLegacyData(t *testing.T) {
 		t.Fatalf("%d items still have quantity <= 0", n)
 	}
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM loadout_items`); n != 5 {
-		t.Fatalf("items deleted: %d left, want 5", n)
+		t.Fatalf("items deleted: %d left, want 6", n)
 	}
 	rows, err := db.Query(`SELECT loadoutItemId, quantity FROM audit_000005_clamped_loadout_item_quantity ORDER BY 1`)
 	if err != nil {
@@ -232,7 +232,8 @@ func TestMigration5DownUpAndReplay(t *testing.T) {
 	path := migrationsPath(t)
 	runMigrate(t, db, path)
 
-	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Steps(-1) })
+	// Steps down through 000006 (trim emails) and 000005.
+	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Steps(-2) })
 	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 4 {
 		t.Fatalf("version after down = %d, want 4", v)
 	}
@@ -299,7 +300,7 @@ func TestMigration5DownUpAndReplay(t *testing.T) {
 func TestMigration5OnCleanDatabase(t *testing.T) {
 	db := openEnforced(t, filepath.Join(t.TempDir(), "clean.db"))
 	runMigrate(t, db, migrationsPath(t))
-	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 5 {
+	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 6 {
 		t.Fatalf("version = %d", v)
 	}
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM audit_000005_clamped_loadout_item_quantity`); n != 0 {
@@ -308,5 +309,26 @@ func TestMigration5OnCleanDatabase(t *testing.T) {
 	viol, err := utils.ForeignKeyViolations(context.Background(), db)
 	if err != nil || len(viol) != 0 {
 		t.Fatalf("violations %+v, %v", viol, err)
+	}
+}
+
+// Migration 000006 trims every kind of surrounding whitespace from stored
+// emails, as strings.TrimSpace does, and leaves case and inner text alone.
+func TestMigration6TrimsStoredEmails(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "v5.db")
+	db := openEnforced(t, file)
+	stepMigrate(t, db, migrationsPath(t), func(m *migrate.Migrate) error { return m.Migrate(5) })
+	emails := []string{"a@example.com", "b@example.com\t", "\n c@Example.com \r\n", " d@example.com　", "e @example.com"}
+	for i, e := range emails {
+		if _, err := db.Exec(`INSERT INTO users (userId, userUsername, userPassword, userEmail) VALUES (?, ?, '', ?)`, i+1, "u"+string(rune('a'+i)), e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runMigrate(t, db, migrationsPath(t))
+	want := []string{"a@example.com", "b@example.com", "c@Example.com", "d@example.com", "e @example.com"}
+	for i, w := range want {
+		if got := scalar[string](t, db, `SELECT userEmail FROM users WHERE userId = ?`, i+1); got != w {
+			t.Errorf("user %d email = %q, want %q", i+1, got, w)
+		}
 	}
 }

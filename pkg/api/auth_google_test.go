@@ -250,9 +250,9 @@ func TestGoogleSignIn_EmailMatchIsExactAfterTrimming(t *testing.T) {
 	a := env.SeedUser("alice", "Alice@Example.com", false)
 	before := env.Count("users", "")
 
-	// P-7: case-different email neither binds nor creates a duplicate.
+	// P-7: the match is case-sensitive, so a case-different email never binds
+	// the legacy account; no account uses that exact email, so a new one is created.
 	if res := env.signIn(verified("sub-1", "alice@example.com")); res.Code != http.StatusOK || res.UserID == a {
-		// The email differs, so no account uses it: a new account is created.
 		t.Fatalf("case-different email reached the legacy account: %+v", res)
 	}
 	if env.subjectOf(a).Valid || env.Count("users", "") != before+1 {
@@ -350,5 +350,52 @@ func TestGoogleSignIn_RacingSubjectsBindAtMostOne(t *testing.T) {
 	}
 	if env.Count("users", "googleSubject IS NOT NULL") != 1 || !env.subjectOf(a).Valid {
 		t.Fatal("expected exactly the one account bound")
+	}
+}
+
+// BR-004 AC-4: whitespace is stripped identically on both sides, so a stored
+// email with a tab or newline still binds instead of creating a duplicate.
+func TestGoogleSignIn_StoredEmailWithAnyWhitespaceStillMatches(t *testing.T) {
+	for name, stored := range map[string]string{"tab": "v@example.com\t", "newline": "\nv@example.com", "nbsp": "v@example.com "} {
+		t.Run(name, func(t *testing.T) {
+			env := newAuthzEnv(t)
+			a := env.SeedUser("vera", stored, false)
+			before := env.Count("users", "")
+			if res := env.signIn(verified("sub-V", "v@example.com")); res.Code != http.StatusOK || res.UserID != a {
+				t.Fatalf("got %+v, want the stored account %d", res, a)
+			}
+			if env.Count("users", "") != before {
+				t.Fatal("a duplicate account was created")
+			}
+		})
+	}
+}
+
+// Emails written through the API are stored trimmed.
+func TestUserWrites_EmailStoredTrimmed(t *testing.T) {
+	env := newAuthzEnv(t)
+	admin := env.SeedUser("root", "root@example.com", true)
+	tok := env.Token(admin, true)
+	expectStatus(t, env.Do(http.MethodPost, userPath(admin, "update"), tok, map[string]any{"user_email": "\troot2@example.com\n"}), http.StatusOK)
+	if got := env.User(admin).Email; got != "root2@example.com" {
+		t.Fatalf("updated email stored as %q", got)
+	}
+	var edited bool
+	if err := env.DB.QueryRow(`SELECT userEmailEdited FROM users WHERE userId = ?`, admin).Scan(&edited); err != nil || !edited {
+		t.Fatalf("real change must set the edited flag: %v %v", edited, err)
+	}
+	// Re-sending the same email with whitespace is not a change.
+	b := env.SeedUser("bob", "bob@example.com", false)
+	expectStatus(t, env.Do(http.MethodPost, userPath(b, "update"), env.Token(b, false), map[string]any{"user_email": "bob@example.com\t"}), http.StatusOK)
+	if err := env.DB.QueryRow(`SELECT userEmailEdited FROM users WHERE userId = ?`, b).Scan(&edited); err != nil || edited {
+		t.Fatalf("whitespace-only resubmission set the edited flag: %v %v", edited, err)
+	}
+}
+
+func TestValidateGoogleIDToken_RefusesEmptyAudience(t *testing.T) {
+	for _, aud := range []string{"", "  "} {
+		if _, err := validateGoogleIDToken(context.Background(), "x.y.z", aud); err == nil || !strings.Contains(err.Error(), "not configured") {
+			t.Fatalf("audience %q: err = %v", aud, err)
+		}
 	}
 }

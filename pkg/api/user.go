@@ -423,11 +423,12 @@ func InsertUser(c *gin.Context) {
 	if body.UserName != nil {
 		name = *body.UserName
 	}
+	email := normalizeEmail(*body.UserEmail)
 
 	// Always non-admin and without password; admin status has its own operation (BR-010, BR-011).
 	if _, err := db.ExecContext(c.Request.Context(),
 		`INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES (?, '', ?, ?, 0, 0)`,
-		*body.UserUsername, name, *body.UserEmail); err != nil {
+		*body.UserUsername, name, email); err != nil {
 		internalError(c, log, err)
 		return
 	}
@@ -481,6 +482,13 @@ func UpdateUser(c *gin.Context) {
 	if body.blankIdentityField() {
 		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_username and user_email must not be blank"})
 		return
+	}
+
+	// Stored emails are trimmed (BR-004 AC-4); the edited-flag comparison below
+	// sees the value that will be stored.
+	if body.UserEmail != nil {
+		trimmed := normalizeEmail(*body.UserEmail)
+		body.UserEmail = &trimmed
 	}
 
 	ctx := c.Request.Context()
