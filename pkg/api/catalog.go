@@ -114,12 +114,23 @@ func catalogID(c *gin.Context, param string) (int64, bool) {
 	return id, true
 }
 
-// apply runs the update and answers: 400 when the body ID conflicts with the
-// path or the body names no field, 404
-// when no row has the path ID, 500 on database errors, else 200.
+// apply runs the update and answers: 404 when no row has the path ID (checked
+// first, as for every other resource), then 400 when the body ID conflicts
+// with the path or the body names no field, 500 on database errors, else 200.
 func (u *catalogUpdate) apply(c *gin.Context, id int64, bodyID *int64) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
+
+	var exists bool
+	if err := db.QueryRow(fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE %s = ?)", u.table, u.idColumn), id).Scan(&exists); err != nil {
+		log.Error(err.Error())
+		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusNotFound, models.Error{Error: "not found"})
+		return
+	}
 
 	// Provisional default P-2 (BR-017 AC-2): a body ID that differs from the
 	// path is refused; a matching or absent one has no effect of its own.
