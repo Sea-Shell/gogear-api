@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-015 — Loadout items are reachable only through their own, owned loadout
 
-**Implementation:** implemented in wave 2 (loadout items), with adversarial tests in `pkg/api/loadout_authz_test.go`. Item update and delete bind item ID, parent loadout and owner in one statement; the mutation and the total-weight recalculation share one transaction. Quantity must be at least 1 (400 otherwise); an absent quantity on insert means 1. **Status:** Accepted. **Priority:** P0 (review SEC-04). **Basis:** sourced from anchor decision D4 (parent/child membership). AC-4 is derived from it. AC-5 is a provisional default.
+**Implementation:** implemented in wave 2 (loadout items), with adversarial tests in `pkg/api/loadout_authz_test.go`. Item update and delete bind item ID, parent loadout and owner in one statement; the mutation and the total-weight recalculation share one transaction. Quantity must be at least 1 (400 otherwise); an absent quantity on insert means 1. Wave 6: the database refuses a quantity that is not a positive integer (legacy rows of 0 or below were clamped to 1 and audited), and an item insert naming gear that is not in the catalog is 404. **Status:** Accepted. **Priority:** P0 (review SEC-04). **Basis:** sourced from anchor decision D4 (parent/child membership). AC-4 is derived from it. AC-5 is a provisional default.
 
 **Statement:**
 The API shall list, add, update and remove loadout items only through a loadout the caller owns. An update or removal shall succeed only if the addressed item belongs to that loadout.
