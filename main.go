@@ -142,6 +142,11 @@ func validateConfig(config *models.Config) error {
 	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
+	// idtoken.Validate skips the audience check for an empty client ID, which
+	// would accept tokens issued for any Google client.
+	if strings.TrimSpace(config.Auth.GoogleClientID) == "" {
+		return errors.New("auth: google-client-id must not be empty")
+	}
 	// An empty path would make the SQLite driver open a file named after its
 	// options in the working directory (see utils.SQLiteDSN).
 	if strings.TrimSpace(config.Database.File) == "" {

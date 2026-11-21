@@ -24,7 +24,7 @@ func TestValidateConfig_FromConfigFile(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "config.yaml")
-			if err := os.WriteFile(file, []byte("database:\n  file: /data/gogear.db\nauth:\n  "+tc.auth+"\n"), 0o600); err != nil {
+			if err := os.WriteFile(file, []byte("database:\n  file: /data/gogear.db\nauth:\n  google-client-id: cid\n  "+tc.auth+"\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			cfg, err := utils.LoadConfig[models.Config](file)
@@ -45,7 +45,7 @@ func TestValidateConfig_FromConfigFile(t *testing.T) {
 // An empty database.file is refused at startup: the SQLite driver would
 // otherwise open a file named after the DSN options in the working directory.
 func TestValidateConfig_DatabaseFile(t *testing.T) {
-	const auth = "auth:\n  jwt-audience: client\n  jwt-admin-audience: admin\n"
+	const auth = "auth:\n  google-client-id: cid\n  jwt-audience: client\n  jwt-admin-audience: admin\n"
 	for _, tc := range []struct {
 		name, yaml string
 		wantErr    bool
@@ -64,6 +64,35 @@ func TestValidateConfig_DatabaseFile(t *testing.T) {
 			switch {
 			case tc.wantErr && (err == nil || !strings.Contains(err.Error(), "database: file must not be empty")):
 				t.Fatalf("error = %v, want the empty database file refused", err)
+			case !tc.wantErr && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// idtoken.Validate skips the audience check for an empty client ID, so
+// startup refuses a configuration without google-client-id.
+func TestValidateConfig_GoogleClientID(t *testing.T) {
+	const rest = "database:\n  file: /data/gogear.db\nauth:\n  jwt-audience: client\n  jwt-admin-audience: admin\n"
+	for _, tc := range []struct {
+		name, id string
+		wantErr  bool
+	}{
+		{"set", "  google-client-id: cid\n", false},
+		{"missing", "", true},
+		{"empty", "  google-client-id: \"\"\n", true},
+		{"blank", "  google-client-id: \"  \"\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(file, []byte(rest+tc.id), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := loadValidatedConfig(file)
+			switch {
+			case tc.wantErr && (err == nil || !strings.Contains(err.Error(), "google-client-id must not be empty")):
+				t.Fatalf("error = %v, want the empty google-client-id refused", err)
 			case !tc.wantErr && err != nil:
 				t.Fatalf("unexpected error: %v", err)
 			}
