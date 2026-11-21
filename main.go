@@ -235,12 +235,7 @@ func main() {
 	publicLoadoutGroup.GET("/loadout/:slug/items", endpoints.GetPublicLoadoutItems)
 
 	// User endpoints
-	userGroup.GET("/list", endpoints.ListUser)
-	userGroup.GET("/:user/get", endpoints.GetUser)
-	userGroup.POST("/:user/update", endpoints.UpdateUser)
-	userGroup.DELETE("/:user/delete", endpoints.DeleteUser)
-	userGroup.PUT("/insert", endpoints.InsertUser)
-	// userGroup.POST("/setpassword", endpoints.SetUserPassword)
+	endpoints.RegisterUserRoutes(userGroup)
 
 	// Gear endpoints
 	gearGroup.GET("/list", endpoints.ListGear)
