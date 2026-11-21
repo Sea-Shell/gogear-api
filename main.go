@@ -132,6 +132,15 @@ func oauthConfigMiddleware(oauth *oauth2.Config) gin.HandlerFunc {
 	}
 }
 
+// validateConfig checks the loaded configuration before the service starts.
+// main refuses to start when it fails (BR-006 AC-4).
+func validateConfig(config *models.Config) error {
+	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+	return nil
+}
+
 // runMigrations applies pending golang-migrate migrations from the given directory.
 // Uses the already-open *sql.DB so the same SQLite connection is used.
 func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) error {
@@ -179,8 +188,8 @@ func main() {
 		log.Fatalf("Failed to load config file: %v", err)
 	}
 
-	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
-		log.Fatalf("Invalid auth configuration: %v", err)
+	if err := validateConfig(config); err != nil {
+		log.Fatalf("Invalid configuration: %v", err)
 	}
 
 	logLevel := utils.GetLogLevel(config.General.LogLevel)
