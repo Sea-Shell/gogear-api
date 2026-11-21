@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-012 — Gear registrations are readable and changeable only by their owner
 
-**Status:** Accepted. **Priority:** P0 (review SEC-05, SEC-07). **Basis:** the statement and AC-1 to AC-4 are sourced from anchor decision D4. AC-5 and AC-6 are derived from it. AC-7 is a provisional default.
+**Implementation:** implemented in wave 3, with adversarial tests in `pkg/api/usergear_authz_test.go`. Get, update and delete bind the registration ID and the caller in one SQL statement; list is scoped to the caller and refuses other user IDs with 403, admins included. Category, top-category and manufacturer filters are parsed as integers and bound (a non-numeric value is ignored); the single-record get takes no filters. Delete runs in one transaction and removes container links only after the owned registration was deleted. A list shows a registration once even when it is in several containers. NULL gear columns no longer break reads. **Status:** Accepted. **Priority:** P0 (review SEC-05, SEC-07). **Basis:** the statement and AC-1 to AC-4 are sourced from anchor decision D4. AC-5 and AC-6 are derived from it. AC-7 is a provisional default.
 
 **Terms:**
 - *Gear registration*: one item in a user's inventory. It records that a user owns a piece of catalog gear. Its owner is the user it is registered to.

@@ -8,7 +8,7 @@ timestamp: 2026-11-21T00:00:00Z
 
 # BR-013 — Container links involve only the caller's own registrations
 
-**Status:** Accepted. **Priority:** P0/P1 (review SEC-06). **Basis:** the statement and AC-1 to AC-3 are sourced from anchor decision D4 (ownership of both parent and child). AC-4 is a specified choice of the requirements author. AC-5 is a provisional default.
+**Implementation:** implemented in wave 3, with adversarial tests in `pkg/api/usergear_authz_test.go`. Listing checks the container owner and returns only contents the caller owns (also for legacy cross-owner links). Create is one statement that inserts only when the caller owns both registrations. Delete removes a link only through its container's owner. A link of a registration to itself is refused with 400 after the ownership check. Nesting beyond that, cycles, duplicate links and what may hold gear (open question Q-4) are not enforced. **Status:** Accepted. **Priority:** P0/P1 (review SEC-06). **Basis:** the statement and AC-1 to AC-3 are sourced from anchor decision D4 (ownership of both parent and child). AC-4 is a specified choice of the requirements author. AC-5 is a provisional default.
 
 **Terms:**
 - *Container*: a gear registration ([BR-012](/docs/requirements/requirements/br-012-inventory-registrations-owner-scoped.md)) that can hold other gear.

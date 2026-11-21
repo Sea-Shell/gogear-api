@@ -6,7 +6,7 @@
 
 **Example of success:** Alice and Bob are ordinary users. Alice can see Bob's name in the user directory but not his email. If Alice sends a request to edit Bob's loadout, delete his gear registration, or move one of his loadout items, she gets "not found" and nothing of Bob's changes. Alice can't make herself admin. If the owner demotes an admin, that admin's next token refresh produces an ordinary token. Anyone can open Bob's loadout through its public link while it is public. After he makes it private, the link returns "not found".
 
-**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, and BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
+**Most important limit:** These requirements cover only the access-control and identity decisions of 2026-11-21 ([anchor](/docs/anchors/access-control-and-identity.md)). Implementation is under way: BR-006 to BR-011 (users, roles, token refresh) are implemented as of wave 1, BR-014 to BR-016 (loadouts, loadout items, public loadouts) as of wave 2, and BR-012 and BR-013 (inventory registrations, container links) as of wave 3; the rest are not yet implemented. The engineering review of revision `6fb972b` found most of them violated. Data integrity, performance, operations and API redesign findings from the same review are out of scope.
 
 **Choices the product owner may still change:** the provisional defaults P-1 to P-7 below.
 
@@ -69,7 +69,17 @@ None. The decisions contain no measurable quality target. The adversarial and co
   - Import, item insert, update and delete are all-or-nothing together with the total-weight recalculation; a failed recalculation fails the request.
   - List endpoints return `[]` when empty.
   - Not changed: gear existence is not checked when adding items (needs foreign-key enforcement, a later wave).
-- **Not yet implemented:** BR-001 to BR-005, BR-012, BR-013, and the registration and container parts of BR-017, BR-018 and OC-001.
+- **Wave 3 (implemented):** BR-012, BR-013, OC-001 for registrations and container links, and the registration and container parts of BR-017 and BR-018. Decisions made while implementing, within the requirements:
+  - Listing another user's registrations is 403 for everyone (admins too, P-3). A non-numeric user ID is 400.
+  - Registration update changes only `max_container_weight` (absent keeps it, explicit null clears it); gear and owner never change. A body `usergear_user_id` or `usergear_registration_id` that differs from the caller or path is 400 (P-2), after the 404 check.
+  - Registration insert refuses a body `usergear_user_id` that is not the caller (400). Response bodies of the existing endpoints are unchanged.
+  - Single-record get takes no query filters. List filters (`topCategory`, `category`, `manufacture`) are bound integers; non-numeric values are ignored. Several filters still combine with AND, as before.
+  - A registration in several containers is listed once, with its lowest-numbered link into one of the owner's own containers.
+  - Container list, insert and delete: `:container` in the list route is the container registration ID; in the delete route it is the link ID (`container_registration_id`). Insert needs both `user_container_id` and `user_gear_registration_id` (400 otherwise). Self-link is 400 (after the ownership check, so a foreign ID is 404).
+  - Deleting a registration also removes every link that names it as container or content, in the same transaction, because foreign keys are not enforced.
+  - Bad paging values are 400 instead of 500.
+  - Not changed: gear existence is not checked on insert (needs foreign-key enforcement), and Q-4 rules (nesting, longer cycles, duplicate links, what may hold gear) are not enforced.
+- **Not yet implemented:** BR-001 to BR-005.
 
 ## Provisional defaults (open to product-owner change)
 
