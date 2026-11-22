@@ -191,12 +191,12 @@ What k8s-deploy already gives: with `strategy: basic` it applies the manifests w
    The server's log level is not known here (`general.log_level` may be `error`), so a level-filtered log line could be missing and fail a good deploy. The existing info line stays.
 
 2. **Deploy job, a step after k8s-deploy:** wait 180 s, then with `kubectl -n seashell`:
-   - exactly one pod with label `app=gogear-api` that is not terminating;
+   - exactly one pod with label `app=gogear-api` that is neither terminating nor in phase `Failed` or `Succeeded` (leftover evicted or completed pods are not part of the rollout);
    - its phase is `Running`, its container is ready, and `restartCount` is `0`;
    - its container `imageID` ends with `@<build digest>`;
    - its log contains `gogear-api migrations: version=<N> dirty=false`, where `<N>` equals the highest numeric prefix of `migrations/*.up.sql` in the checked-out tag.
 
-   Any failed check fails the job, and so the run. The step prints the values it checked, so the run log is the AC-7 (d)/(e) evidence; the `verify` node reads it instead of asking the owner.
+   Every `kubectl` call uses `--request-timeout=20s`, and the deploy job has `timeout-minutes: 25` (15 min rollout, 3 min wait, margin). Any failed check fails the job, and so the run; before failing, the step prints bounded diagnostics: `get pods`, `describe` (tail), and the pod's logs (current, and previous when `restartCount` is above 0) **filtered** to error-level lines (`level` `error`, `dpanic`, `panic` or `fatal`, reduced to level, message and error), non-JSON crash lines, and the migrations line. Other log fields and info lines are never printed, because the repository is public and the app logs can carry usernames and subject IDs. The step prints the values it checked, so the run log is the AC-7 (d)/(e) evidence; the `verify` node reads it instead of asking the owner.
 
 A migration error makes the container exit, so it shows up as `restartCount > 0` or a non-running pod within the wait. 180 s covers "a few minutes after the rollout" (BR-022 AC-7 (d)) and is a realization choice; the `verify` node may observe longer.
 
