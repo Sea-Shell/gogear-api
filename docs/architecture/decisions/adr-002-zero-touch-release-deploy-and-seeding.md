@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-002 — Zero-touch release, deploy and container seeding
 
-**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-11. D-11 is implemented, pending verification: `.github/scripts/verify-deployed-pod.sh` now holds the whole post-deploy check, including D-8's wait, request timeouts and filtered diagnostics, its stub test runs in the `go` workflow, and k8s-deploy has `pull-images: false`. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. **Amended 2026-11-22 (decision change):** D-11 replaces the D-8 `imageID` digest gate with a Deployment-template, pod-spec and owner check, reports every check before failing, and sets k8s-deploy `pull-images: false`, after run 45048563144 deployed a content-identical `v4.9.5` correctly but failed the gate. D-11 is implemented in `.github/scripts/verify-deployed-pod.sh` and `release.yaml`; it is proven only by the first push-triggered run on `main` (`verify` node). Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
+**Status:** Accepted (architect, 2026-11-22). Implemented and verified (2026-11-22): migration `000010`, the D-8 version line, `release.yaml` (D-1, D-2, D-6) and D-11 are in the code, and [run 45061018365](https://github.com/Sea-Shell/gogear-api/actions/runs/45061018365) (push-triggered, attempt 1, green; Loom QA record 1add5a2a) released `v4.9.6`, pushed digest `sha256:23bf66e7…f378`, deployed it, and passed checks R-1, I-1, P-1, I-2, I-3, H-1, I-4 ("equals") and M-1 (`gogear-api migrations: version=10 dirty=false`). Not yet exercised in production: I-4's "differs" branch (the case D-11 was written for) and the no-release path (BR-022 AC-3); the stub test T-2 covers the first in CI. **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. **Amended 2026-11-22 (decision change):** D-11 replaces the D-8 `imageID` digest gate with a Deployment-template, pod-spec and owner check, reports every check before failing, and sets k8s-deploy `pull-images: false`, after run 45048563144 deployed a content-identical `v4.9.5` correctly but failed the gate. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
 
 ## In brief
 
@@ -315,7 +315,7 @@ Confirmed when:
 
 - `rehearse` (D-9) passes all five checks, and the computed tag matches the PR title type;
 - the migration tests of D-7 pass, and a fresh database migrates up to 10 and back;
-- `verify`: the first push-triggered run on `main` is green on the first attempt, and its log shows the D-8 and D-11 values (R-1 and I-1 to I-3 `PASS`, the `imageID` report, `restartCount 0`, `version=10 dirty=false`);
+- `verify` (done: run 45061018365, 2026-11-22; I-4 reported "equals", so its "differs" branch is still unexercised in production): the first push-triggered run on `main` is green on the first attempt, and its log shows the D-8 and D-11 values (R-1 and I-1 to I-3 `PASS`, the `imageID` report, `restartCount 0`, `version=10 dirty=false`);
 - the D-11 stub tests T-1 to T-10 pass in CI.
 
 Reconsider when:
