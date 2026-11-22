@@ -184,11 +184,27 @@ func InsertLoadoutItem(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		respondOpError(c, log, err)
+		respondItemError(c, log, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, created)
+}
+
+// respondItemError is respondOpError for item writes. A unique or trigger
+// refusal means a concurrent or missed check; it is a 409 (the status of the
+// rules the triggers repeat), and a trigger message is logged (ARS-001 s. 1).
+// respondOpError would turn them into a 500 or a slug message.
+func respondItemError(c *gin.Context, log *zap.SugaredLogger, err error) {
+	switch {
+	case isTriggerViolation(err):
+		log.Errorf("item write refused by a database trigger (a handler check is missing): %v", err)
+		c.IndentedJSON(http.StatusConflict, models.Error{Error: "the item change conflicts with the loadout's current state"})
+	case isUniqueViolation(err):
+		c.IndentedJSON(http.StatusConflict, models.Error{Error: "the item already exists in this loadout"})
+	default:
+		respondOpError(c, log, err)
+	}
 }
 
 // lookupPlace checks that placeID is a place of loadoutID (404 otherwise) and
@@ -393,7 +409,7 @@ func UpdateLoadoutItem(c *gin.Context) {
 		return err
 	})
 	if err != nil {
-		respondOpError(c, log, err)
+		respondItemError(c, log, err)
 		return
 	}
 
@@ -465,7 +481,7 @@ func TickLoadoutItem(c *gin.Context) {
 		return affectedOne(res, err, errItemNotFound)
 	})
 	if err != nil {
-		respondOpError(c, log, err)
+		respondItemError(c, log, err)
 		return
 	}
 
@@ -508,7 +524,7 @@ func DeleteLoadoutItem(c *gin.Context) {
 		return affectedOne(res, err, errItemNotFound)
 	})
 	if err != nil {
-		respondOpError(c, log, err)
+		respondItemError(c, log, err)
 		return
 	}
 
