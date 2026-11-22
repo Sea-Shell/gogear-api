@@ -139,7 +139,7 @@ UPDATE gear_category SET categoryIsContainer = 1 WHERE categoryId = 3;`)
 	}
 }
 
-// ADR-002 D-7: the seeding runs once. golang-migrate records version 10; a
+// ADR-002 D-7: the seeding runs once. golang-migrate records the version; a
 // later Up does not run the statement again, so an admin who resets a seeded
 // sub-category to "inherit" is not overruled.
 func TestMigration10SeedsOnceThroughGolangMigrate(t *testing.T) {
@@ -153,8 +153,8 @@ func TestMigration10SeedsOnceThroughGolangMigrate(t *testing.T) {
 	if got := categorySettings(t, db); !reflect.DeepEqual(got, []int{1, -1, -1, -1}) {
 		t.Errorf("sub-category settings after a second Up = %v, want [1 NULL NULL NULL]", got)
 	}
-	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 10 {
-		t.Errorf("version = %d, want 10", v)
+	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 11 {
+		t.Errorf("version = %d, want 11", v)
 	}
 }
 
@@ -216,7 +216,7 @@ func TestRunMigrationsPrintsVersionLineToStdout(t *testing.T) {
 			t.Fatalf("runMigrations: %v", err)
 		}
 	})
-	want := "gogear-api migrations: version=10 dirty=false\n"
+	want := "gogear-api migrations: version=11 dirty=false\n"
 	if first != want {
 		t.Errorf("stdout after migrating = %q, want %q", first, want)
 	}
