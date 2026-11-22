@@ -73,6 +73,7 @@ func GetCategory(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
 
 	results, err := utils.GenericGet[models.GearCategory]("gear_category", urlParameter, []string{categoryCapabilityJoin}, db)

@@ -391,3 +391,18 @@ func TestCategoryContainerSettings_RepresentationRules(t *testing.T) {
 		t.Errorf("category_is_container sent on create must have no effect: %v", got)
 	}
 }
+
+// A non-numeric path ID answers one 400 and stops. Before the fix the handler
+// went on and wrote a second body.
+func TestCategoryGetBadIDSingleResponse(t *testing.T) {
+	w := newAPIWorld(t)
+	for _, path := range []string{"/api/v1/category/abc/get", "/api/v1/topCategory/abc/get"} {
+		r := w.env.Do(http.MethodGet, path, w.user, nil)
+		expectStatus(t, r, http.StatusBadRequest)
+		var m map[string]any
+		decodeJSON(t, r, &m) // fails on a second concatenated body
+		if m["error"] == nil {
+			t.Fatalf("%s: no error field: %s", path, r.Body.String())
+		}
+	}
+}
