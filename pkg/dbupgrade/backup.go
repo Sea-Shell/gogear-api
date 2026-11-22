@@ -187,6 +187,17 @@ func (r *runner) snapshot(ctx context.Context, pool *sql.DB, src schemaState, ki
 		}
 	}()
 
+	// VACUUM INTO reports an unwritable directory as "unable to open
+	// database", so test the directory first and say what is wrong.
+	probe, err := os.OpenFile(partial, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "", fmt.Errorf("backup directory %s is not writable: %w", r.dir, err)
+	}
+	probe.Close()
+	if err := os.Remove(partial); err != nil {
+		return "", fmt.Errorf("backup directory %s is not writable: %w", r.dir, err)
+	}
+
 	conn, err := pool.Conn(ctx)
 	if err != nil {
 		return "", fmt.Errorf("open snapshot connection: %w", err)
@@ -229,21 +240,23 @@ func (r *runner) snapshot(ctx context.Context, pool *sql.DB, src schemaState, ki
 	if replace != "" && replace != final {
 		r.remove(replace, "replaced-retry")
 	} else {
-		r.applyRetention(kind)
+		r.applyRetention(kind, final)
 	}
 	return final, nil
 }
 
-// applyRetention keeps the newest keepPerKind backups of a kind.
-func (r *runner) applyRetention(kind string) {
+// applyRetention keeps the newest keepPerKind backups of a kind. The backup
+// just made (keep) is never deleted, whatever its name says about its age: it
+// counts as one of the kept ones and is skipped explicitly.
+func (r *runner) applyRetention(kind, keep string) {
 	files, err := listBackups(r.dir)
 	if err != nil {
 		r.say(levelWarn, "retention skipped (reason=%v)", err)
 		return
 	}
-	kept := 0
+	kept := 1 // keep itself
 	for _, f := range files {
-		if f.kind != kind {
+		if f.kind != kind || f.path == keep {
 			continue
 		}
 		if kept++; kept > keepPerKind {

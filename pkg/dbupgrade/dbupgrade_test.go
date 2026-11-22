@@ -389,6 +389,9 @@ func TestBackupFailure(t *testing.T) {
 				t.Errorf("schema = %d, want 10", s.version)
 			}
 			mustContain(t, res.out, "gogear-api backup: FAILED reason=", "no migration applied, database unchanged at schema=10")
+			if c.name == "unwritable directory" {
+				mustContain(t, res.out, "is not writable")
+			}
 			for _, f := range e.names() {
 				if strings.HasSuffix(f, ".partial") || backupPattern.MatchString(f) {
 					t.Errorf("file left behind: %s", f)
@@ -743,5 +746,37 @@ func TestPartialFilesAreCleanedAndForeignOnesKept(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(e.backupDir, other)); err != nil {
 		t.Errorf("a file that is not ours was touched: %v", err)
+	}
+}
+
+// Retention never deletes the backup just made, even when its name carries an
+// earlier time than three existing backups (a clock that stepped back).
+func TestRetentionNeverDeletesTheNewBackup(t *testing.T) {
+	e := newEnv(t, 10)
+	if err := os.MkdirAll(e.backupDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, stamp := range []string{"20300101T000000Z", "20300102T000000Z", "20300103T000000Z"} {
+		name := "gogear-" + stamp + "-premigration-schema9-appx.db"
+		if err := os.WriteFile(filepath.Join(e.backupDir, name), []byte("old"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res := e.run(DefaultPolicy(), "")
+	if res.err != nil || !res.served {
+		t.Fatalf("run: %v\n%s", res.err, res.out)
+	}
+	b := e.backupOf(kindPremigration, "10")
+	if err := verifyBackup(context.Background(), b.path, schemaState{has: true, version: 10}); err != nil {
+		t.Errorf("the new backup is gone or broken: %v", err)
+	}
+	var n int
+	for _, f := range e.backups() {
+		if f.kind == kindPremigration {
+			n++
+		}
+	}
+	if n != keepPerKind {
+		t.Errorf("%d pre-migration backups, want %d", n, keepPerKind)
 	}
 }
