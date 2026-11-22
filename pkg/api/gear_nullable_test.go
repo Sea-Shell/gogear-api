@@ -1,6 +1,8 @@
 package endpoints
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -38,5 +40,21 @@ func TestGetGear_NullDimensionsAndStatusAreReturned(t *testing.T) {
 	got = gearBody(t, f, http.MethodGet, fmt.Sprintf("/api/v1/gear/%d/get", full), f.userTok, nil)
 	if got["gear_height"] != float64(1) || got["gear_length"] != float64(2) || got["gear_width"] != float64(3) || got["gear_status"] != true {
 		t.Errorf("gear with values = %v", got)
+	}
+}
+
+// A non-numeric id is refused with exactly one 400 response. The handler used
+// to write the 400 and carry on to the query, which wrote a second body.
+func TestGetGear_NonNumericIDWritesOneResponse(t *testing.T) {
+	f := newCatalogFixture(t)
+	w := f.env.Do(http.MethodGet, "/api/v1/gear/abc/get", f.userTok, nil)
+	expectStatus(t, w, http.StatusBadRequest)
+	dec := json.NewDecoder(bytes.NewReader(w.Body.Bytes()))
+	var first map[string]any
+	if err := dec.Decode(&first); err != nil || first["error"] == nil {
+		t.Fatalf("first body = %q (%v), want an error object", w.Body.String(), err)
+	}
+	if dec.More() {
+		t.Errorf("response has more than one JSON body: %q", w.Body.String())
 	}
 }
