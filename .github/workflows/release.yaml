@@ -14,16 +14,18 @@ env:
 permissions:
   contents: read
 
+# Releases never overlap and a running release is never cancelled (ADR-002 D-6).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: release
-    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@b97399abef4d6647db11798db6d81e623b862615 # v4.19.0
+    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@a68fb147ef99f6622453fc7d2976c295e87ffb1f # v5.1.6
     permissions:
-      contents: write # to be able to publish a GitHub release
-      issues: write # to be able to comment on released issues
-      pull-requests: write # to be able to comment on released pull requests
-      id-token: write # to enable use of OIDC for npm provenance
-      actions: write
+      contents: write # to tag and publish a GitHub release
+      pull-requests: read # to read merged pull requests
     with:
       runs-on: ubuntu-latest
       release-enabled: true
@@ -33,12 +35,23 @@ jobs:
     outputs:
       digest: ${{ steps.build_push.outputs.digest }}
     needs: release
+    if: needs.release.outputs.released == 'true'
+    permissions:
+      contents: read
     steps:
+      - name: Check release tag format
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '$RELEASE_TAG' is not vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
       # Checkout repo code
       - name: Checkout repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          ref: refs/tags/${{ needs.release.outputs.tag }}
           fetch-depth: 0
       # Docker login/build/push
       - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -55,11 +68,20 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache
           cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache,mode=max,ignore-error=true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Check image digest format
+        env:
+          IMAGE_DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Image digest '$IMAGE_DIGEST' is not sha256:<64 hex>"
+            exit 1
+          fi
   deploy:
     runs-on: [ubuntu-latest]
-    needs: [release, build ]
+    needs: [release, build]
+    if: needs.release.outputs.released == 'true'
     permissions:
       id-token: write
       actions: read
@@ -69,7 +91,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          ref: refs/tags/${{ needs.release.outputs.tag }}
           fetch-depth: 0
       - name: Kubeconfig context
         uses: azure/k8s-set-context@8698eba2499e9012f0d5085f8798077cce4bc526 # v5
@@ -96,4 +118,50 @@ jobs:
           strategy: basic
           manifests: kubernetes-manifests
           images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}@${{ needs.build.outputs.digest }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}@${{ needs.build.outputs.digest }}
+      # Prove the deploy: one healthy pod running this build's digest that
+      # migrated the database to the highest migration in the tag (ADR-002 D-8).
+      - name: Verify deployed pod
+        env:
+          BUILD_DIGEST: ${{ needs.build.outputs.digest }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BUILD_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Build digest '$BUILD_DIGEST' is malformed"
+            exit 1
+          fi
+          expected=$(ls migrations/*.up.sql | sed -E 's#.*/0*([0-9]+)_.*#\1#' | sort -n | tail -n 1)
+          if ! [[ "$expected" =~ ^[0-9]+$ ]]; then
+            echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
+            exit 1
+          fi
+          echo "Waiting 180 s before checking the pod (tag $RELEASE_TAG, digest $BUILD_DIGEST, expected migration version $expected)"
+          sleep 180
+          pods=$(kubectl -n seashell get pods -l app=gogear-api -o json \
+            | jq '[.items[] | select(.metadata.deletionTimestamp == null)]')
+          count=$(jq 'length' <<<"$pods")
+          if [ "$count" != "1" ]; then
+            echo "::error::Expected exactly one gogear-api pod, found $count"
+            kubectl -n seashell get pods -l app=gogear-api
+            exit 1
+          fi
+          pod=$(jq -r '.[0].metadata.name' <<<"$pods")
+          phase=$(jq -r '.[0].status.phase' <<<"$pods")
+          ready=$(jq -r '.[0].status.containerStatuses[0].ready' <<<"$pods")
+          restarts=$(jq -r '.[0].status.containerStatuses[0].restartCount' <<<"$pods")
+          image_id=$(jq -r '.[0].status.containerStatuses[0].imageID' <<<"$pods")
+          echo "pod=$pod phase=$phase ready=$ready restartCount=$restarts imageID=$image_id"
+          [ "$phase" = "Running" ] || { echo "::error::Pod phase is $phase"; exit 1; }
+          [ "$ready" = "true" ] || { echo "::error::Pod container is not ready"; exit 1; }
+          [ "$restarts" = "0" ] || { echo "::error::Pod restartCount is $restarts"; exit 1; }
+          case "$image_id" in
+            *"@$BUILD_DIGEST") ;;
+            *) echo "::error::imageID does not end with @$BUILD_DIGEST"; exit 1 ;;
+          esac
+          want="gogear-api migrations: version=$expected dirty=false"
+          if ! kubectl -n seashell logs "$pod" | grep -F -- "$want"; then
+            echo "::error::Pod log lacks '$want'"
+            exit 1
+          fi
+          echo "Verified: $want"
