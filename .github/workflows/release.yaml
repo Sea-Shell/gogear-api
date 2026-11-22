@@ -131,8 +131,14 @@ jobs:
             echo "::error::Build digest '$BUILD_DIGEST' is malformed"
             exit 1
           fi
-          expected=$(ls migrations/*.up.sql | sed -E 's#.*/0*([0-9]+)_.*#\1#' | sort -n | tail -n 1)
-          if ! [[ "$expected" =~ ^[0-9]+$ ]]; then
+          expected=
+          for f in migrations/*.up.sql; do
+            [ -e "$f" ] || continue
+            n=${f##*/}
+            n=$((10#${n%%_*}))
+            if [ -z "$expected" ] || [ "$n" -gt "$expected" ]; then expected=$n; fi
+          done
+          if [ -z "$expected" ]; then
             echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
             exit 1
           fi
