@@ -113,6 +113,14 @@ jobs:
       - uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5
         with:
           version: 'v1.33.4'
+      # The one image reference of this run. k8s-deploy `images:` and the
+      # verification below both use it, so they cannot drift apart.
+      - name: Compose image reference
+        id: image
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          BUILD_DIGEST: ${{ needs.build.outputs.digest }}
+        run: echo "ref=${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}@${BUILD_DIGEST}" >> "$GITHUB_OUTPUT"
       # Do the deploy on K8s cluster set in the above context
       - name: Deply manifests to k8s
         uses: azure/k8s-deploy@c7ebd0d5f39477a23f1b5dea0f52e6db04adf28e # v6
@@ -127,13 +135,13 @@ jobs:
           strategy: basic
           manifests: kubernetes-manifests
           images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}@${{ needs.build.outputs.digest }}
+            ${{ steps.image.outputs.ref }}
       # Prove the deploy: the Deployment and its one healthy pod name exactly
       # this run's image reference and the pod migrated the database to the
       # highest migration in the tag (ADR-002 D-8, D-11). Every check is
       # reported; the logic and its stub test live in .github/scripts.
       - name: Verify deployed pod
         env:
-          EXPECTED_IMAGE: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}@${{ needs.build.outputs.digest }}
+          EXPECTED_IMAGE: ${{ steps.image.outputs.ref }}
           BUILD_DIGEST: ${{ needs.build.outputs.digest }}
         run: bash .github/scripts/verify-deployed-pod.sh

@@ -194,7 +194,7 @@ else
 
   # H-1 and I-4 read the container status selected by name.
   read -r phase ready restarts raw_image_id < <(jq -r --arg c "$CONTAINER" '
-    first(.status.containerStatuses[]? | select(.name == $c)) as $s
+    (first(.status.containerStatuses[]? | select(.name == $c)) // {}) as $s
     | "\(.status.phase // "-") \($s.ready // false) \($s.restartCount // "missing") \($s.imageID // "-")"' <<<"$pod_json")
   if [ "$phase" = "Running" ] && [ "$ready" = "true" ] && [ "$restarts" = "0" ]; then
     pass H-1 "phase=$phase ready=$ready restartCount=$restarts"
@@ -204,7 +204,7 @@ else
 
   image_id=$raw_image_id
   [ "$image_id" = "-" ] && image_id=
-  image_id=${image_id#*://}
+  image_id=$(sed -E 's#^[a-z][a-z0-9+.-]*://##' <<<"$image_id")
   if [[ "$image_id" =~ $IMAGE_ID_RE ]]; then
     pass I-4 "imageID=$raw_image_id"
     id_digest=${image_id##*@}
