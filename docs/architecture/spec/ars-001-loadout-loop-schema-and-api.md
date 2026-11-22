@@ -210,7 +210,7 @@ This makes `/loadout/list` the home summary of BR-029 AC-4.
 - `usergear_registration_id` (`null` when detached), `registration_exists` (bool), `detached_reason` (`null`, `"legacy"`, `"registration_deleted"`) (A);
 - `gear_name`, `manufacture_name`, `category_name`, `top_category_name`: for registration-backed and **legacy** items, live from the current gear (registration's gear, or `detachedGearId`); for registration-deleted items `gear_name` is the snapshot and the others are `null` (A);
 - `place_id` (`null` = no place), `ticked` (A);
-- `catalog_weight` (`null` = none), `unit_weight`, `weight_source` (A; from `loadout_item_weight`);
+- `catalog_weight` (`null` = none), `unit_weight`, `weight_source` (A; from `loadout_item_weight`). `catalog_weight` follows the same source rule as the names: live from the current gear for registration-backed and legacy items, and **`null` for registration-deleted items**. A deleted-registration item reports only its snapshot (`unit_weight` and `weight_source` as they were at deletion, BR-030 AC-1); a live catalog value next to a frozen effective weight would invite clients to recompute a different weight. *(Amended 2026-11-22, spec gap raised by coder A2, Loom `3d2ff0d3`.)*
 - `measured_weight`, `measured_weight_source`, `closet_count`, `consumable` (B);
 - `gear_catalog_state`, `gear_state_reason` (D; reason only when `not_approved`).
 
