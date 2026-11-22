@@ -16,7 +16,7 @@ type UserGear struct {
 	GearCategoryID    int64  `json:"gear_category_id" db:"gear.gearCategoryId"`
 	GearManufactureID int64  `json:"gear_manufacture_id" db:"gear.gearManufactureId"`
 	GearName          string `json:"gear_name" db:"gear.gearName"`
-	GearWeight        int32  `json:"gear_weight" db:"gear.gearWeight"`
+	GearWeight        *int32 `json:"gear_weight" db:"gear.gearWeight"`
 	GearHeight        int32  `json:"gear_height" db:"gear.gearHeight"`
 	GearLength        int32  `json:"gear_length" db:"gear.gearLength"`
 	GearWidth         int32  `json:"gear_width" db:"gear.gearWidth"`
