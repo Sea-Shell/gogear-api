@@ -69,6 +69,8 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           push: true
+          build-args: |
+            VERSION=${{ needs.release.outputs.tag }}
           cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache
           cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache,mode=max,ignore-error=true
           tags: |
@@ -159,7 +161,7 @@ jobs:
             {
               jq -R -r 'fromjson? | select(type == "object" and ((.level // "") | IN("error", "dpanic", "panic", "fatal")))
                         | "\(.level) \(.message // "") \(.error // "")"' <<<"$raw" || true
-              grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:' || true
+              grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:' || true
             } | cut -c1-300 | tail -n 20
           }
           # Print why a check failed, bounded and filtered, then fail the step.
