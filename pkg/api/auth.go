@@ -16,7 +16,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	zap "go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"google.golang.org/api/idtoken"
 )
 
 type googleCallbackRequest struct {
@@ -79,11 +78,8 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
-	if adminAny, ok := c.Get("user_is_admin"); ok {
-		if isAdmin, ok := adminAny.(bool); ok && isAdmin {
-			user.UserIsAdmin = true
-		}
-	}
+	// The role comes from the stored account only, never from the presented
+	// token (BR-006): a demoted admin refreshes into a non-admin token.
 
 	token, expiresAt, err := issueServiceToken(authConfig, user)
 	if err != nil {
@@ -230,49 +226,35 @@ func GoogleAuthCallback(c *gin.Context) {
 		idToken = rawIDToken
 	}
 
-	payload, err := idtoken.Validate(ctx, idToken, authConfig.GoogleClientID)
+	validate := googleValidatorFrom(c)
+	identity, err := validate(ctx, idToken, authConfig.GoogleClientID)
 	if err != nil {
 		logger.Warnw("Google token validation failed", "error", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, models.Error{Error: "invalid Google token"})
 		return
 	}
 
-	email := ""
-	if payload.Claims != nil {
-		if claimEmail, ok := payload.Claims["email"].(string); ok {
-			email = strings.TrimSpace(claimEmail)
-		}
-	}
-
-	if email == "" {
-		logger.Warn("Google token lacks an email claim")
-		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "Google token missing email"})
+	// BR-003 AC-3: without a subject the account cannot be bound, and an
+	// email fallback would be an email-only link.
+	identity.Subject = strings.TrimSpace(identity.Subject)
+	if identity.Subject == "" {
+		logger.Warn("Google token lacks a subject claim")
+		c.AbortWithStatusJSON(http.StatusUnauthorized, models.Error{Error: "invalid Google token"})
 		return
 	}
 
-	fullName := ""
-	if payload.Claims != nil {
-		if v, ok := payload.Claims["name"].(string); ok {
-			fullName = strings.TrimSpace(v)
-		}
-		if fullName == "" {
-			given, _ := payload.Claims["given_name"].(string)
-			family, _ := payload.Claims["family_name"].(string)
-			fullName = strings.TrimSpace(strings.TrimSpace(given + " " + family))
-		}
-	}
-	if fullName == "" {
-		fullName = email
-	}
-
-	subject := strings.TrimSpace(payload.Subject)
-	if subject == "" {
-		subject = email
-	}
-
 	db := c.MustGet("db").(*sql.DB)
-	user, err := ensureUserFromGoogle(ctx, db, email, fullName, subject)
-	if err != nil {
+	user, err := signInWithGoogle(ctx, db, identity)
+	switch {
+	case errors.Is(err, errGoogleEmailMissing):
+		logger.Warn("Google token lacks an email claim")
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "Google token missing email"})
+		return
+	case errors.Is(err, errGoogleRefused):
+		logger.Warnw("Google sign-in refused", "reason", err.Error())
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "Google sign-in not permitted for this account"})
+		return
+	case err != nil:
 		logger.Errorw("failed to persist Google user", "error", err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, models.Error{Error: "failed to persist user"})
 		return
@@ -310,80 +292,6 @@ func GoogleAuthCallback(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func ensureUserFromGoogle(ctx context.Context, db *sql.DB, email, fullName, subject string) (*models.User, error) {
-	user, err := findUserByEmail(ctx, db, email)
-	if err == nil {
-		return user, nil
-	}
-
-	if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-
-	username := email
-	if username == "" {
-		username = fmt.Sprintf("google_%s", subject)
-	}
-
-	result, err := db.ExecContext(ctx, `INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES (?, ?, ?, ?, ?, ?)`,
-		username, "", fullName, email, 0, 1,
-	)
-	if err != nil {
-		existing, lookupErr := findUserByEmail(ctx, db, email)
-		if lookupErr == nil {
-			return existing, nil
-		}
-		return nil, err
-	}
-
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.User{
-		UserID:       &userID,
-		UserUsername: username,
-		UserName:     fullName,
-		UserEmail:    email,
-		UserIsAdmin:  false,
-	}, nil
-}
-
-func findUserByEmail(ctx context.Context, db *sql.DB, email string) (*models.User, error) {
-	row := db.QueryRowContext(ctx, `SELECT userId, userPassword, userUsername, userName, userEmail, userIsAdmin FROM users WHERE userEmail = ? LIMIT 1`, email)
-
-	var (
-		userID   sql.NullInt64
-		password sql.NullString
-		username sql.NullString
-		name     sql.NullString
-		mail     sql.NullString
-		admin    sql.NullInt64
-	)
-
-	if err := row.Scan(&userID, &password, &username, &name, &mail, &admin); err != nil {
-		return nil, err
-	}
-
-	user := &models.User{
-		UserPassword: password.String,
-		UserUsername: username.String,
-		UserName:     name.String,
-		UserEmail:    mail.String,
-	}
-
-	if userID.Valid {
-		user.UserID = &userID.Int64
-	}
-
-	if admin.Valid && admin.Int64 != 0 {
-		user.UserIsAdmin = true
-	}
-
-	return user, nil
-}
-
 func findUserByID(ctx context.Context, db *sql.DB, id int64) (*models.User, error) {
 	row := db.QueryRowContext(ctx, `SELECT userId, userPassword, userUsername, userName, userEmail, userIsAdmin FROM users WHERE userId = ? LIMIT 1`, id)
 
@@ -419,14 +327,15 @@ func findUserByID(ctx context.Context, db *sql.DB, id int64) (*models.User, erro
 	return user, nil
 }
 
+// resolveUserForSubject finds the account a service token's subject names.
+// The subject is the numeric user ID; there is deliberately no email fallback
+// (BR-006 AC-3).
 func resolveUserForSubject(ctx context.Context, db *sql.DB, subject string) (*models.User, error) {
-	if id, err := strconv.ParseInt(subject, 10, 64); err == nil {
-		if user, err := findUserByID(ctx, db, id); err == nil {
-			return user, nil
-		}
+	id, err := strconv.ParseInt(subject, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("token subject %q is not a user ID", subject)
 	}
-
-	return findUserByEmail(ctx, db, subject)
+	return findUserByID(ctx, db, id)
 }
 
 func issueServiceToken(authConfig *models.Auth, user *models.User) (string, time.Time, error) {

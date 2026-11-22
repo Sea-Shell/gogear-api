@@ -266,28 +266,27 @@ func ListManufacture(c *gin.Context) {
 // @Param			request		body		models.Manufacture	true	"query params"	test
 // @Success		200			{object}	models.Status		"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		400		{object}	models.Error
 // @Router			/api/v1/manufacture/{manufacture}/update [post]
 func UpdateManufacture(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	id, ok := catalogID(c, "manufacture")
+	if !ok {
 		return
 	}
-
-	err = utils.GenericUpdate[models.Manufacture]("manufacture", data, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	var body struct {
+		ID   *int64  `json:"manufacture_id"`
+		Name *string `json:"manufacture_name"`
+	}
+	if !readCatalogBody(c, &body) {
 		return
 	}
-
-	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+	u := catalogUpdate{table: "manufacture", idColumn: "manufactureId"}
+	if body.Name != nil {
+		u.add("manufactureName", *body.Name)
+	}
+	u.apply(c, id, body.ID)
 }
 
 // @Summary		Insert new manufacture
@@ -332,28 +331,9 @@ func InsertManufacture(c *gin.Context) {
 // @Param			manufacture	path		int				true	"Unique ID of manufacture you want to update"
 // @Success		200			{object}	models.Status	"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		409		{object}	models.Error
 // @Router			/api/v1/manufacture/{manufacture}/delete [delete]
 func DeleteManufature(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	function := "manufacture"
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := utils.GenericDelete[models.Manufacture]("manufacture", urlParameter, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	log.Infof("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureID, result.ManufactureName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Manufacturer with manufacture_id %v and manufacture_name %s was deleted", result.ManufactureID, result.ManufactureName)})
+	deleteCatalogRow(c, "manufacture", "manufactureId", "manufactureName", "manufacture", "Manufacturer")
 }

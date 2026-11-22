@@ -1,7 +1,10 @@
 package endpoints
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -49,6 +52,13 @@ func ListUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
+	callerID, callerIsAdmin := callerIdentity(c)
+	if len(qUserEmail) > 0 && !callerIsAdmin {
+		// An email search is an oracle for other users' addresses (BR-007).
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required to search by email"})
+		return
+	}
+
 	if limit == "" {
 		limit = "30"
 	}
@@ -86,14 +96,28 @@ func ListUser(c *gin.Context) {
 	conditions := []string{}
 
 	params := []interface{}{}
+	// Google-created accounts use the email as username and name. Non-admins
+	// must not be able to match (or see) such values on other users, so the
+	// search applies to exactly what the response will show (see
+	// emailLike and hiddenFromOthers, which must agree).
 	for _, username := range qUserUsername {
-		conditions = append(conditions, "userUsername LIKE ?")
-		params = append(params, "%"+username+"%")
+		if callerIsAdmin {
+			conditions = append(conditions, "userUsername LIKE ?")
+			params = append(params, "%"+username+"%")
+		} else {
+			conditions = append(conditions, "(userUsername LIKE ? AND (userId = ? OR "+hiddenFromOthers("userUsername")+" = 0))")
+			params = append(params, "%"+username+"%", callerID)
+		}
 	}
 
 	for _, name := range qUserName {
-		conditions = append(conditions, "userName LIKE ?")
-		params = append(params, "%"+name+"%")
+		if callerIsAdmin {
+			conditions = append(conditions, "userName LIKE ?")
+			params = append(params, "%"+name+"%")
+		} else {
+			conditions = append(conditions, "(userName LIKE ? AND (userId = ? OR "+hiddenFromOthers("userName")+" = 0))")
+			params = append(params, "%"+name+"%", callerID)
+		}
 	}
 
 	for _, email := range qUserEmail {
@@ -152,7 +176,7 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	var users []models.User
+	users := []userView{}
 
 	for rows.Next() {
 		err = rows.Scan(dest...)
@@ -171,7 +195,7 @@ func ListUser(c *gin.Context) {
 			reflect.ValueOf(&paramUser).Elem().Field(i).Set(reflect.ValueOf(dest[i]).Elem())
 		}
 
-		users = append(users, paramUser)
+		users = append(users, viewUserFor(paramUser, callerID, callerIsAdmin))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -234,7 +258,10 @@ func GetUser(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
+
+	callerID, callerIsAdmin := callerIdentity(c)
 
 	var extraSQL []string
 	// extraSQL = append(extraSQL, " LEFT JOIN manufacture ON gear.gearManufactureId = manufacture.manufactureId ")
@@ -243,25 +270,134 @@ func GetUser(c *gin.Context) {
 
 	results, err := utils.GenericGet[models.User]("users", urlParameter, extraSQL, db)
 	if err != nil {
-		log.Errorf("Unable to get %s with id: %s. Error: %#v", function, urlParameter, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			c.IndentedJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		log.Errorf("Unable to get %s with id: %d. Error: %#v", function, urlParameter, err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
 		return
 	}
 
-	log.Infof("Successfully fetched %s with ID %s", function, urlParameter)
-	c.IndentedJSON(http.StatusOK, results)
+	log.Infof("Successfully fetched %s with ID %d", function, urlParameter)
+	c.IndentedJSON(http.StatusOK, viewUserFor(*results, callerID, callerIsAdmin))
+}
+
+// userView is the response shape for a user profile. Email and admin status
+// are pointers with omitempty so that they are absent, not just blank, when
+// the caller may not see them (BR-007). The password is never part of it.
+type userView struct {
+	UserID       *int64  `json:"user_id"`
+	UserUsername string  `json:"user_username"`
+	UserName     string  `json:"user_name"`
+	UserEmail    *string `json:"user_email,omitempty"`
+	UserIsAdmin  *bool   `json:"user_is_admin,omitempty"`
+}
+
+// callerIdentity returns the authenticated user and admin role set by the JWT middleware.
+func callerIdentity(c *gin.Context) (id int64, isAdmin bool) {
+	if v, ok := c.Get("user_id_int64"); ok {
+		id, _ = v.(int64)
+	}
+	if v, ok := c.Get("user_is_admin"); ok {
+		isAdmin, _ = v.(bool)
+	}
+	return id, isAdmin
+}
+
+// emailLike reports whether value must be hidden from other users: it
+// contains '@', so it looks like an email address. Google sign-in uses the
+// email for both username and name, and a value that embeds a real address
+// always contains '@', so the check needs no comparison with the stored
+// email. Such a comparison would need the same case folding in Go and SQL
+// (SQLite's lower() folds ASCII only), and the two disagreed for non-ASCII
+// text.
+func emailLike(value string) bool {
+	return strings.Contains(value, "@")
+}
+
+// hiddenFromOthers is the SQL form of emailLike for a users column: true when
+// the column value is hidden from other users. The user search uses it so a
+// search cannot match what the response redacts. Both sides test the same
+// byte, so they cannot disagree.
+func hiddenFromOthers(column string) string {
+	return "(instr(" + column + ", '@') > 0)"
+}
+
+// viewUserFor builds the profile response for a caller. Admins and the user
+// themself see email and admin status. For anyone else, a username or name that
+// looks like an email address is blanked.
+func viewUserFor(u models.User, callerID int64, callerIsAdmin bool) userView {
+	v := userView{UserID: u.UserID, UserUsername: u.UserUsername, UserName: u.UserName}
+	if callerIsAdmin || (u.UserID != nil && *u.UserID == callerID) {
+		email, admin := u.UserEmail, u.UserIsAdmin
+		v.UserEmail, v.UserIsAdmin = &email, &admin
+		return v
+	}
+	if emailLike(v.UserUsername) {
+		v.UserUsername = ""
+	}
+	if emailLike(v.UserName) {
+		v.UserName = ""
+	}
+	return v
+}
+
+// userWriteBody is the request body of user create and update. Pointers tell
+// "absent" from "zero". UserID and UserIsAdmin are only checked against the
+// values the API determined (BR-017); they are never applied.
+type userWriteBody struct {
+	UserID       *int64  `json:"user_id"`
+	UserUsername *string `json:"user_username"`
+	UserName     *string `json:"user_name"`
+	UserEmail    *string `json:"user_email"`
+	UserIsAdmin  *bool   `json:"user_is_admin"`
+}
+
+func (b *userWriteBody) blankIdentityField() bool {
+	return (b.UserUsername != nil && strings.TrimSpace(*b.UserUsername) == "") ||
+		(b.UserEmail != nil && strings.TrimSpace(*b.UserEmail) == "")
+}
+
+func parseUserID(c *gin.Context, log *zap.SugaredLogger) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param("user"), 10, 64)
+	if err != nil {
+		log.Errorf("urlParamter is of wrong type: %#v", err)
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid user ID"})
+		return 0, false
+	}
+	return id, true
+}
+
+var (
+	errUserNotFound   = &opError{http.StatusNotFound, "user not found"}
+	errPermanentAdmin = &opError{http.StatusForbidden, "the permanent admin cannot lose admin status or be deleted"}
+)
+
+// isPermanentAdmin reports whether userID is the permanent admin (BR-019).
+func isPermanentAdmin(ctx context.Context, q sqlRunner, userID int64) (bool, error) {
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM permanent_admin WHERE userId = ?`, userID).Scan(&n); err != nil {
+		return false, fmt.Errorf("check permanent admin: %w", err)
+	}
+	return n > 0, nil
+}
+
+func internalError(c *gin.Context, log *zap.SugaredLogger, err error) {
+	log.Error(err.Error())
+	c.AbortWithStatusJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
 }
 
 // InsertUser creates new user in the database
 //
 //	@Summary		Insert new user
-//	@Description	Insert new user with corresponding values
+//	@Description	Insert new user with corresponding values. Admin only. The account is never an admin (use the admin-status operation), and a body that asks for admin status or names a user ID is rejected.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		models.UserWithPass	true	"query params"	test
-//	@Success		200		{object}	models.Status		"status: success when all goes well"
+//	@Param			request	body		models.User		true	"query params"	test
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
 //	@Failure		default	{object}	models.Error
 //	@Router			/api/v1/users/insert [put]
 func InsertUser(c *gin.Context) {
@@ -270,17 +406,45 @@ func InsertUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	if _, isAdmin := callerIdentity(c); !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
 		return
 	}
 
-	_, err = utils.GenericInsert[models.User]("users", data, db)
+	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		internalError(c, log, err)
+		return
+	}
+
+	var body userWriteBody
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid request body"})
+		return
+	}
+	if body.UserID != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_id is assigned by the API and must not be sent"})
+		return
+	}
+	if body.UserIsAdmin != nil && *body.UserIsAdmin {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "admin status cannot be set when creating a user"})
+		return
+	}
+	if body.UserUsername == nil || body.UserEmail == nil || body.blankIdentityField() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_username and user_email are required"})
+		return
+	}
+	name := ""
+	if body.UserName != nil {
+		name = *body.UserName
+	}
+	email := normalizeEmail(*body.UserEmail)
+
+	// Always non-admin and without password; admin status has its own operation (BR-010, BR-011).
+	if _, err := db.ExecContext(c.Request.Context(),
+		`INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES (?, '', ?, ?, 0, 0)`,
+		*body.UserUsername, name, email); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
@@ -290,7 +454,7 @@ func InsertUser(c *gin.Context) {
 // UpdateUser updates user in database
 //
 //	@Summary		Update user with ID
-//	@Description	Update user identified by ID
+//	@Description	Update the caller's own profile. Other accounts are refused with 403, admins included. Omitted fields are left unchanged. Admin status and user ID in the body must match the stored values or the request is rejected with 400.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
@@ -306,27 +470,225 @@ func UpdateUser(c *gin.Context) {
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
 
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+	callerID, _ := callerIdentity(c)
+	if targetID != callerID {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "you can only update your own account"})
 		return
 	}
 
-	err = utils.GenericUpdate[models.User]("users", data, db)
+	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+		internalError(c, log, err)
+		return
+	}
+	var body userWriteBody
+	if err := json.Unmarshal(data, &body); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "invalid request body"})
+		return
+	}
+	if body.UserID != nil && *body.UserID != targetID {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_id in body does not match the path"})
+		return
+	}
+	if body.blankIdentityField() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "user_username and user_email must not be blank"})
+		return
+	}
+
+	// Stored emails are trimmed (BR-004 AC-4); the edited-flag comparison below
+	// sees the value that will be stored.
+	if body.UserEmail != nil {
+		trimmed := normalizeEmail(*body.UserEmail)
+		body.UserEmail = &trimmed
+	}
+
+	ctx := c.Request.Context()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+
+	var storedAdmin bool
+	if err := tx.QueryRowContext(ctx, `SELECT userIsAdmin <> 0 FROM users WHERE userId = ?`, targetID).Scan(&storedAdmin); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		internalError(c, log, err)
+		return
+	}
+	if body.UserIsAdmin != nil && *body.UserIsAdmin != storedAdmin {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "admin status cannot be changed through profile update"})
+		return
+	}
+
+	// userPassword and userIsAdmin are deliberately not in the SET list.
+	// Changing the email marks the account as never eligible for the Google
+	// subject backfill (BR-004): the email is no longer one the account was
+	// created with, so it cannot vouch for a Google identity.
+	res, err := tx.ExecContext(ctx,
+		`UPDATE users SET userUsername = COALESCE(?, userUsername), userName = COALESCE(?, userName), userEmail = COALESCE(?, userEmail),
+		userEmailEdited = CASE WHEN ? IS NOT NULL AND ? <> userEmail THEN 1 ELSE userEmailEdited END WHERE userId = ?`,
+		body.UserUsername, body.UserName, body.UserEmail, body.UserEmail, body.UserEmail, targetID)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		if err == nil {
+			err = fmt.Errorf("update of user %d affected %d rows", targetID, n)
+		}
+		internalError(c, log, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
 
+// SetUserAdmin grants or revokes a user's admin status
+//
+//	@Summary		Set admin status of user with ID
+//	@Description	Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh. The permanent admin (the first admin) can never lose admin status: revoking it is refused with 403 for every caller, and granting it is a no-op success. Any other admin may be revoked, including by themselves.
+//	@Security		BearerAuth
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	path		int				true	"Unique ID of the user"
+//	@Param			request	body		map[string]bool	true	"new admin status"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/users/{user}/admin [post]
+func SetUserAdmin(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+
+	actorID, isAdmin := callerIdentity(c)
+	if !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
+		return
+	}
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		UserIsAdmin *bool `json:"user_is_admin"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.UserIsAdmin == nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, models.Error{Error: "body must be {\"user_is_admin\": true|false}"})
+		return
+	}
+
+	// The permanent-admin check and the change are one transaction (the
+	// database takes the write lock at begin), so a concurrent request cannot
+	// slip a revocation in between (BR-019).
+	err := inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		var exists int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE userId = ?`, targetID).Scan(&exists); err != nil {
+			return err
+		}
+		if exists == 0 {
+			return errUserNotFound
+		}
+		if !*body.UserIsAdmin {
+			permanent, err := isPermanentAdmin(ctx, tx, targetID)
+			if err != nil {
+				return err
+			}
+			if permanent {
+				return errPermanentAdmin
+			}
+		}
+		// Granting the permanent admin status it already has is a no-op.
+		res, err := tx.ExecContext(ctx, `UPDATE users SET userIsAdmin = ? WHERE userId = ?`, *body.UserIsAdmin, targetID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n != 1 {
+			return fmt.Errorf("admin status update of user %d affected %d rows", targetID, n)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, errPermanentAdmin) {
+			log.Warnw("refused to revoke the permanent admin", "actor_user_id", actorID, "target_user_id", targetID)
+		}
+		respondUserGearError(c, log, err)
+		return
+	}
+
+	log.Infow("admin status changed", "actor_user_id", actorID, "target_user_id", targetID, "user_is_admin", *body.UserIsAdmin)
+	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+}
+
+// ClearUserEmailEdited clears the edited-email mark of a user
+//
+//	@Summary		Clear the edited-email mark of user with ID
+//	@Description	Admin only. Removes the mark that stops an unbound account from being bound to a Google identity by its email (BR-004). Nothing else about the account changes. Clearing an account without the mark succeeds. Clear it only after confirming the account's email belongs to its owner.
+//	@Security		BearerAuth
+//	@Tags			User
+//	@Produce		json
+//	@Param			user	path		int				true	"Unique ID of the user"
+//	@Success		200		{object}	models.Status	"status: success when all goes well"
+//	@Failure		default	{object}	models.Error
+//	@Router			/api/v1/users/{user}/email-edited/clear [post]
+func ClearUserEmailEdited(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+
+	actorID, isAdmin := callerIdentity(c)
+	if !isAdmin {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "admin privileges required"})
+		return
+	}
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+
+	// Only the mark is in the SET list. SQLite counts a matched row even when
+	// the value does not change, so 0 rows means the user does not exist.
+	res, err := db.ExecContext(c.Request.Context(), `UPDATE users SET userEmailEdited = 0 WHERE userId = ?`, targetID)
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		internalError(c, log, err)
+		return
+	}
+	if n == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+		return
+	}
+
+	log.Infow("edited-email mark cleared", "actor_user_id", actorID, "target_user_id", targetID)
+	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+}
+
 // DeleteUser delets user from database
 //
 //	@Summary		Delete user with ID
-//	@Description	Delete user with corresponding ID value
+//	@Description	Delete the caller's own account together with all of its registrations, container links, loadouts and loadout items, all or nothing. Other accounts are refused with 403, admins included.
 //	@Security		BearerAuth
 //	@Tags			User
 //	@Accept			json
@@ -340,38 +702,85 @@ func DeleteUser(c *gin.Context) {
 
 	log := c.MustGet("logger").(*zap.SugaredLogger)
 	db := c.MustGet("db").(*sql.DB)
-	function := "user"
 
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+	targetID, ok := parseUserID(c, log)
+	if !ok {
+		return
+	}
+	callerID, _ := callerIdentity(c)
+	if targetID != callerID {
+		c.AbortWithStatusJSON(http.StatusForbidden, models.Error{Error: "you can only delete your own account"})
 		return
 	}
 
-	userRegistrations, err := utils.GenericList[models.UserGearLink]("user_gear_registrations", "userId", urlParameter, db)
+	ctx := c.Request.Context()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		log.Error(err.Error())
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		internalError(c, log, err)
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+
+	var username string
+	if err := tx.QueryRowContext(ctx, `SELECT userUsername FROM users WHERE userId = ?`, targetID).Scan(&username); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.AbortWithStatusJSON(http.StatusNotFound, models.Error{Error: "user not found"})
+			return
+		}
+		internalError(c, log, err)
 		return
 	}
 
-	for _, userRegistration := range *userRegistrations {
-		_, err := utils.GenericDelete[models.UserGearLink]("user_gear_registrations", int(*userRegistration.UserGearRegistrationID), db)
-		if err != nil {
-			log.Error(err.Error())
-			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+	// The permanent admin is never deleted through the API, not even by
+	// themselves (BR-019 AC-5). The check shares the transaction with the delete.
+	if permanent, err := isPermanentAdmin(ctx, tx, targetID); err != nil {
+		internalError(c, log, err)
+		return
+	} else if permanent {
+		log.Warnw("refused to delete the permanent admin", "actor_user_id", callerID, "target_user_id", targetID)
+		c.AbortWithStatusJSON(errPermanentAdmin.status, models.Error{Error: errPermanentAdmin.msg})
+		return
+	}
+
+	// Dependent rows are removed explicitly, children before parents: with
+	// foreign keys enforced, the registrations and loadouts of the user would
+	// otherwise block the final delete.
+	const ownedRegistrations = `SELECT userGearRegistrationId FROM user_gear_registrations WHERE userId = ?`
+	steps := []struct{ name, query string }{
+		{"container links", `DELETE FROM user_container_registration WHERE userContainerId IN (` + ownedRegistrations + `) OR userGearRegistrationId IN (` + ownedRegistrations + `)`},
+		{"loadout items", `DELETE FROM loadout_items WHERE loadoutId IN (SELECT loadoutId FROM loadouts WHERE userId = ?)`},
+		{"loadouts", `DELETE FROM loadouts WHERE userId = ?`},
+		{"gear registrations", `DELETE FROM user_gear_registrations WHERE userId = ?`},
+	}
+	for _, step := range steps {
+		args := []any{targetID}
+		if step.name == "container links" {
+			args = append(args, targetID)
+		}
+		if _, err := tx.ExecContext(ctx, step.query, args...); err != nil {
+			internalError(c, log, fmt.Errorf("deleting %s of user %d: %w", step.name, targetID, err))
 			return
 		}
 	}
 
-	result, err := utils.GenericDelete[models.User]("users", urlParameter, db)
+	res, err := tx.ExecContext(ctx, `DELETE FROM users WHERE userId = ?`, targetID)
 	if err != nil {
-		log.Error(err.Error())
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
+		internalError(c, log, fmt.Errorf("deleting user %d: %w", targetID, err))
+		return
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 1 {
+		if err == nil {
+			err = fmt.Errorf("delete of user %d affected %d rows", targetID, n)
+		}
+		internalError(c, log, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		internalError(c, log, err)
 		return
 	}
 
-	log.Infof("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! User %s (ID: %v) and all the users gear association was deleted", result.UserUsername, *result.UserID)})
+	msg := fmt.Sprintf("success! User %s (ID: %d) and all the users data was deleted", username, targetID)
+	log.Info(msg)
+	c.JSON(http.StatusOK, map[string]string{"status": msg})
 }

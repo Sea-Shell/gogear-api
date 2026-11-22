@@ -5,6 +5,10 @@ metadata:
   namespace: seashell
 spec:
   replicas: 1
+  # One SQLite file on a hostPath: the old pod must stop before the new one
+  # starts and migrates, so never run two pods at once.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: gogear-api

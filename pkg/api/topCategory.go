@@ -31,7 +31,7 @@ func normalizeTopCategoryIcon(value string) string {
 }
 
 // @Summary		Get top category with ID
-// @Description	Get top category spessific to ID
+// @Description	Get top category spessific to ID. top_category_is_container is its container setting (BR-021).
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -51,6 +51,7 @@ func GetTopCategory(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
 
 	var extraSQL []string
@@ -248,7 +249,7 @@ func ListTopCategory(c *gin.Context) {
 }
 
 // @Summary		Update top category with ID
-// @Description	Update top category identified by ID
+// @Description	Update top category identified by ID. Requires a JWT issued with the admin audience. top_category_is_container sets the container setting; absent or null leaves it unchanged.
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -257,72 +258,40 @@ func ListTopCategory(c *gin.Context) {
 // @Param			request			body		models.GearTopCategory	true	"Request body"
 // @Success		200				{object}	models.Status			"status: success when all goes well"
 // @Failure		default			{object}	models.Error
+// @Failure		400		{object}	models.Error
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/topCategory/{topCategory}/update [post]
 func UpdateTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	id, ok := catalogID(c, "topCategory")
+	if !ok {
 		return
 	}
-
-	var payload models.GearTopCategory
-	if err := json.Unmarshal(data, &payload); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
+	var body struct {
+		ID          *int64  `json:"top_category_id"`
+		Name        *string `json:"top_category_name"`
+		Icon        *string `json:"top_category_icon"`
+		IsContainer *bool   `json:"top_category_is_container"`
+	}
+	if !readCatalogBody(c, &body) {
 		return
 	}
-
-	if payload.TopCategoryID == nil {
-		err := fmt.Errorf("top_category_id is required")
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	u := catalogUpdate{table: "gear_top_category", idColumn: "topCategoryId"}
+	if body.Name != nil {
+		u.add("topCategoryName", *body.Name)
 	}
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		c.JSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
+	if body.Icon != nil {
+		u.add("topCategoryIcon", normalizeTopCategoryIcon(*body.Icon))
 	}
-
-	if _, iconProvided := raw["top_category_icon"]; iconProvided {
-		payload.TopCategoryIcon = normalizeTopCategoryIcon(payload.TopCategoryIcon)
-	} else {
-		existing, err := utils.GenericGet[models.GearTopCategory]("gear_top_category", int(*payload.TopCategoryID), nil, db)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-			log.Error(err.Error())
-			return
-		}
-		payload.TopCategoryIcon = existing.TopCategoryIcon
+	if body.IsContainer != nil {
+		u.add("topCategoryIsContainer", *body.IsContainer)
 	}
-
-	normalizedPayload, err := json.Marshal(payload)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	err = utils.GenericUpdate[models.GearTopCategory]("gear_top_category", normalizedPayload, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	c.JSON(http.StatusOK, map[string]string{"status": "success"})
+	u.apply(c, id, body.ID)
 }
 
 // @Summary		Insert new top category
-// @Description	Insert new top category with corresponding values
+// @Description	Insert new top category with corresponding values. Requires a JWT issued with the admin audience. A new top category is not a container category unless top_category_is_container is true.
 // @Security		BearerAuth
 // @Tags			Top Category
 // @Accept			json
@@ -330,6 +299,8 @@ func UpdateTopCategory(c *gin.Context) {
 // @Param			request	body		models.GearTopCategory	true	"Request body"
 // @Success		200		{object}	models.Status			"status: success when all goes well"
 // @Failure		default	{object}	models.Error
+// @Failure		400		{object}	models.Error	"a setting is not a boolean"
+// @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
@@ -379,28 +350,9 @@ func InsertTopCategory(c *gin.Context) {
 // @Param			topCategory	path		int				true	"Unique ID of topCategory you want to update"
 // @Success		200			{object}	models.Status	"status: success when all goes well"
 // @Failure		default		{object}	models.Error
+// @Failure		409		{object}	models.Error
 // @Router			/api/v1/topCategory/{topCategory}/delete [delete]
 func DeleteTopCategory(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
-
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	function := "topCategory"
-
-	urlParameter, err := strconv.Atoi(c.Param(function))
-	if err != nil {
-		log.Errorf("urlParamter is of wrong type: %#v", err)
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-
-	result, err := utils.GenericDelete[models.GearTopCategory]("gear_top_category", urlParameter, db)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
-		log.Error(err.Error())
-		return
-	}
-
-	log.Infof("success! Top category with top_category_id %v and top_category_name %s was deleted", result.TopCategoryID, result.TopCategoryName)
-	c.JSON(http.StatusOK, map[string]string{"status": fmt.Sprintf("success! Top category with top_category_id %v and top_category_name %s was deleted", result.TopCategoryID, result.TopCategoryName)})
+	deleteCatalogRow(c, "gear_top_category", "topCategoryId", "topCategoryName", "topCategory", "Top category")
 }

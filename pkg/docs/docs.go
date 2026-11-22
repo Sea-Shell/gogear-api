@@ -29,7 +29,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience.",
+                "description": "Insert new category with corresponding values. Requires a JWT issued with the admin audience. Without category_container (or with null or \"inherit\") the new sub-category has no explicit container setting and follows its top category.",
                 "consumes": [
                     "application/json"
                 ],
@@ -47,15 +47,27 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
+                            "$ref": "#/definitions/models.GearCategoryInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "status: success when all goes well",
+                        "description": "the created category with its container settings",
                         "schema": {
                             "$ref": "#/definitions/models.GearCategory"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -74,7 +86,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of category items",
+                "description": "Get a list of category items, each with its explicit (category_container) and effective (category_is_container) container setting and its top category's (top_category_is_container).",
                 "consumes": [
                     "application/json"
                 ],
@@ -135,7 +147,7 @@ const docTemplate = `{
                                         "items": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/models.GearCategory"
+                                                "$ref": "#/definitions/models.GearCategoryListItem"
                                             }
                                         }
                                     }
@@ -186,6 +198,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -202,7 +220,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get category spessific to ID",
+                "description": "Get category spessific to ID. category_container is the explicit container setting (container, not_container, or inherit when the sub-category has none); category_is_container is the effective setting (BR-021).",
                 "consumes": [
                     "application/json"
                 ],
@@ -245,7 +263,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update category identified by ID. Requires a JWT issued with the admin audience.",
+                "description": "Update category identified by ID. Requires a JWT issued with the admin audience. category_container sets the container setting: \"container\" or \"not_container\" sets it, \"inherit\" removes it so the top category's setting applies; absent or null leaves it unchanged; any other value is 400. category_is_container is read-only and ignored.",
                 "consumes": [
                     "application/json"
                 ],
@@ -270,7 +288,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.GearCategory"
+                            "$ref": "#/definitions/models.GearCategoryInput"
                         }
                     }
                 ],
@@ -279,6 +297,18 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -297,7 +327,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert user registered gear with corresponding values",
+                "description": "Put one of the caller's registrations inside another. Any registration can be content, at any depth, but only a registration whose gear is container-capable (its sub-category is a container category) can hold items; otherwise the request is refused with 409. A registration has at most one direct container and cannot end up inside itself: a second container or a cycle is refused with 409, a link to itself with 400, and a foreign or unknown registration with 404. Checks run in that order: 404, then 400 for a self-link, then the not-capable 409, then the other 409s.",
                 "consumes": [
                     "application/json"
                 ],
@@ -324,6 +354,24 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "the container registration cannot hold items (its gear is not in a container category), or the content already has a container, or the link would make a cycle",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     }
                 }
@@ -445,7 +493,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new gear with corresponding values",
+                "description": "Insert new gear with corresponding values. gear_is_container is read-only: it is ignored when sent, and the response reports the status derived from the gear's sub-category.",
                 "consumes": [
                     "application/json"
                 ],
@@ -463,15 +511,21 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Gear"
+                            "$ref": "#/definitions/models.GearInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "status: success when all goes well",
+                        "description": "the created gear",
                         "schema": {
                             "$ref": "#/definitions/models.Gear"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -696,6 +750,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -780,7 +840,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Gear"
+                            "$ref": "#/definitions/models.GearInput"
                         }
                     }
                 ],
@@ -789,6 +849,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -807,7 +873,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new loadout for the authenticated user",
+                "description": "Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug.",
                 "consumes": [
                     "application/json"
                 ],
@@ -838,6 +904,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -895,7 +967,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a loadout by ID",
+                "description": "Delete a loadout and its items. Unknown and other users' loadouts both return 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -922,8 +994,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -944,7 +1016,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a single loadout by ID",
+                "description": "Get a single loadout by ID. Unknown and other users' loadouts both return 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -971,6 +1043,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Loadout"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -987,7 +1065,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Import gear items into a loadout",
+                "description": "Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1036,12 +1114,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1064,7 +1136,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Add gear to a loadout",
+                "description": "Add gear to a loadout owned by the caller. quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1106,12 +1178,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1134,7 +1200,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all items in a loadout",
+                "description": "List all items in a loadout owned by the caller. An empty loadout returns [].",
                 "consumes": [
                     "application/json"
                 ],
@@ -1192,7 +1258,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove an item from a loadout",
+                "description": "Remove an item from a loadout owned by the caller. The item must belong to the loadout in the path, otherwise 404.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1232,12 +1298,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1260,7 +1320,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update a loadout item",
+                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change. The item must belong to the loadout in the path, otherwise 404. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1309,12 +1369,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1337,7 +1391,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an existing loadout",
+                "description": "Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1373,14 +1427,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1544,6 +1604,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -1637,6 +1703,12 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -1758,7 +1830,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new top category with corresponding values",
+                "description": "Insert new top category with corresponding values. Requires a JWT issued with the admin audience. A new top category is not a container category unless top_category_is_container is true.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1785,6 +1857,18 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "a setting is not a boolean",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -1905,6 +1989,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "default": {
                         "description": "",
                         "schema": {
@@ -1921,7 +2011,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get top category spessific to ID",
+                "description": "Get top category spessific to ID. top_category_is_container is its container setting (BR-021).",
                 "consumes": [
                     "application/json"
                 ],
@@ -1964,7 +2054,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update top category identified by ID",
+                "description": "Update top category identified by ID. Requires a JWT issued with the admin audience. top_category_is_container sets the container setting; absent or null leaves it unchanged.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1998,6 +2088,18 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "admin privileges required",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     },
                     "default": {
@@ -2043,6 +2145,18 @@ const docTemplate = `{
                         "description": "status: success when all goes well",
                         "schema": {
                             "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
                         }
                     }
                 }
@@ -2290,7 +2404,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert new user with corresponding values",
+                "description": "Insert new user with corresponding values. Admin only. The account is never an admin (use the admin-status operation), and a body that asks for admin status or names a user ID is rejected.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2308,7 +2422,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserWithPass"
+                            "$ref": "#/definitions/models.User"
                         }
                     }
                 ],
@@ -2411,6 +2525,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/{user}/admin": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Grant or revoke admin status. Admin only. New tokens reflect the change at the next sign-in or refresh. The permanent admin (the first admin) can never lose admin status: revoking it is refused with 403 for every caller, and granting it is a no-op success. Any other admin may be revoked, including by themselves.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Set admin status of user with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of the user",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "new admin status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{user}/delete": {
             "delete": {
                 "security": [
@@ -2418,7 +2587,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete user with corresponding ID value",
+                "description": "Delete the caller's own account together with all of its registrations, container links, loadouts and loadout items, all or nothing. Other accounts are refused with 403, admins included.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2433,6 +2602,46 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "description": "Unique ID of user you want to update",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: success when all goes well",
+                        "schema": {
+                            "$ref": "#/definitions/models.Status"
+                        }
+                    },
+                    "default": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{user}/email-edited/clear": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. Removes the mark that stops an unbound account from being bound to a Google identity by its email (BR-004). Nothing else about the account changes. Clearing an account without the mark succeeds. Clear it only after confirming the account's email belongs to its owner.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Clear the edited-email mark of user with ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unique ID of the user",
                         "name": "user",
                         "in": "path",
                         "required": true
@@ -2504,7 +2713,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user identified by ID",
+                "description": "Update the caller's own profile. Other accounts are refused with 403, admins included. Omitted fields are left unchanged. Admin status and user ID in the body must match the stored values or the request is rejected with 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2782,7 +2991,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"
@@ -2838,7 +3048,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"
@@ -2869,6 +3080,40 @@ const docTemplate = `{
         "models.GearCategory": {
             "type": "object",
             "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_is_container": {
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "category_top_category_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.GearCategoryInput": {
+            "type": "object",
+            "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
                 "category_id": {
                     "type": "integer"
                 },
@@ -2876,6 +3121,83 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "category_top_category_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.GearCategoryListItem": {
+            "type": "object",
+            "properties": {
+                "category_container": {
+                    "type": "string",
+                    "enum": [
+                        "container",
+                        "not_container",
+                        "inherit"
+                    ]
+                },
+                "category_id": {
+                    "type": "integer"
+                },
+                "category_is_container": {
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "category_top_category_id": {
+                    "type": "integer"
+                },
+                "top_category_icon": {
+                    "type": "string"
+                },
+                "top_category_id": {
+                    "type": "integer"
+                },
+                "top_category_is_container": {
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "top_category_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.GearInput": {
+            "type": "object",
+            "properties": {
+                "gear_category_id": {
+                    "type": "integer"
+                },
+                "gear_height": {
+                    "type": "integer"
+                },
+                "gear_id": {
+                    "type": "integer"
+                },
+                "gear_length": {
+                    "type": "integer"
+                },
+                "gear_manufacture_id": {
+                    "type": "integer"
+                },
+                "gear_name": {
+                    "type": "string"
+                },
+                "gear_size_definition": {
+                    "type": "string"
+                },
+                "gear_status": {
+                    "type": "boolean"
+                },
+                "gear_top_category_id": {
+                    "type": "integer"
+                },
+                "gear_weight": {
+                    "type": "integer"
+                },
+                "gear_width": {
                     "type": "integer"
                 }
             }
@@ -2899,7 +3221,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_manufacture_id": {
                     "type": "integer"
@@ -2938,6 +3261,10 @@ const docTemplate = `{
                 },
                 "top_category_id": {
                     "type": "integer"
+                },
+                "top_category_is_container": {
+                    "description": "TopCategoryIsContainer is the top category's container setting (BR-021).\nAbsent or null on create means false; absent or null on update means\nunchanged.",
+                    "type": "boolean"
                 },
                 "top_category_name": {
                     "type": "string"
@@ -3212,7 +3539,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "gear_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "gear_length": {
                     "type": "integer"
@@ -3301,29 +3629,6 @@ const docTemplate = `{
                 },
                 "usergear_user_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.UserWithPass": {
-            "type": "object",
-            "properties": {
-                "user_email": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_is_admin": {
-                    "type": "boolean"
-                },
-                "user_name": {
-                    "type": "string"
-                },
-                "user_password": {
-                    "type": "string"
-                },
-                "user_username": {
-                    "type": "string"
                 }
             }
         }

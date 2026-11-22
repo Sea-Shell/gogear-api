@@ -2,12 +2,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"strings"
+	"time"
 
 	endpoints "github.com/Sea-Shell/gogear-api/pkg/api"
 	docs "github.com/Sea-Shell/gogear-api/pkg/docs"
@@ -55,20 +60,56 @@ func makeLogger(loglevel zapcore.Level) *zap.SugaredLogger {
 	return zap.Must(cfg.Build()).Sugar()
 }
 
-// LogRequestsMiddleware is a Gin middleware that logs incoming HTTP requests using the provided logger.
+// LogRequestsMiddleware is a Gin middleware that logs one line per request
+// after the handler has run, so the status is the one the client received. It
+// logs the route template (not the raw path, which carries IDs and, on
+// unmatched routes, arbitrary client text) and only the number of query
+// parameters: query values carry OAuth codes, ID tokens and similar secrets
+// (SEC-11), so neither names nor values are recorded.
 func LogRequestsMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Log the request details
-		logger.Infow("Received request",
-			"method", c.Request.Method,
-			"status", c.Writer.Status(),
-			"url", c.FullPath(),
-			"url-params", c.Request.URL.Query(),
-		)
-
-		// Continue processing the request
+		start := time.Now()
 		c.Set("logger", logger)
+
 		c.Next()
+
+		route := c.FullPath()
+		if route == "" {
+			route = "unmatched"
+		}
+		status := c.Writer.Status()
+		fields := []any{
+			"method", c.Request.Method,
+			"route", route,
+			"status", status,
+			"latency_ms", float64(time.Since(start).Microseconds()) / 1000,
+			"query_params", len(c.Request.URL.Query()),
+		}
+		if status >= http.StatusInternalServerError {
+			logger.Errorw("Handled request", fields...)
+			return
+		}
+		logger.Infow("Handled request", fields...)
+	}
+}
+
+// configSummary describes the loaded configuration for debug logging without
+// secrets: secret values appear only as set/unset flags.
+func configSummary(cfg *models.Config) []any {
+	return []any{
+		"hostname", cfg.General.Hostname,
+		"schemes", cfg.General.Schemes,
+		"listen_port", cfg.General.ListenPort,
+		"log_level", cfg.General.LogLevel,
+		"database_file", cfg.Database.File,
+		"jwt_issuer", cfg.Auth.JWTIssuer,
+		"jwt_secret_set", strings.TrimSpace(cfg.Auth.JWTSecret) != "",
+		"jwt_audience_set", cfg.Auth.JWTAudience != "",
+		"jwt_admin_audience_set", cfg.Auth.JWTAdminAudience != "",
+		"jwt_expiry_minutes", cfg.Auth.JWTExpiryMinutes,
+		"google_client_id_set", cfg.Auth.GoogleClientID != "",
+		"google_client_secret_set", cfg.Auth.GoogleClientSecret != "",
+		"google_redirect_url_set", cfg.Auth.GoogleRedirectURL != "",
 	}
 }
 
@@ -93,6 +134,38 @@ func oauthConfigMiddleware(oauth *oauth2.Config) gin.HandlerFunc {
 		c.Set("oauth", oauth)
 		c.Next()
 	}
+}
+
+// validateConfig checks the loaded configuration before the service starts.
+// main refuses to start when it fails (BR-006 AC-4).
+func validateConfig(config *models.Config) error {
+	if err := utils.ValidateAuthAudiences(&config.Auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+	// idtoken.Validate skips the audience check for an empty client ID, which
+	// would accept tokens issued for any Google client.
+	if strings.TrimSpace(config.Auth.GoogleClientID) == "" {
+		return errors.New("auth: google-client-id must not be empty")
+	}
+	// An empty path would make the SQLite driver open a file named after its
+	// options in the working directory (see utils.SQLiteDSN).
+	if strings.TrimSpace(config.Database.File) == "" {
+		return errors.New("database: file must not be empty")
+	}
+	return nil
+}
+
+// loadValidatedConfig loads the config file and refuses a configuration that
+// fails validateConfig. main starts only from its result.
+func loadValidatedConfig(file string) (*models.Config, error) {
+	config, err := utils.LoadConfig[models.Config](file)
+	if err != nil {
+		return nil, fmt.Errorf("load config file: %w", err)
+	}
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+	return config, nil
 }
 
 // runMigrations applies pending golang-migrate migrations from the given directory.
@@ -120,6 +193,138 @@ func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) er
 	return nil
 }
 
+// reportForeignKeyViolations logs one warning per (table, parent) with orphan
+// rows. It is a startup audit of data written while enforcement was off: it
+// never repairs or deletes, and a database with orphans still starts, because
+// enforcement only blocks new invalid writes. It returns the number of
+// orphan rows found.
+func reportForeignKeyViolations(ctx context.Context, db *sql.DB, log *zap.SugaredLogger) (int, error) {
+	violations, err := utils.ForeignKeyViolations(ctx, db)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, v := range violations {
+		total += v.Count
+		log.Warnw("Database contains rows that reference a missing parent row; they are left unchanged",
+			"table", v.Table, "parent_table", v.Parent, "orphan_rows", v.Count)
+	}
+	return total, nil
+}
+
+// warnIfForeignKeysOff logs a warning when foreign-key enforcement is off on
+// the opened database. SQLiteDSN honours _fk=0 / _foreign_keys=off from the
+// configured file name, and with enforcement off the referential guarantees
+// the service relies on silently stop holding. It returns whether enforcement
+// is on.
+func warnIfForeignKeysOff(ctx context.Context, db *sql.DB, log *zap.SugaredLogger) bool {
+	var on int
+	if err := db.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&on); err != nil {
+		log.Warnf("Could not read PRAGMA foreign_keys: %v", err)
+		return false
+	}
+	if on == 0 {
+		log.Warn("Foreign-key enforcement is OFF (PRAGMA foreign_keys = 0); check the database.file options for _fk=0 or _foreign_keys=off. Rows can now reference missing parents")
+		return false
+	}
+	return true
+}
+
+// recoveryMiddleware turns a handler panic into a logged 500. It replaces
+// gin.Recovery, which writes the request line, query string included, to
+// stderr: query values carry OAuth codes and tokens (SEC-11).
+func recoveryMiddleware(logger *zap.SugaredLogger) gin.HandlerFunc {
+	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err any) {
+		logger.Errorw("Panic recovered", "panic", fmt.Sprint(err), "stack", string(debug.Stack()))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	})
+}
+
+// newRouter builds the service router: middleware, routes and swagger. main
+// serves it; tests exercise it directly so wiring regressions are caught.
+func newRouter(config *models.Config, db *sql.DB, log *zap.SugaredLogger) *gin.Engine {
+	log.Debugw("Loaded configuration", configSummary(config)...)
+
+	router := gin.New()
+	// Logging comes first so a request that panics is still logged, with the
+	// 500 that recovery wrote.
+	router.Use(LogRequestsMiddleware(log))
+	router.Use(recoveryMiddleware(log))
+	router.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+		c.Header("Access-Control-Expose-Headers", "Authorization, Content-Type")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+	})
+
+	router.Use(databaseMiddleware(db))
+	googleConf = &oauth2.Config{
+		ClientID:     config.Auth.GoogleClientID,
+		ClientSecret: config.Auth.GoogleClientSecret,
+		RedirectURL:  config.Auth.GoogleRedirectURL,
+		Scopes:       []string{"openid", "email", "profile"},
+		Endpoint:     googleOAuth.Endpoint,
+	}
+
+	if strings.TrimSpace(config.Auth.JWTSecret) == "" {
+		log.Warn("JWT secret is empty; authentication will fail until configured")
+	}
+	if googleConf.ClientID == "" || googleConf.RedirectURL == "" {
+		log.Warnw("Google OAuth configuration incomplete", "client_id_set", googleConf.ClientID != "", "redirect_url_set", googleConf.RedirectURL != "")
+	}
+
+	router.Use(configMiddleware(config))
+	router.Use(oauthConfigMiddleware(googleConf))
+
+	// API v1
+	swagger := router.Group("/swagger")
+	v1 := router.Group("/api/v1")
+	v1.Use(utils.JWTMiddleware())
+	// v1.Use(utils.CheckApiKey())
+
+	// API Groups
+	userGroup := v1.Group("/users")
+	userGearGroup := v1.Group("/usergear")
+	containerGroup := v1.Group("/container")
+
+	// The routes
+	router.GET("/health", endpoints.ReturnHealth)
+
+	authGroup := router.Group("/auth")
+	authGroup.GET("/google/callback", endpoints.GoogleAuthCallback)
+	authGroup.POST("/google/callback", endpoints.GoogleAuthCallback)
+	authGroup.POST("/refresh", utils.JWTMiddleware(), endpoints.RefreshToken)
+
+	// Public loadout routes (no JWT required)
+	endpoints.RegisterPublicLoadoutRoutes(router.Group("/api/v1/public"))
+
+	// User endpoints
+	endpoints.RegisterUserRoutes(userGroup)
+
+	// Catalog endpoints (gear, top category, category, manufacture): reads for
+	// every authenticated user, writes admin-only
+	endpoints.RegisterCatalogRoutes(v1)
+
+	// User Gear endpoints
+	endpoints.RegisterUserGearRoutes(userGearGroup)
+
+	// Container endpoints
+	endpoints.RegisterContainerRoutes(containerGroup)
+
+	// Loadout and loadout item endpoints (protected)
+	endpoints.RegisterLoadoutRoutes(v1.Group("/loadout"))
+
+	// Swagger API documentation
+	swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	return router
+}
+
 // @title						GoGear API
 // @version					1.0
 // @description				This is the API of GoGear
@@ -137,24 +342,28 @@ func main() {
 
 	flag.Parse()
 
-	config, err := utils.LoadConfig[models.Config](*configFile)
+	config, err := loadValidatedConfig(*configFile)
 	if err != nil {
-		log.Fatalf("Failed to load config file: %v", err)
+		log.Fatalf("Failed to start: %v", err)
 	}
 
 	logLevel := utils.GetLogLevel(config.General.LogLevel)
 	log := makeLogger(logLevel)
 	defer log.Sync()
 
-	log.Debugf("%#v", config)
-
-	db, err := sql.Open("sqlite3", config.Database.File)
+	db, err := sql.Open("sqlite3", utils.SQLiteDSN(config.Database.File))
 	if err != nil {
 		log.Error(err)
 	}
 
+	warnIfForeignKeysOff(context.Background(), db, log)
+
 	if err := runMigrations(db, "migrations", log); err != nil {
 		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
+	if _, err := reportForeignKeyViolations(context.Background(), db, log); err != nil {
+		log.Warnf("Could not audit foreign keys: %v", err)
 	}
 
 	// Legacy bootstrap: ensure columns that migrations do not manage.
@@ -172,134 +381,10 @@ func main() {
 	docs.SwaggerInfo.Schemes = config.General.Schemes
 	docs.SwaggerInfo.BasePath = "/"
 
-	router := gin.New()
-	router.Use(gin.Recovery())
-	router.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
-		c.Header("Access-Control-Expose-Headers", "Authorization, Content-Type")
-
-		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-	})
-
-	router.Use(LogRequestsMiddleware(log))
-	router.Use(databaseMiddleware(db))
-	googleConf = &oauth2.Config{
-		ClientID:     config.Auth.GoogleClientID,
-		ClientSecret: config.Auth.GoogleClientSecret,
-		RedirectURL:  config.Auth.GoogleRedirectURL,
-		Scopes:       []string{"openid", "email", "profile"},
-		Endpoint:     googleOAuth.Endpoint,
+	if os.Getenv(gin.EnvGinMode) == "" {
+		gin.SetMode(gin.ReleaseMode)
 	}
-
-	if strings.TrimSpace(config.Auth.JWTSecret) == "" {
-		log.Warn("JWT secret is empty; authentication will fail until configured")
-	}
-	if googleConf.ClientID == "" || googleConf.RedirectURL == "" {
-		log.Warnw("Google OAuth configuration incomplete", "client_id_set", googleConf.ClientID != "", "redirect_url", googleConf.RedirectURL)
-	}
-
-	router.Use(configMiddleware(config))
-	router.Use(oauthConfigMiddleware(googleConf))
-
-	// API v1
-	swagger := router.Group("/swagger")
-	v1 := router.Group("/api/v1")
-	v1.Use(utils.JWTMiddleware())
-	// v1.Use(utils.CheckApiKey())
-
-	// API Groups
-	userGroup := v1.Group("/users")
-	gearGroup := v1.Group("/gear")
-	topCategoryGroup := v1.Group("/topCategory")
-	categoryGroup := v1.Group("/category")
-	manufactureGroup := v1.Group("/manufacture")
-	userGearGroup := v1.Group("/usergear")
-	containerGroup := v1.Group("/container")
-
-	// The routes
-	router.GET("/health", endpoints.ReturnHealth)
-
-	authGroup := router.Group("/auth")
-	authGroup.GET("/google/callback", endpoints.GoogleAuthCallback)
-	authGroup.POST("/google/callback", endpoints.GoogleAuthCallback)
-	authGroup.POST("/refresh", utils.JWTMiddleware(), endpoints.RefreshToken)
-
-	// Public loadout routes (no JWT required)
-	publicLoadoutGroup := router.Group("/api/v1/public")
-	publicLoadoutGroup.GET("/loadout/:slug", endpoints.GetPublicLoadout)
-	publicLoadoutGroup.GET("/loadout/:slug/items", endpoints.GetPublicLoadoutItems)
-
-	// User endpoints
-	userGroup.GET("/list", endpoints.ListUser)
-	userGroup.GET("/:user/get", endpoints.GetUser)
-	userGroup.POST("/:user/update", endpoints.UpdateUser)
-	userGroup.DELETE("/:user/delete", endpoints.DeleteUser)
-	userGroup.PUT("/insert", endpoints.InsertUser)
-	// userGroup.POST("/setpassword", endpoints.SetUserPassword)
-
-	// Gear endpoints
-	gearGroup.GET("/list", endpoints.ListGear)
-	gearGroup.GET("/search", endpoints.SearchGear)
-	gearGroup.GET("/:gear/get", endpoints.GetGear)
-	gearGroup.POST("/:gear/update", endpoints.UpdateGear)
-	gearGroup.DELETE("/:gear/delete", endpoints.DeleteGear)
-	gearGroup.PUT("/insert", endpoints.InsertGear)
-
-	// User Gear endpoints
-	userGearGroup.GET("/:user/list", endpoints.ListUserGear)
-	userGearGroup.GET("/registration/:usergear/get", endpoints.GetUserGear)
-	userGearGroup.POST("/registration/:usergear/update", endpoints.UpdateUserGear)
-	userGearGroup.DELETE("/registration/:usergear/delete", endpoints.DeleteUserGearRegistration)
-	userGearGroup.PUT("/insert", endpoints.InsertUserGear)
-
-	// Container endpoints
-	containerGroup.GET("/:container/list", endpoints.ListUserGearInContainer)
-	containerGroup.PUT("/insert", endpoints.InsertContainer)
-	containerGroup.DELETE("/:container/delete", endpoints.DeleteContainerRegistration)
-
-	// Top Category endpoints
-	topCategoryGroup.GET("/list", endpoints.ListTopCategory)
-	topCategoryGroup.GET("/:topCategory/get", endpoints.GetTopCategory)
-	topCategoryGroup.POST("/:topCategory/update", endpoints.UpdateTopCategory)
-	topCategoryGroup.DELETE("/:topCategory/delete", endpoints.DeleteTopCategory)
-	topCategoryGroup.PUT("/insert", endpoints.InsertTopCategory)
-
-	// Category endpoints
-	categoryGroup.GET("/list", endpoints.ListCategory)
-	categoryGroup.GET("/:category/get", endpoints.GetCategory)
-	categoryGroup.POST("/:category/update", endpoints.UpdateCategory)
-	categoryGroup.DELETE("/:category/delete", endpoints.DeleteCategory)
-	categoryGroup.PUT("/insert", endpoints.InsertCategory)
-
-	// Manufacture endpoints
-	manufactureGroup.GET("/list", endpoints.ListManufacture)
-	manufactureGroup.GET("/:manufacture/get", endpoints.GetManufacture)
-	manufactureGroup.POST("/:manufacture/update", endpoints.UpdateManufacture)
-	manufactureGroup.DELETE("/:manufacture/delete", endpoints.DeleteManufature)
-	manufactureGroup.PUT("/insert", endpoints.InsertManufacture)
-
-	// Loadout endpoints (protected)
-	loadoutGroup := v1.Group("/loadout")
-	loadoutGroup.PUT("/insert", endpoints.InsertLoadout)
-	loadoutGroup.GET("/list", endpoints.ListLoadouts)
-	loadoutGroup.GET("/:loadout/get", endpoints.GetLoadout)
-	loadoutGroup.POST("/:loadout/update", endpoints.UpdateLoadout)
-	loadoutGroup.DELETE("/:loadout/delete", endpoints.DeleteLoadout)
-	loadoutGroup.POST("/:loadout/import", endpoints.ImportLoadout)
-
-	// Loadout Item endpoints (protected, nested under loadout)
-	loadoutGroup.PUT("/:loadout/item/insert", endpoints.InsertLoadoutItem)
-	loadoutGroup.GET("/:loadout/item/list", endpoints.ListLoadoutItems)
-	loadoutGroup.POST("/:loadout/item/:item/update", endpoints.UpdateLoadoutItem)
-	loadoutGroup.DELETE("/:loadout/item/:item/delete", endpoints.DeleteLoadoutItem)
-
-	// Swagger API documentation
-	swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router := newRouter(config, db, log)
 
 	// Listen to all addresses and port defined
 	if err := router.Run("0.0.0.0:" + config.General.ListenPort); err != nil {

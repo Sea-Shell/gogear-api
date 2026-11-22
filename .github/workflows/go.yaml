@@ -1,0 +1,66 @@
+---
+# Required Go gate for pull requests and main. Make the "Go build, test and
+# vulnerability scan" check required in the repository's branch protection;
+# that is a GitHub setting and is not configured by this file.
+name: Go
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go build, test and vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # go-sqlite3 needs cgo, and so does the race detector.
+      CGO_ENABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      # Tests the Go version declared in go.mod, the same one the Docker build
+      # and the lint workflow use.
+      - name: Setup golang
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Verify modules
+        run: go mod verify
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (race detector)
+        run: go test -race -count=1 ./...
+
+      - name: Vulnerability scan
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
+          govulncheck ./...
+
+      # The committed Swagger files must match what the annotations generate.
+      - name: Swagger drift check
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@v1.16.6
+          swag init -g main.go -o docs
+          cp docs/docs.go pkg/docs/docs.go
+          git diff --exit-code docs pkg/docs

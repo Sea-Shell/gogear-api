@@ -120,8 +120,8 @@ func TestMigrationsUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 3 {
-		t.Errorf("expected version 3, got %d", version)
+	if version != 9 {
+		t.Errorf("expected version 9, got %d", version)
 	}
 	if dirty {
 		t.Error("expected clean migration")
@@ -145,7 +145,7 @@ func TestMigrationsUpDown(t *testing.T) {
 		t.Fatal("loadouts should exist after up")
 	}
 
-	// Down rolls back ALL migrations (V003, V002, V001)
+	// Down rolls back ALL migrations (V005 to V001)
 	runMigrateDown(t, db, path)
 
 	// After full rollback, baseline tables (V001) are also dropped
@@ -179,13 +179,94 @@ func TestMigrationsIdempotentUp(t *testing.T) {
 	runMigrate(t, db, path)
 	runMigrate(t, db, path)
 
-	// Should still be at version 3
+	// Should still be at version 9
 	var version int
 	err := db.QueryRow("SELECT version FROM schema_migrations").Scan(&version)
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 3 {
-		t.Errorf("expected version 3 after second up, got %d", version)
+	if version != 9 {
+		t.Errorf("expected version 9 after second up, got %d", version)
+	}
+}
+
+// stepMigrate moves a database to an exact version.
+func stepMigrate(t *testing.T, db *sql.DB, path string, fn func(m *migrate.Migrate) error) {
+	t.Helper()
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	if err != nil {
+		t.Fatalf("driver init: %v", err)
+	}
+	m, err := migrate.NewWithDatabaseInstance("file://"+path, "sqlite3", driver)
+	if err != nil {
+		t.Fatalf("migrate instance: %v", err)
+	}
+	if err := fn(m); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+}
+
+func userColumns(t *testing.T, db *sql.DB) map[string]bool {
+	t.Helper()
+	rows, err := db.Query("SELECT name FROM pragma_table_info('users')")
+	if err != nil {
+		t.Fatalf("table_info: %v", err)
+	}
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		cols[n] = true
+	}
+	return cols
+}
+
+// Migration 000004 applies to a database that already has users, leaves them
+// unbound (so the backfill can find them) and can be rolled back.
+func TestMigration4GoogleSubjectOnExistingDatabase(t *testing.T) {
+	db := tempDB(t)
+	db.SetMaxOpenConns(1)
+	path := migrationsPath(t)
+
+	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Migrate(3) })
+	if _, err := db.Exec(`INSERT INTO users (userUsername, userPassword, userName, userEmail, userIsAdmin, userIsExternal) VALUES ('a', '', 'A', 'a@example.com', 1, 1), ('b', '', 'B', 'b@example.com', 0, 1)`); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if userColumns(t, db)["googleSubject"] {
+		t.Fatal("googleSubject exists before migration 4")
+	}
+
+	runMigrate(t, db, path)
+
+	cols := userColumns(t, db)
+	if !cols["googleSubject"] || !cols["userEmailEdited"] {
+		t.Fatalf("columns after up: %v", cols)
+	}
+	var n, unbound, edited int
+	if err := db.QueryRow(`SELECT COUNT(*), SUM(googleSubject IS NULL), SUM(userEmailEdited) FROM users`).Scan(&n, &unbound, &edited); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 || unbound != 2 || edited != 0 {
+		t.Fatalf("existing users: count=%d unbound=%d edited=%d", n, unbound, edited)
+	}
+
+	// The subject is unique among bound accounts; unbound ones may repeat NULL.
+	if _, err := db.Exec(`UPDATE users SET googleSubject = 'S' WHERE userUsername = 'a'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE users SET googleSubject = 'S' WHERE userUsername = 'b'`); err == nil {
+		t.Fatal("two accounts bound to one subject")
+	}
+
+	stepMigrate(t, db, path, func(m *migrate.Migrate) error { return m.Migrate(3) })
+	cols = userColumns(t, db)
+	if cols["googleSubject"] || cols["userEmailEdited"] || !cols["userEmail"] {
+		t.Fatalf("columns after down: %v", cols)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("users after down: %d, %v", n, err)
 	}
 }
