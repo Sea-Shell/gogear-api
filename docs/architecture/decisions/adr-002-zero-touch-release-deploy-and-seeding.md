@@ -8,15 +8,15 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-002 — Zero-touch release, deploy and container seeding
 
-**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-8. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
+**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-8. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. **Amended 2026-11-22 (decision change):** D-11 replaces the D-8 `imageID` digest gate with a Deployment-template, pod-spec and owner check, reports every check before failing, and sets k8s-deploy `pull-images: false`, after run 45048563144 deployed a content-identical `v4.9.5` correctly but failed the gate. D-11 is not yet implemented. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
 
 ## In brief
 
-**What the system will do:** On every push to `main`, `release.yaml` calls the nrkno semantic-release reusable workflow v5.1.6, pinned to its commit SHA. If the commits since the latest tag call for a version, it tags and publishes a GitHub release and reports `released == 'true'` and the new `tag`. Only then does the build job build that tag, push the image and pass on its digest, and the deploy job deploy exactly that tag and digest over Tailscale. The deploy job then waits, checks that the one API pod runs that digest with zero restarts, and checks the migration version the pod logged against the highest migration in the tag. A merge with nothing release-worthy gives `released == 'false'`; build and deploy are skipped and the run is green. Release runs never overlap and are never cancelled while running. The seeding of category container settings from the old gear flags ships as new migration `000010`.
+**What the system will do:** On every push to `main`, `release.yaml` calls the nrkno semantic-release reusable workflow v5.1.6, pinned to its commit SHA. If the commits since the latest tag call for a version, it tags and publishes a GitHub release and reports `released == 'true'` and the new `tag`. Only then does the build job build that tag, push the image and pass on its digest, and the deploy job deploy exactly that tag and digest over Tailscale. The deploy job then waits, checks that the Deployment and its one API pod name that tag and digest and that the pod has zero restarts, and checks the migration version the pod logged against the highest migration in the tag. A merge with nothing release-worthy gives `released == 'false'`; build and deploy are skipped and the run is green. Release runs never overlap and are never cancelled while running. The seeding of category container settings from the old gear flags ships as new migration `000010`.
 
 **Why this design:** It is the smallest change from the path that last deployed (run 28101251749): the same reusable-workflow shape, the same build and deploy steps and secrets, a new pin and new output names. The upstream defaults for bump rules reproduce this repository's release history, so no configuration file is added. The only new parts are guards and one evidence step, and each one closes a gap that BR-022 names (empty tag, wrong digest, a pod that crashes after the rollout, overlapping runs).
 
-**Normal example:** A PR titled `fix(release): …` is squash-merged. The release job computes `v4.9.4` (the probe gives this from current `main`; a `feat` title would give `v4.10.0`), tags it, and outputs `released=true`, `tag=v4.9.4`. Build checks the tag format, builds `refs/tags/v4.9.4`, and pushes `docker.io/bateau/gogear-api:v4.9.4` with digest `sha256:abc…`. Deploy applies `…:v4.9.4@sha256:abc…`. k8s-deploy waits for the rollout. After 180 s the evidence step finds one pod, `Running`, ready, `restartCount 0`, image ID ending in `@sha256:abc…`, and a log line `gogear-api migrations: version=10 dirty=false` that matches `000010` in the tag. The pod migrated the database itself; `000010` set the container settings from the old flags.
+**Normal example:** A PR titled `fix(release): …` is squash-merged. The release job computes `v4.9.4` (the probe gives this from current `main`; a `feat` title would give `v4.10.0`), tags it, and outputs `released=true`, `tag=v4.9.4`. Build checks the tag format, builds `refs/tags/v4.9.4`, and pushes `docker.io/bateau/gogear-api:v4.9.4` with digest `sha256:abc…`. Deploy applies `…:v4.9.4@sha256:abc…`. k8s-deploy waits for the rollout. After 180 s the evidence step finds the Deployment rolled out with template image `…:v4.9.4@sha256:abc…` and one pod owned by its ReplicaSet with the same spec image, `Running`, ready, `restartCount 0`, an image ID from `bateau/gogear-api` (its digest is reported; it may name identical content by an earlier digest, D-11), and a log line `gogear-api migrations: version=10 dirty=false` that matches `000010` in the tag. The pod migrated the database itself; `000010` set the container settings from the old flags.
 
 **Most important limits:** A failed run is not retried automatically (BR-022 AC-4). A tag can then exist without a deploy, and the next release-worthy merge releases and deploys the next version. `workflow_dispatch` stays, but a dispatched run never counts for BR-022 and cannot redeploy an existing tag. The deploy job's permissions are kept as they are, not reduced, because deploy cannot be rehearsed before the merge. Seeding is once per database on the release path; an operator who runs `000010` down and up again by hand is outside that path.
 
@@ -35,10 +35,10 @@ timestamp: 2026-11-22T00:00:00Z
 | BR-022 AC-1 (tag, image from the tag, deploy by digest, all or failed) | D-1, D-2, D-5 | post-merge run (`verify`): tag and GitHub release exist; image `:<tag>` digest equals the deployed digest |
 | BR-022 AC-2 (push-triggered, first attempt, no human step) | D-1 trigger `push: main`; D-8 evidence inside the run; no environment approvals | run event is `push`, `run_attempt == 1`, no dispatched run for the merge |
 | BR-022 AC-3 (nothing release-worthy: nothing published, green) | D-2 guard `released == 'true'`; D-3 default rules | dry run of a no-release history gives `released=false`; guard check shows build and deploy skipped; the release case is shown by a non-dry run against a bare repository and a stub API (`released=true`, a dry run cannot) |
-| BR-022 AC-4 (failure visible, own image only, no partial success) | D-2 tag check, D-5 digest checks, D-6 concurrency, D-8 post-deploy checks | a missing tag, empty or malformed digest, or a crashing pod fails the run |
+| BR-022 AC-4 (failure visible, own image only, no partial success) | D-2 tag check, D-5 digest checks, D-6 concurrency, D-8 and D-11 post-deploy checks (template, pod spec and owner name this run's `<tag>@<digest>`) | a missing tag, empty or malformed digest, a pod of another revision or image, or a crashing pod fails the run; D-11 stub tests T-1 to T-10 |
 | BR-022 AC-5 (version higher than `v4.9.3`, no moved tag) | D-1 (semrel resolves the lightweight `v4.9.x` tags, probe); D-6 serialized runs | dry run computes `v4.9.4` or `v4.10.0` depending on the squash title type |
 | BR-022 AC-6 (full-SHA pinning stays, nested included) | D-1 pins and the nested pins listed there | recursive pin scan in `rehearse` and `review` |
-| BR-022 AC-7 (a)–(e) (evidence) | D-8 in-run checks; (a)–(c) from run metadata and registry | the `verify` report |
+| BR-022 AC-7 (a)–(e) (evidence) | D-8 and D-11 in-run checks, every check reported; (a)–(c) from run metadata and registry | the `verify` report |
 | BR-022 AC-8 (close merges) | D-6 | two merges in quick succession: the later run deploys the higher version; no run is cancelled while running |
 | BR-021 AC-5 / P-18 (seed from old flags, never overwrite, once) | D-7 migration `000010` | migration test on a v8 and a v9 database with mixed flags and admin settings |
 | T-1 (release-worthy commit types) | D-3 | rehearsal with the past history: same releases as before |
@@ -123,8 +123,9 @@ The deploy job's permissions stay as they are. `id-token: write` may be unneeded
 - The `images:` input of k8s-deploy is `docker.io/bateau/gogear-api:<release tag>@<build digest>`, both from this run's `needs` (unchanged form).
 - Build fails on an empty or malformed digest (D-2), so deploy can never receive `…:<tag>@`.
 - The image is built from `refs/tags/<tag>`, the commit the release job tagged.
-- D-6 keeps any other run from deploying in between. D-8 checks that the pod's image ID ends with the same digest.
+- D-6 keeps any other run from deploying in between. D-8 checks that the Deployment and its one live pod name exactly this `<tag>@<digest>` reference. *(Amended 2026-11-22: it no longer requires the pod's `imageID` to end with the digest; see D-8 and D-11.)*
 - `:latest` is still pushed (unchanged); nothing deploys it.
+- Provenance attestations stay on (build-push-action default). D-11 explains why turning them off would not fix the `imageID` problem.
 
 ### D-6 Concurrency for close merges
 
@@ -190,13 +191,14 @@ What k8s-deploy already gives: with `strategy: basic` it applies the manifests w
 
    The server's log level is not known here (`general.log_level` may be `error`), so a level-filtered log line could be missing and fail a good deploy. The existing info line stays.
 
-2. **Deploy job, a step after k8s-deploy:** wait 180 s, then with `kubectl -n seashell`:
+2. **Deploy job, a step after k8s-deploy:** wait 180 s, then run the checks with `kubectl -n seashell`. *(Amended 2026-11-22; the full rule, its order and its test are in D-11. The `imageID` digest is now reported, not used as proof.)* In short:
    - exactly one pod with label `app=gogear-api` that is neither terminating nor in phase `Failed` or `Succeeded` (leftover evicted or completed pods are not part of the rollout);
+   - the Deployment's current generation is rolled out, and its pod template, the pod's spec and the pod's owner all name this run's `<tag>@<digest>` reference (D-11 checks R-1 and I-1 to I-3);
    - its phase is `Running`, its container is ready, and `restartCount` is `0`;
-   - its container `imageID` ends with `@<build digest>`;
+   - its container `imageID` comes from `bateau/gogear-api`, and the step reports whether its digest equals the build digest (D-11 check I-4);
    - its log contains `gogear-api migrations: version=<N> dirty=false`, where `<N>` equals the highest numeric prefix of `migrations/*.up.sql` in the checked-out tag.
 
-   Every `kubectl` call uses `--request-timeout=20s`, and the deploy job has `timeout-minutes: 25` (15 min rollout, 3 min wait, margin). Any failed check fails the job, and so the run; before failing, the step prints bounded diagnostics: `get pods`, `describe` (tail), and the pod's logs (current, and previous when `restartCount` is above 0) **filtered** to error-level lines (`level` `error`, `dpanic`, `panic` or `fatal`, reduced to level, message and error), non-JSON crash lines, and the migrations line. Other log fields and info lines are never printed, because the repository is public and the app logs can carry usernames and subject IDs. The step prints the values it checked, so the run log is the AC-7 (d)/(e) evidence; the `verify` node reads it instead of asking the owner.
+   Every `kubectl` call uses `--request-timeout=20s`, and the deploy job has `timeout-minutes: 25` (15 min rollout, 3 min wait, margin). Every check that can run is run and reported, and the run fails if any check failed (D-11 order). Before failing, the step prints bounded diagnostics: `get pods`, `describe` (tail), and the pod's logs (current, and previous when `restartCount` is above 0) **filtered** to error-level lines (`level` `error`, `dpanic`, `panic` or `fatal`, reduced to level, message and error), non-JSON crash lines, and the migrations line. Other log fields and info lines are never printed, because the repository is public and the app logs can carry usernames and subject IDs. The step prints the values it checked, so the run log is the AC-7 (d)/(e) evidence; the `verify` node reads it instead of asking the owner.
 
 A migration error makes the container exit, so it shows up as `restartCount > 0` or a non-running pod within the wait. 180 s covers "a few minutes after the rollout" (BR-022 AC-7 (d)) and is a realization choice; the `verify` node may observe longer.
 
@@ -222,6 +224,66 @@ Rejected: a run in a fork or a throwaway branch on GitHub. A dispatch on a branc
 
 k8s-deploy replaces every image named `docker.io/bateau/gogear-api` in the manifests with the `images:` input before applying, so the value in Git is never deployed. It did exactly this in the last successful deploy. Changing the line touches the one step that cannot be rehearsed, and no requirement gains from it. Its cost is cosmetic: a reader may think `v2.0.0` runs. Rejected: refreshing it to the current version, which would go stale with every release and invite a Renovate PR each time.
 
+### D-11 Proving the pod runs this run's image (amendment 2026-11-22)
+
+**Why this was amended:** run [45048563144](https://github.com/Sea-Shell/gogear-api/actions/runs/45048563144) (`v4.9.5`) deployed correctly but failed D-8. The build was fully cached: its platform image manifest (`e9994c92…`) and config (`99ce2544…`) are byte-identical to `v4.9.4`'s. Only the provenance attestation changed, so the pushed index digest changed from `5978fe2a…` to `5b444c61…`. The new pod `gogear-api-9fcdfbfcd-fw2sz` had spec image `…:v4.9.5@sha256:5b444c61…`, was `Running` and ready with `restartCount 0`, and logged `version=10 dirty=false`. Its `imageID` was `…@sha256:5978fe2a…`, the **old** index digest. The node runtime (likely containerd under k3s) already held that content and reports a repo digest it recorded earlier. Whether it picks the first recorded digest or the lowest one is [unverified]. Either way, `imageID` names the content by *some* digest that once pointed to it on that node, not by the digest the pod asked for. Every content-identical release (for example a workflow-only `fix`) hits this.
+
+**What proves the image:** the pod's spec reference. The kubelet pulls `…:<tag>@sha256:<d>` by digest, and the runtime checks the content against that digest, so a container that runs from a pod whose spec names `@<d>` runs the content `<d>` names. What remains is to prove that the pod checked is the one this run's deploy created. The Deployment template, its rollout state and the pod's owner prove that. None of it depends on how the runtime names images. It also needs no new RBAC: the deployer already gets Deployments (`kubectl rollout status` passed) and pods.
+
+**Decision:** the "Verify deployed pod" logic moves into the script `.github/scripts/verify-deployed-pod.sh`. The step calls it with `env:` inputs, and the script is tested with a stub `kubectl` (below). Let `EXPECTED_IMAGE` be exactly the string passed to k8s-deploy `images:`, that is `docker.io/bateau/gogear-api:<tag>@<build digest>`. Select containers **by name** `gogear-api` in spec and status, never by index.
+
+Pre-checks (fail fast; nothing else can be checked without them): `BUILD_DIGEST` matches `^sha256:[0-9a-f]{64}$`; `EXPECTED_IMAGE` ends with `@$BUILD_DIGEST`; the expected migration version `N` is computed from `migrations/*.up.sql` as before.
+
+After the 180 s wait, read `deployment/gogear-api -o json` once and the `app=gogear-api` pods `-o json` once. Then evaluate and **report every** check below as `PASS`, `FAIL` or `NOT RUN (<reason>)`:
+
+| ID | Check | Fails when |
+|---|---|---|
+| R-1 | Deployment rolled out at its current generation | `.status.observedGeneration != .metadata.generation`, or `.status.updatedReplicas`, `.status.readyReplicas` or `.status.replicas` is not `1` |
+| I-1 | Deployment template names this run's image | template container `gogear-api` image `!= EXPECTED_IMAGE` |
+| P-1 | Exactly one live pod | count of pods with no `deletionTimestamp` and phase not `Failed`/`Succeeded` `!= 1` |
+| I-2 | Pod spec names this run's image | pod container `gogear-api` image `!= EXPECTED_IMAGE` |
+| I-3 | Pod belongs to the Deployment's ReplicaSet for that template | the pod has no controller `ownerReference` of kind `ReplicaSet` named `gogear-api-<pod's pod-template-hash label>`, or the label is missing |
+| H-1 | Pod healthy | phase `!= Running`, container not ready, or `restartCount != 0` |
+| I-4 | Runtime image is from this repository | `imageID`, after removing any `<scheme>://` prefix, does not match `^(docker\.io/)?bateau/gogear-api@sha256:[0-9a-f]{64}$` (an empty `imageID` fails here) |
+| M-1 | Migrations at the tag's highest version | log read fails (reported as now, with the `pods/log` hint), or no line `gogear-api migrations: version=N dirty=false` |
+
+- **In I-4 only the repository part is a gate; the digest is reported, not used as proof.** The step prints `imageID=<value>` and either `imageID digest equals build digest` or `imageID digest <x> differs from build digest; the runtime names identical content by an earlier digest; identity is proven by I-1 to I-3`. A differing digest alone never fails the run.
+- **Order:** P-1 decides whether pod checks can run. If P-1 fails, I-2, I-3, H-1, I-4 and M-1 are `NOT RUN (no single live pod)`. Otherwise **all** of them run, whatever earlier checks gave, so M-1 is reported even when an identity or health check failed. R-1 and I-1 always run. After the table, if any check is `FAIL` or `NOT RUN`, print the existing filtered diagnostics once and exit 1. Otherwise print `Verified` with the tag, the digest, the pod name and `N`.
+- **Why I-1 to I-3 replace a ReplicaSet read:** tags are never reused (AC-5, D-2) and the template contains the tag, so two revisions can never carry the same `EXPECTED_IMAGE`. A pod from an older revision therefore fails I-2. I-3 proves the pod was created by the Deployment controller and not by hand. R-1 with I-1 proves the applied template is still the current one (no later apply replaced it). Reading ReplicaSets would add a permission the deployer is not known to have [unverified], and so a risk that the first run fails, for no extra guarantee.
+- The diagnostics, the log filtering, the timeouts and the wait are unchanged from D-8.
+
+**Stub test (required, runs in CI on pull requests):** `.github/scripts/verify-deployed-pod_test.sh`, using bash and `jq` only, run by a step in an existing pull-request workflow job that checks out the repository (the coder picks the job). It puts a stub `kubectl` first on `PATH`. The stub serves fixture JSON for `get deployment`, `get pods` and `describe`, and fixture text or an exit code for `logs`. The wait is set to 0 through an input (for example `VERIFY_WAIT_SECONDS`, default 180). The test asserts the exit code and the reported line of each named check. Cases:
+
+| Case | Fixture | Expect |
+|---|---|---|
+| T-1 normal | everything consistent; `imageID` digest = build digest | exit 0; I-4 reports "equals" |
+| T-2 content-identical release (run 45048563144) | spec and template `…:v4.9.5@sha256:5b44…`; `imageID` `docker.io/bateau/gogear-api@sha256:5978…` | exit 0; I-4 reports "differs … earlier digest" |
+| T-3 wrong revision | the live pod is the previous ReplicaSet's (different `pod-template-hash`, spec `…:v4.9.4@sha256:5978…`), while the template is new | exit 1; I-2 `FAIL`; M-1 still reported |
+| T-4 rollout not caught up | `observedGeneration < generation` | exit 1; R-1 `FAIL` |
+| T-5 spec digest mismatch | pod spec and template `…:v4.9.5@sha256:<other>` | exit 1; I-1 and I-2 `FAIL` |
+| T-6 hand-made pod | pod with no `ReplicaSet` controller owner, spec correct | exit 1; I-3 `FAIL` |
+| T-7 foreign image | `imageID` `docker.io/other/x@sha256:…` | exit 1; I-4 `FAIL` |
+| T-8 migration lag with identity failure | spec mismatch **and** log `version=9` | exit 1; I-2 `FAIL` and M-1 `FAIL`, both printed |
+| T-9 no single pod | zero live pods (only a `Failed` one) | exit 1; P-1 `FAIL`; pod checks `NOT RUN` |
+| T-10 unreadable log | `logs` exits 1 with `Forbidden` | exit 1; M-1 `FAIL` with the `pods/log` hint |
+
+The test must also show that no fixture log field other than level, message and error reaches the output (a fixture line carries a `username`).
+
+**k8s-deploy warnings seen in the same run:**
+
+- `docker pull … pull access denied`: k8s-deploy pulls each image on the runner only to read a Dockerfile-path label for its annotations (`pull-images` input, default `true`, read from the action at `c7ebd0d5`). The repository is private and the deploy job has no registry login. **Decision:** set `pull-images: false`. This removes a useless pull and a misleading warning. Giving the deploy job Docker Hub credentials only for an annotation is rejected.
+- `get namespace … forbidden`: when it annotates resources, k8s-deploy always reads the namespace annotation to find the last successful commit (`getLastSuccessfulRunSha`), even with `annotate-namespace: false`. **Decision:** leave it. The warning does not fail the step, and the resource annotations still record the run. Granting the deployer a cluster-scoped `get namespaces` would widen its permissions for a cosmetic gain. Turning off `annotate-resources` would lose the in-cluster record of which run deployed. Revisit only if k8s-deploy makes this an error.
+
+**Rejected alternatives:**
+
+| Option | Why it loses |
+|---|---|
+| (a) `imageID` digest ∈ {pushed index} ∪ {platform manifests in the pushed index}, from `imagetools inspect --raw` in the build job | Would still have failed run 45048563144: the reported `5978fe2a…` is the *old* index, which is in neither set. Making it pass needs the deploy job to resolve `imageID` in the registry (Docker Hub credentials in deploy) and still depends on how the runtime names content. More machinery and a new secret, with no guarantee beyond I-1 to I-3. |
+| (b) `provenance: false` (and `sbom: false`) so identical content gets an identical digest | Does not fix it. The node already holds this content under `5978fe2a…`, and a new digest `e9994c92…` would be reported only if the runtime picks it, which is the unverified behaviour that failed. It also gives up provenance for every release. |
+| Keep `imageID` as a gate and accept a re-run | Breaks AC-2 (first attempt, no human step) for every content-identical release. |
+| Read the current ReplicaSet and compare its `pod-template-hash` | Same guarantee as I-1 to I-3 here (unique tags), but needs a permission the deployer is not known to have [unverified]. |
+| Read node `status.images` | Needs cluster-scoped `get nodes`, and the list is truncated. Still runtime naming. |
+
 ## Rules the implementation must preserve
 
 - No `git-tag` reference remains; build and deploy are guarded by `needs.release.outputs.released == 'true'`, and nothing else.
@@ -230,13 +292,18 @@ k8s-deploy replaces every image named `docker.io/bateau/gogear-api` in the manif
 - Release permissions are exactly `contents: write`, `pull-requests: read`; build and deploy keep their secrets, steps and inputs, apart from the changes above.
 - The concurrency group is workflow-wide and never cancels a running run.
 - `kubernetes-manifests/deployment.yaml` is not changed (D-10).
+- The pod check proves identity by `EXPECTED_IMAGE` equality in the Deployment template and the pod spec, plus R-1 and I-3 (D-11). A differing `imageID` digest never fails the run on its own, and a foreign `imageID` repository always does.
+- Every D-11 check that can run is run and printed before the step fails; M-1 runs whenever exactly one live pod exists.
+- Containers are selected by name `gogear-api`, never by index.
+- k8s-deploy has `pull-images: false`; the deploy job gets no registry credentials and the deployer no new RBAC.
+- Provenance attestations stay on.
 - `000009` keeps its SQL. `000010` up is the one statement in D-7, and its down changes no data.
 
 ## Consequences
 
 **Positive:** The release path works again with the smallest diff. The no-release, empty-tag, wrong-digest and crash-after-rollout cases all fail or skip visibly. The deploy proves itself in the run log. Seeding needs no admin action.
 
-**Negative:** The release job now depends on the GitHub API being reachable (the tool panics otherwise): the run fails before any tag, and a dispatch or the next merge recovers. Every successful deploy run takes about 3 minutes longer (the wait). A replaced pending run appears as cancelled. Bump rules come from upstream defaults that only the pin freezes.
+**Negative:** The pod check no longer has the runtime confirm the digest. It relies on pull-by-digest content checking and on tags never being reused (D-11). The release job now depends on the GitHub API being reachable (the tool panics otherwise): the run fails before any tag, and a dispatch or the next merge recovers. Every successful deploy run takes about 3 minutes longer (the wait). A replaced pending run appears as cancelled. Bump rules come from upstream defaults that only the pin freezes.
 
 **Neutral:** The `mig` node's write scope includes one small change to `main.go` (D-8 line), in addition to the migration files.
 
@@ -248,7 +315,8 @@ Confirmed when:
 
 - `rehearse` (D-9) passes all five checks, and the computed tag matches the PR title type;
 - the migration tests of D-7 pass, and a fresh database migrates up to 10 and back;
-- `verify`: the first push-triggered run on `main` is green on the first attempt, and its log shows the D-8 values (digest match, `restartCount 0`, `version=10 dirty=false`).
+- `verify`: the first push-triggered run on `main` is green on the first attempt, and its log shows the D-8 and D-11 values (R-1 and I-1 to I-3 `PASS`, the `imageID` report, `restartCount 0`, `version=10 dirty=false`);
+- the D-11 stub tests T-1 to T-10 pass in CI.
 
 Reconsider when:
 
@@ -256,6 +324,8 @@ Reconsider when:
 - the release job fails because the GitHub API is unreachable more than rarely;
 - the first clean `verify` passes (then reduce the deploy permissions and re-verify);
 - a readiness probe or a second replica is introduced (D-8 then has to select the pod differently);
+- a tag is ever reused or moved, or the deploy no longer references `<tag>@<digest>` (D-11 I-2 then no longer separates revisions; add a ReplicaSet `pod-template-hash` check);
+- k8s-deploy turns the namespace read into an error (D-11 warnings);
 - down migrations become part of any release or recovery procedure (D-7 limit).
 
 ## Open questions
@@ -263,5 +333,7 @@ Reconsider when:
 None blocking. Unverified premises, each covered by a check:
 
 - Whether `id-token: write` and `actions: read` are needed by the deploy job. They are kept (D-4); revisit after `verify`.
+- How containerd chooses the repo digest it reports as `imageID` (first recorded or lowest). D-11 does not depend on it.
+- That k8s-deploy writes the `images:` string into the template unchanged, so I-1 and I-2 can compare exactly. The run 45048563144 pod spec showed `…:v4.9.5@sha256:5b444c61…` [full string not re-read]. If the first run shows a normalized form, compare after removing a leading `docker.io/` on both sides; that is still exact identity.
 - That k8s-deploy v6 waits for the rollout of this Deployment. Research says so; D-8 does not depend on it, because it checks the pod after a fixed wait.
 - That the repository secrets still exist and are valid. The owner confirms this before merge (plan node `merge`).

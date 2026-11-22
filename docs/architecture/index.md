@@ -5,7 +5,7 @@ Technical realization decisions for accepted requirements. Requirements live in 
 ## Decisions
 
 - [ADR-001 Realizing category-driven container capability](/docs/architecture/decisions/adr-001-category-driven-container-capability.md): category container settings, one SQL view for the derived status, a database guard on links, and migration 000009 (BR-021, BR-020, BR-001 AC-6). Accepted; implemented. Its OQ-1 is closed and its seeding goes into migration 000010 by ADR-002 D-7.
-- [ADR-002 Zero-touch release, deploy and container seeding](/docs/architecture/decisions/adr-002-zero-touch-release-deploy-and-seeding.md): nrkno semantic-release v5.1.6 at a pinned SHA, build and deploy guarded by `released == 'true'` and fed by `tag`, default bump rules, least-privilege release job, a non-cancelling concurrency group, digest-checked deploy with in-run pod and migration-version checks, and the BR-021 AC-5 seeding as migration 000010 (BR-022, BR-021 AC-5). Accepted; implemented, pending verification of the deploy path.
+- [ADR-002 Zero-touch release, deploy and container seeding](/docs/architecture/decisions/adr-002-zero-touch-release-deploy-and-seeding.md): nrkno semantic-release v5.1.6 at a pinned SHA, build and deploy guarded by `released == 'true'` and fed by `tag`, default bump rules, least-privilege release job, a non-cancelling concurrency group, digest-checked deploy with in-run pod and migration-version checks, and the BR-021 AC-5 seeding as migration 000010 (BR-022, BR-021 AC-5). Accepted; implemented, pending verification of the deploy path. Amended by D-11 (pod identity from the Deployment template, pod spec and owner instead of the `imageID` digest), which is not yet implemented.
 
 ## Bundle files
 
