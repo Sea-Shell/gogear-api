@@ -97,8 +97,11 @@ func schemaSQL(t *testing.T, db *sql.DB) string {
 	return sb.String()
 }
 
-// BR-021 AC-5 / P-14 / AC-6 / P-15: the start values are "not a container",
-// the old flags stay recoverable, and no link or registration is touched.
+// BR-021 AC-6 / P-15 and the superseded P-14 start values, at version 9 only:
+// right after 000009 the settings are "not a container", the old flags stay
+// recoverable, and no link or registration is touched. The amended AC-5 / P-18
+// seeding is migration 000010 and is tested in migration10_test.go; a database
+// at version 10 or later no longer shows these start values.
 func TestMigration9StartValuesLegacyFlagsAndLinks(t *testing.T) {
 	db := containerV8DB(t)
 	migrateTo9(t, db)
