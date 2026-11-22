@@ -51,6 +51,7 @@ func GetTopCategory(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
 
 	var extraSQL []string
@@ -298,6 +299,7 @@ func UpdateTopCategory(c *gin.Context) {
 // @Param			request	body		models.GearTopCategory	true	"Request body"
 // @Success		200		{object}	models.Status			"status: success when all goes well"
 // @Failure		default	{object}	models.Error
+// @Failure		400		{object}	models.Error	"a setting is not a boolean"
 // @Failure		403		{object}	models.Error	"admin privileges required"
 // @Router			/api/v1/topCategory/insert [put]
 func InsertTopCategory(c *gin.Context) {

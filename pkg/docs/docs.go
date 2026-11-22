@@ -1859,6 +1859,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Status"
                         }
                     },
+                    "400": {
+                        "description": "a setting is not a boolean",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
                     "403": {
                         "description": "admin privileges required",
                         "schema": {
@@ -3150,7 +3156,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "top_category_is_container": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "readOnly": true
                 },
                 "top_category_name": {
                     "type": "string"

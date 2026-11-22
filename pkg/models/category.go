@@ -32,5 +32,5 @@ type GearCategoryListItem struct {
 	TopCategoryID          int64  `json:"top_category_id" db:"topCategoryId"`
 	TopCategoryName        string `json:"top_category_name" db:"topCategoryName"`
 	TopCategoryIcon        string `json:"top_category_icon" db:"topCategoryIcon"`
-	TopCategoryIsContainer bool   `json:"top_category_is_container" db:"topCategoryIsContainer"`
+	TopCategoryIsContainer bool   `json:"top_category_is_container" db:"topCategoryIsContainer" readonly:"true"`
 }
