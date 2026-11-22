@@ -10,6 +10,8 @@ timestamp: 2026-11-22T00:00:00Z
 
 ## 2026-11-22
 
+- **Creation:** [Release and deployment decisions](/docs/anchors/release-and-deployment.md) records the owner's rule that deploying a new version needs no manual step and happens through the existing workflow (RD1), and its consequence that data changes shipped with a release need no follow-up by hand (RD2). RD2 supersedes requirements provisional default P-14.
+- **Amendment:** [Access control and identity decisions](/docs/anchors/access-control-and-identity.md) D11 gains a note on starting values: container settings are seeded from the old per-gear flags (RD2), not set by hand after deploy.
 - **Amendment:** [Access control and identity decisions](/docs/anchors/access-control-and-identity.md) gains decision D11: the category or sub-category decides whether gear can be a container, and D9's "a container can store anything" is about what a container holds. The owner's statement is recorded verbatim; the detailed rules were adopted on General's proposal and stay open to owner change. Supersedes requirements provisional default P-11.
 
 ## 2026-11-21

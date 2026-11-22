@@ -190,6 +190,15 @@ func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) er
 	}
 
 	log.Infoln("Database migrations applied successfully")
+
+	// The deploy verification (ADR-002 D-8) parses this exact line from the pod
+	// log. It goes to stdout, not through the logger, because the configured
+	// log level may filter the logger's lines out.
+	version, dirty, err := m.Version()
+	if err != nil {
+		return fmt.Errorf("migration version: %w", err)
+	}
+	fmt.Fprintf(os.Stdout, "gogear-api migrations: version=%d dirty=%t\n", version, dirty)
 	return nil
 }
 

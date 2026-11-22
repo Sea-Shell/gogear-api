@@ -14,16 +14,22 @@ env:
 permissions:
   contents: read
 
+# Releases never overlap and a running release is never cancelled (ADR-002 D-6).
+# The group is deliberately not split by event name: a workflow_dispatch on main
+# must serialize with push runs, because both can tag and deploy. The cost is
+# that a dispatch may replace a pending push run; it then covers the same
+# commits, since a release includes every unreleased commit on main.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: release
-    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@b97399abef4d6647db11798db6d81e623b862615 # v4.19.0
+    uses: nrkno/github-workflow-semantic-release/.github/workflows/workflow.yaml@a68fb147ef99f6622453fc7d2976c295e87ffb1f # v5.1.6
     permissions:
-      contents: write # to be able to publish a GitHub release
-      issues: write # to be able to comment on released issues
-      pull-requests: write # to be able to comment on released pull requests
-      id-token: write # to enable use of OIDC for npm provenance
-      actions: write
+      contents: write # to tag and publish a GitHub release
+      pull-requests: read # to read merged pull requests
     with:
       runs-on: ubuntu-latest
       release-enabled: true
@@ -33,12 +39,23 @@ jobs:
     outputs:
       digest: ${{ steps.build_push.outputs.digest }}
     needs: release
+    if: needs.release.outputs.released == 'true'
+    permissions:
+      contents: read
     steps:
+      - name: Check release tag format
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '$RELEASE_TAG' is not vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
       # Checkout repo code
       - name: Checkout repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          ref: refs/tags/${{ needs.release.outputs.tag }}
           fetch-depth: 0
       # Docker login/build/push
       - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -55,11 +72,22 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache
           cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache,mode=max,ignore-error=true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}
             ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+      - name: Check image digest format
+        env:
+          IMAGE_DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Image digest '$IMAGE_DIGEST' is not sha256:<64 hex>"
+            exit 1
+          fi
   deploy:
     runs-on: [ubuntu-latest]
-    needs: [release, build ]
+    needs: [release, build]
+    if: needs.release.outputs.released == 'true'
+    # 15 min rollout (k8s-deploy) + 3 min wait + setup, with margin.
+    timeout-minutes: 25
     permissions:
       id-token: write
       actions: read
@@ -69,7 +97,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: refs/tags/${{ needs.release.outputs.git-tag }}
+          ref: refs/tags/${{ needs.release.outputs.tag }}
           fetch-depth: 0
       - name: Kubeconfig context
         uses: azure/k8s-set-context@8698eba2499e9012f0d5085f8798077cce4bc526 # v5
@@ -96,4 +124,90 @@ jobs:
           strategy: basic
           manifests: kubernetes-manifests
           images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.git-tag }}@${{ needs.build.outputs.digest }}
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}@${{ needs.build.outputs.digest }}
+      # Prove the deploy: one healthy pod running this build's digest that
+      # migrated the database to the highest migration in the tag (ADR-002 D-8).
+      - name: Verify deployed pod
+        env:
+          BUILD_DIGEST: ${{ needs.build.outputs.digest }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BUILD_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Build digest '$BUILD_DIGEST' is malformed"
+            exit 1
+          fi
+          expected=
+          for f in migrations/*.up.sql; do
+            [ -e "$f" ] || continue
+            n=${f##*/}
+            n=$((10#${n%%_*}))
+            if [ -z "$expected" ] || [ "$n" -gt "$expected" ]; then expected=$n; fi
+          done
+          if [ -z "$expected" ]; then
+            echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
+            exit 1
+          fi
+          k() { kubectl --request-timeout=20s -n seashell "$@"; }
+          # Keep only what cannot identify a user: error-level lines of the
+          # JSON app log reduced to level, message and error (never the other
+          # fields, which can carry request or user data), non-JSON crash
+          # output, and the migrations line. The repository is public.
+          safe_logs() {
+            local raw
+            raw=$(cat)
+            {
+              jq -R -r 'fromjson? | select(type == "object" and ((.level // "") | IN("error", "dpanic", "panic", "fatal")))
+                        | "\(.level) \(.message // "") \(.error // "")"' <<<"$raw" || true
+              grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:' || true
+            } | cut -c1-300 | tail -n 20
+          }
+          # Print why a check failed, bounded and filtered, then fail the step.
+          fail() {
+            echo "::error::$1"
+            echo "::group::Diagnostics"
+            k get pods -l app=gogear-api -o wide || true
+            for p in $(k get pods -l app=gogear-api -o name | head -n 5); do
+              echo "--- describe $p"
+              k describe "$p" | tail -n 60 || true
+              echo "--- error-level log lines $p (current, filtered)"
+              k logs "$p" --tail=500 | safe_logs || true
+              rc=$(k get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
+              if [ -n "$rc" ] && [ "$rc" != "0" ]; then
+                echo "--- error-level log lines $p (previous container, filtered)"
+                k logs "$p" --previous --tail=500 | safe_logs || true
+              fi
+            done
+            echo "::endgroup::"
+            exit 1
+          }
+          echo "Waiting 180 s before checking the pod (tag $RELEASE_TAG, digest $BUILD_DIGEST, expected migration version $expected)"
+          sleep 180
+          # Leftover Failed, Evicted (Failed) and Succeeded pods are not part of
+          # the rollout; terminating pods are not either.
+          pods=$(k get pods -l app=gogear-api -o json \
+            | jq '[.items[]
+                   | select(.metadata.deletionTimestamp == null)
+                   | select(.status.phase != "Failed" and .status.phase != "Succeeded")]')
+          count=$(jq 'length' <<<"$pods")
+          if [ "$count" != "1" ]; then
+            fail "Expected exactly one live gogear-api pod, found $count"
+          fi
+          pod=$(jq -r '.[0].metadata.name' <<<"$pods")
+          phase=$(jq -r '.[0].status.phase' <<<"$pods")
+          ready=$(jq -r '.[0].status.containerStatuses[0].ready' <<<"$pods")
+          restarts=$(jq -r '.[0].status.containerStatuses[0].restartCount' <<<"$pods")
+          image_id=$(jq -r '.[0].status.containerStatuses[0].imageID' <<<"$pods")
+          echo "pod=$pod phase=$phase ready=$ready restartCount=$restarts imageID=$image_id"
+          [ "$phase" = "Running" ] || fail "Pod phase is $phase"
+          [ "$ready" = "true" ] || fail "Pod container is not ready"
+          [ "$restarts" = "0" ] || fail "Pod restartCount is $restarts"
+          case "$image_id" in
+            *"@$BUILD_DIGEST") ;;
+            *) fail "imageID does not end with @$BUILD_DIGEST" ;;
+          esac
+          want="gogear-api migrations: version=$expected dirty=false"
+          if ! k logs "$pod" | grep -F -- "$want"; then
+            fail "Pod log lacks '$want'"
+          fi
+          echo "Verified: $want"

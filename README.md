@@ -2,6 +2,10 @@
 
 A Go HTTP API for gear catalogs, personal inventory, containers and loadouts, backed by one SQLite file.
 
+## Releases
+
+Merging to `main` releases and deploys automatically; nobody runs anything after the merge. The release version comes from all commits since the last tag, and the highest type among them wins: a `fix` gives a patch release, a `feat` a minor release, and a breaking change a major release. Pull requests are squash-merged, so each merge adds one commit, its title, to that set (a rebase or merge adds every commit of the branch). `chore` and `ci` commits alone release nothing: no tag, image or deploy, and the run still succeeds. This holds only while no `fix` or `feat` commit is waiting unreleased; one such commit makes any later merge release. `perf` and `revert` commits do not release.
+
 ## Operating notes
 
 Read these before deploying a new version.
@@ -20,7 +24,11 @@ Migration `000007` designates the permanent admin (the admin with the lowest use
 
 Migration `000008` deletes container links that break the nesting rules: self-links, links with a missing registration, links between different users' registrations, all but the oldest container of a registration, and one link of each cycle. The down migration restores the indexes but not the deleted links.
 
-Migration `000009` adds the container settings of the catalog categories. Every setting starts as "not a container", so no gear is container-capable until an admin marks categories: **after deploying, an admin must mark the container categories** (`top_category_is_container` on a top category, or `category_container` on a sub-category, through the admin API) before any registration can hold items; the old per-gear flag is kept as `gear.gearIsContainerLegacy` and is no longer read. It does not change any link. It cannot be applied twice by hand: a second run fails on its first statement and changes nothing. Its down migration discards the category settings and keeps links and the old flag values.
+Migration `000009` adds the container settings of the catalog categories (`top_category_is_container` on a top category, `category_container` on a sub-category, set through the admin API). They start as "not a container"; migration `000010` then seeds them (below), so no manual step is needed after a deploy. The old per-gear flag is kept as `gear.gearIsContainerLegacy` and is no longer read. It does not change any link. It cannot be applied twice by hand: a second run fails on its first statement and changes nothing. Its down migration discards the category settings and keeps links and the old flag values.
+
+Migration `000010` seeds the container settings from the old per-gear flags: a sub-category with at least one flagged gear item becomes an explicit container category, unless it already has an explicit setting. Top categories are not changed. It runs once per database, whether the database comes from version 8 or 9, and seeds nothing on a fresh database. No admin action is needed after deploying it. Its down migration changes no data (a seeded setting cannot be told apart from one an admin set), so down to 9 keeps the seeded settings. Admins can still change any setting through the admin API afterwards.
+
+After running its migrations the service prints `gogear-api migrations: version=<N> dirty=<true|false>` to stdout, whatever the log level (also when nothing changed). The release workflow checks this line after a deploy.
 
 The migrations in `migrations/` are the only source of the schema. The old seed scripts `sql/database.sql` and `sql/patch.sql` were removed because they cannot create a current schema.
 
