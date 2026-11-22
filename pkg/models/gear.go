@@ -17,10 +17,10 @@ type Gear struct {
 	GearName           string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gear.gearSizeDefinition"`
 	GearWeight         *int32 `json:"gear_weight" db:"CASE WHEN gear.gearWeight > 0 THEN gear.gearWeight END"`
-	GearHeight         int32  `json:"gear_height" db:"gear.gearHeight"`
-	GearLength         int32  `json:"gear_length" db:"gear.gearLength"`
-	GearWidth          int32  `json:"gear_width" db:"gear.gearWidth"`
-	GearStatus         bool   `json:"gear_status" db:"gear.gearStatus"`
+	GearHeight         *int32 `json:"gear_height" db:"gear.gearHeight"`
+	GearLength         *int32 `json:"gear_length" db:"gear.gearLength"`
+	GearWidth          *int32 `json:"gear_width" db:"gear.gearWidth"`
+	GearStatus         *bool  `json:"gear_status" db:"gear.gearStatus"`
 }
 
 // GearInput is the request body for creating a gear item. It has no container
@@ -56,10 +56,10 @@ type FullGear struct {
 	GearName           string `json:"gear_name" db:"gear.gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
 	GearWeight         *int32 `json:"gear_weight" db:"CASE WHEN gear.gearWeight > 0 THEN gear.gearWeight END"`
-	GearHeight         int32  `json:"gear_height" db:"gear.gearHeight"`
-	GearLength         int32  `json:"gear_length" db:"gear.gearLength"`
-	GearWidth          int32  `json:"gear_width" db:"gear.gearWidth"`
-	GearStatus         bool   `json:"gear_status" db:"gear.gearStatus"`
+	GearHeight         *int32 `json:"gear_height" db:"gear.gearHeight"`
+	GearLength         *int32 `json:"gear_length" db:"gear.gearLength"`
+	GearWidth          *int32 `json:"gear_width" db:"gear.gearWidth"`
+	GearStatus         *bool  `json:"gear_status" db:"gear.gearStatus"`
 
 	ManufactureID   int64  `json:"manufacture_id" db:"manufacture.manufactureId"`
 	ManufactureName string `json:"manufacture_name" db:"manufacture.manufactureName"`

@@ -140,11 +140,6 @@ func TestReplayDeployedFrontend(t *testing.T) {
 	g395 := env.seedGearW(395)
 	reg395 := env.SeedRegistration(f.alice, g395)
 	legacyGear := env.seedGearW(400)
-	// GET /gear/:id/get cannot scan NULL dimensions (existing behavior, outside
-	// A5); gear created through the API always stores them, so seed them too.
-	if _, err := env.DB.Exec(`UPDATE gear SET gearHeight = 0, gearLength = 0, gearWidth = 0, gearStatus = 1, gearSizeDefinition = ''`); err != nil {
-		t.Fatal(err)
-	}
 
 	// --- LoadoutFormPage: create, as the form sends it ---------------------
 	lo := r.do(http.MethodPut, "/api/v1/loadout/insert", f.aTok, map[string]any{
