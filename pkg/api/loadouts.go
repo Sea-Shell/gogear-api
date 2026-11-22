@@ -159,6 +159,59 @@ func GetLoadout(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, loadout)
 }
 
+// GetLoadoutFull returns a loadout with its places and items.
+//
+//	@Summary		Get loadout board
+//	@Description	Get one loadout of the caller with all its places (Worn, Last minute, then bags by position) and all its items (by item ID), read from one transaction so the three parts describe one state. Unknown and other users' loadouts both return 404.
+//	@Security		BearerAuth
+//	@Tags			Loadouts
+//	@Accept			json
+//	@Produce		json
+//	@Param			loadout	path		int	true	"Loadout ID"
+//	@Success		200		{object}	models.LoadoutFull
+//	@Failure		400		{object}	models.Error
+//	@Failure		404		{object}	models.Error
+//	@Failure		500		{object}	models.Error
+//	@Router			/api/v1/loadout/{loadout}/full [get]
+func GetLoadoutFull(c *gin.Context) {
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+	userID := c.MustGet("user_id_int64").(int64)
+
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
+		return
+	}
+
+	var full models.LoadoutFull
+	err := inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		loadout, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		if loadout == nil {
+			return errLoadoutNotFound
+		}
+		places, err := LoadoutPlaces(ctx, tx, loadoutID)
+		if err != nil {
+			return err
+		}
+		items, err := LoadoutItemsOwned(ctx, tx, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		full = models.LoadoutFull{Loadout: *loadout, Places: places, Items: *items}
+		return nil
+	})
+	if err != nil {
+		respondOpError(c, log, err)
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, full)
+}
+
 // UpdateLoadout updates an existing loadout.
 //
 //	@Summary		Update loadout

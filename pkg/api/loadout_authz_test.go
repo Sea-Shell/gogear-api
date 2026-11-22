@@ -674,7 +674,7 @@ func TestLoadoutItemsOwned_QueryBindsOwner(t *testing.T) {
 // happen; Alice must then get no items instead of the new owner's.
 func TestListLoadoutItems_OwnerChangedAfterCheckReturnsNoItems(t *testing.T) {
 	f := newLoFixture(t)
-	onFirstRead(t, "loadout_items", "ticked", func() { // only the item query reads ticked
+	onFirstRead(t, "loadout_items", "notes", func() { // only the item query reads notes (the loadout summary reads ticked)
 		if _, err := f.env.DB.Exec(`UPDATE loadouts SET userId = ? WHERE loadoutId = ?`, f.bob, f.l1); err != nil {
 			t.Error(err)
 		}

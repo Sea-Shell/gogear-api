@@ -1,6 +1,16 @@
 package models
 
-// Loadout represents a user gear grouping.
+// ClosedPlace names a closed place of a loadout for the loadout summary. Name
+// is the bag's gear name, "Worn" or "Last minute".
+type ClosedPlace struct {
+	PlaceID   int64  `json:"place_id"`
+	PlaceKind string `json:"place_kind"`
+	Name      string `json:"name"`
+}
+
+// Loadout represents a user gear grouping. TotalWeight is the on-your-back
+// weight in grams; the counts and closed places summarize the loadout without
+// reading its items (BR-029 AC-4). ItemCount counts item rows, not quantities.
 type Loadout struct {
 	LoadoutID          *int64 `json:"loadout_id" db:"loadoutId"`
 	UserID             int64  `json:"user_id" db:"userId"`
@@ -9,8 +19,22 @@ type Loadout struct {
 	LoadoutIsPublic    bool   `json:"loadout_is_public" db:"loadoutIsPublic"`
 	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
 	TotalWeight        int64  `json:"total_weight" db:"totalWeight"`
-	CreatedAt          string `json:"created_at" db:"createdAt"`
-	UpdatedAt          string `json:"updated_at" db:"updatedAt"`
+	ItemCount          int64  `json:"item_count"`
+	TickedCount        int64  `json:"ticked_count"`
+	BagCount           int64  `json:"bag_count"`
+	// ClosedPlaces is never nil: it encodes as [] when no place is closed.
+	ClosedPlaces []ClosedPlace `json:"closed_places"`
+	CreatedAt    string        `json:"created_at" db:"createdAt"`
+	UpdatedAt    string        `json:"updated_at" db:"updatedAt"`
+}
+
+// LoadoutFull is the whole board of one loadout, read from one transaction
+// (ARS-001 section 3). Places are ordered Worn, Last minute, then bags by
+// position; items by loadout_item_id.
+type LoadoutFull struct {
+	Loadout Loadout        `json:"loadout"`
+	Places  []LoadoutPlace `json:"places"`
+	Items   []LoadoutItem  `json:"items"`
 }
 
 // LoadoutNoID is used for creating new loadouts.

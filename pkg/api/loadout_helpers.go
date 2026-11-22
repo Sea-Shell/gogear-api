@@ -3,6 +3,7 @@ package endpoints
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -24,17 +25,38 @@ type sqlRunner interface {
 
 // Loadout column list. loadoutSlug is nullable (NULL means "no slug"), so it
 // is read through COALESCE and the API shows no slug as "". total_weight is
-// the on-your-back weight from the view (BR-029 AC-3); nothing stores it.
+// the on-your-back weight from the view (BR-029 AC-3); nothing stores it. The
+// counts and closed places come from the place and item tables in the same
+// statement, so a list needs no per-loadout item read (BR-029 AC-4).
+// closed_places is a JSON array in the order of the place list (Worn, Last
+// minute, bags by position); json_group_array gives [] when none is closed.
 const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, loadoutIsPublic, COALESCE(loadoutSlug, ''),
-	COALESCE((SELECT w.totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId), 0), createdAt, updatedAt`
+	COALESCE((SELECT w.totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId), 0),
+	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId),
+	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId AND li.ticked = 1),
+	(SELECT COUNT(*) FROM loadout_places p WHERE p.loadoutId = loadouts.loadoutId AND p.placeKind = 'bag'),
+	(SELECT json_group_array(json_object('place_id', p.placeId, 'place_kind', p.placeKind,
+	        'name', CASE p.placeKind WHEN 'worn' THEN 'Worn' WHEN 'last_minute' THEN 'Last minute' ELSE COALESCE(g.gearName, '') END)
+	        ORDER BY CASE p.placeKind WHEN 'worn' THEN 0 WHEN 'last_minute' THEN 1 ELSE 2 END, p.position, p.placeId)
+	 FROM loadout_places p
+	 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = p.registrationId
+	 LEFT JOIN gear g ON g.gearId = r.gearId
+	 WHERE p.loadoutId = loadouts.loadoutId AND p.closed = 1),
+	createdAt, updatedAt`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
 func scanLoadout(r rowScanner) (*models.Loadout, error) {
 	var l models.Loadout
+	var closed string
 	if err := r.Scan(&l.LoadoutID, &l.UserID, &l.LoadoutName, &l.LoadoutDescription,
-		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.ItemCount, &l.TickedCount, &l.BagCount,
+		&closed, &l.CreatedAt, &l.UpdatedAt); err != nil {
 		return nil, err
+	}
+	l.ClosedPlaces = []models.ClosedPlace{}
+	if err := json.Unmarshal([]byte(closed), &l.ClosedPlaces); err != nil {
+		return nil, fmt.Errorf("decode closed places: %w", err)
 	}
 	return &l, nil
 }
