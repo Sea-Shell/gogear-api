@@ -1042,6 +1042,59 @@ func TestPlaceRace_ConcurrentOrderAndAddKeepEveryBagOnce(t *testing.T) {
 	exos := f.addBag(f.exos, nil)
 	lid := f.addBag(f.lid, nil)
 	for round := 0; round < 20; round++ {
+		// An order of the two known bags races a new bag. The order is either
+		// decided before the add (200, and the new bag is last) or after it
+		// (400, a bag is missing from the list); never a partial state.
+		var padPlace int64
+		codes := race(
+			func() int {
+				return f.env.Do(http.MethodPost, pPath(f.lo, "order"), f.aTok, map[string]any{"place_ids": []int64{lid, exos}}).Code
+			},
+			func() int {
+				w := f.env.Do(http.MethodPut, pPath(f.lo, "insert"), f.aTok, map[string]any{"place_kind": "bag", "usergear_registration_id": f.pad})
+				if w.Code == http.StatusCreated {
+					var p models.LoadoutPlace
+					decodeJSON(t, w, &p)
+					padPlace = p.PlaceID
+				}
+				return w.Code
+			},
+		)
+		if codes[1] != http.StatusCreated || (codes[0] != http.StatusOK && codes[0] != http.StatusBadRequest) {
+			t.Fatalf("round %d: order %d, add %d", round, codes[0], codes[1])
+		}
+		order := f.bagOrder(f.lo)
+		if len(order) != 3 {
+			t.Fatalf("round %d: bags %v, want exos, lid and the new bag once each", round, order)
+		}
+		seen := map[int64]bool{}
+		for _, id := range order {
+			seen[id] = true
+		}
+		if len(seen) != 3 || !seen[exos] || !seen[lid] || !seen[padPlace] {
+			t.Fatalf("round %d: bags %v", round, order)
+		}
+		if codes[0] == http.StatusOK && (order[0] != lid || order[1] != exos || order[2] != padPlace) {
+			t.Fatalf("round %d: order was accepted first, so the order is lid, exos, new: %v", round, order)
+		}
+		var distinct int
+		f.env.DB.QueryRow(`SELECT COUNT(DISTINCT position) FROM loadout_places WHERE loadoutId = ? AND placeKind = 'bag'`, f.lo).Scan(&distinct)
+		if distinct != 3 {
+			t.Fatalf("round %d: positions are not distinct", round)
+		}
+		// Take the new bag away again for the next round.
+		if code, body := f.do(http.MethodDelete, pPlacePath(f.lo, padPlace, "delete"), nil); code != http.StatusOK {
+			t.Fatalf("round %d: remove new bag: %d %s", round, code, body)
+		}
+	}
+}
+
+// Two competing orders: every bag stays once.
+func TestPlaceRace_ConcurrentOrdersKeepEveryBagOnce(t *testing.T) {
+	f := newPlaceFixture(t)
+	exos := f.addBag(f.exos, nil)
+	lid := f.addBag(f.lid, nil)
+	for round := 0; round < 20; round++ {
 		codes := race(
 			func() int {
 				return f.env.Do(http.MethodPost, pPath(f.lo, "order"), f.aTok, map[string]any{"place_ids": []int64{lid, exos}}).Code
