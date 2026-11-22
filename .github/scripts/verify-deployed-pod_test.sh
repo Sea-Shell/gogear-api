@@ -99,13 +99,14 @@ new_case() {
   printf '%s\n' "$LOG_OK" >"$fx/logs.txt"
   expected_image=$IMG_NEW
   build_digest=$D_NEW
+  bash_flags=
 }
 
 # run_case: run the script in the case's work dir with the stub first on PATH.
 run_case() {
   (cd "$case_dir/work" && FIXTURES=$fx PATH="$root/bin:$PATH" VERIFY_WAIT_SECONDS=0 \
     EXPECTED_IMAGE=$expected_image BUILD_DIGEST=$build_digest \
-    bash "$script") >"$case_dir/out" 2>&1
+    bash $bash_flags "$script") >"$case_dir/out" 2>&1
   rc=$?
 }
 
@@ -272,6 +273,115 @@ want_line '^H-1 FAIL: .*restartCount=2'
 want_line 'previous container, filtered'
 want_calls ' logs .*--previous' 1
 finish "T-13 restarted container"
+# T-14 R-1: every replica count must be exactly 1
+new_case
+deployment "$IMG_NEW" 3 3 1 1 2 >"$fx/deployment.json"
+run_case
+want_rc 1; want_line '^R-1 FAIL'; want_line '^P-1 PASS'
+finish "T-14a R-1 replicas 2"
+
+new_case
+deployment "$IMG_NEW" | jq 'del(.status.updatedReplicas)' >"$fx/deployment.json"
+run_case
+want_rc 1; want_line '^R-1 FAIL'
+finish "T-14b R-1 updatedReplicas missing"
+
+new_case
+deployment "$IMG_NEW" 3 3 1 0 1 >"$fx/deployment.json"
+run_case
+want_rc 1; want_line '^R-1 FAIL'
+finish "T-14c R-1 readyReplicas 0"
+
+# T-15 two live pods
+new_case
+{
+  pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW"
+  pod gogear-api-abc-2 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW"
+} | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^P-1 FAIL: .*found 2'
+for id in I-2 I-3 H-1 I-4 M-1; do want_line "^$id NOT RUN \(no single live pod\)"; done
+finish "T-15 two live pods"
+
+# T-16 a terminating pod beside the live one is not counted (and not picked)
+new_case
+{
+  pod gogear-api-old-1 old "$IMG_OLD" Running true 0 "$REPO@$D_OLD" | jq '.metadata.deletionTimestamp = "2026-11-22T17:00:00Z"'
+  pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW"
+} | pods >"$fx/pods.json"
+run_case
+want_rc 0; want_line '^P-1 PASS'; want_line '^I-2 PASS: pod gogear-api-abc-1 '
+want_no '^[A-Z]-[0-9] FAIL'
+finish "T-16 terminating pod plus live pod"
+
+# T-17 owner ReplicaSet name does not match the pod-template-hash
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW" \
+  '[{"kind":"ReplicaSet","name":"gogear-api-zzz","controller":true}]' | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^I-3 FAIL'; want_line '^I-2 PASS'
+finish "T-17 owner ReplicaSet name differs from hash"
+
+# T-18 non-controller owner, and a controller of another kind
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW" \
+  '[{"kind":"ReplicaSet","name":"gogear-api-abc","controller":false}]' | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^I-3 FAIL'
+finish "T-18a non-controller owner"
+
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW" \
+  '[{"kind":"Job","name":"gogear-api-abc","controller":true}]' | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^I-3 FAIL'
+finish "T-18b controller of another kind"
+
+# T-19 H-1: Running but not ready; not Running although ready
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running false 0 "$REPO@$D_NEW" | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^H-1 FAIL: phase=Running ready=false'
+finish "T-19a Running but not ready"
+
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Pending true 0 "$REPO@$D_NEW" | pods >"$fx/pods.json"
+run_case
+want_rc 1; want_line '^H-1 FAIL: phase=Pending ready=true'; want_line '^P-1 PASS'
+finish "T-19b Pending although ready"
+
+# T-20 no container status named gogear-api, under bash -e: H-1 still reports
+# the phase and every other check still runs.
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "$REPO@$D_NEW" | jq 'del(.status.containerStatuses)' | pods >"$fx/pods.json"
+bash_flags=-e
+run_case
+want_rc 1; want_line '^H-1 FAIL: phase=Running '; want_line '^I-4 FAIL'; want_line '^M-1 PASS'
+finish "T-20 no container status, bash -e"
+
+# T-21 privacy: only error-level lines (level, message, error) and crash lines
+# of non-JSON output are printed. A JSON info line is never printed, even when
+# its message looks like a crash line.
+new_case
+cat >"$fx/logs.txt" <<'LOG'
+{"level":"info","message":"routine info message","username":"bob-secret"}
+{"level":"info","message":"Failed to refresh token","username":"bob-secret"}
+{"level":"error","message":"boom","error":"db locked","username":"bob-secret"}
+panic: plain crash line
+gogear-api migrations: version=9 dirty=false
+LOG
+run_case
+want_rc 1; want_line '^M-1 FAIL'
+want_line '^error boom db locked$'; want_line '^panic: plain crash line$'
+want_no 'routine info message'; want_no 'Failed to refresh'; want_no 'bob-secret|username'
+finish "T-21 log filtering"
+
+# T-22 a runtime scheme prefix on imageID is ignored by I-4
+new_case
+pod gogear-api-abc-1 abc "$IMG_NEW" Running true 0 "docker-pullable://$REPO@$D_NEW" | pods >"$fx/pods.json"
+run_case
+want_rc 0; want_line '^I-4 PASS'; want_line '^imageID digest equals build digest'
+finish "T-22 imageID with scheme prefix"
 
 echo
 echo "$pass_count passed, $fail_count failed"
