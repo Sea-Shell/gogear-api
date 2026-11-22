@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-004 — Expand-then-contract release of the loadout item contract
 
-**Status:** Accepted (architect, 2026-11-22). Not implemented. **Amended 2026-11-22 after the critic review (Loom qa `279ad7b0`):** D-2 states that legacy items read their gear live and block its deletion (F3, F4); D-1 records the `gear_weight` 0 → `null` change and the replay suite seeds a 0-weight gear (advisory A4). Every migration merges together with its dependent code ([ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md) merge rule, F1). Contract details are in [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md).
+**Status:** Accepted (architect, 2026-11-22). Expand step (milestone A) implemented 2026-11-22; the cutover is not. **Amended 2026-11-22 after the critic review (Loom qa `279ad7b0`):** D-2 states that legacy items read their gear live and block its deletion (F3, F4); D-1 records the `gear_weight` 0 → `null` change and the replay suite seeds a 0-weight gear (advisory A4). Every migration merges together with its dependent code ([ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md) merge rule, F1). Contract details are in [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md).
 
 ## In brief
 

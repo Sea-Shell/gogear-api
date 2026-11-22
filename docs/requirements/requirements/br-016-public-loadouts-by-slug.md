@@ -10,7 +10,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 **Amendment of 2026-11-22 (loadout planning, [LP1](/docs/anchors/loadout-planning-and-packing.md), [LP2](/docs/anchors/loadout-planning-and-packing.md)):** new AC-5 (the public view keeps working after items refer to registrations) and AC-6 (it never shows unapproved contributions or private items, LP8, [OC-002](/docs/requirements/obligation-contracts/oc-002-visibility-of-unapproved-contributions.md) G-5). The public view stays secondary for the reworked frontend. Not implemented.
 
-**Implementation:** implemented in wave 2 (public loadouts), with tests in `pkg/api/loadout_authz_test.go`. A blank slug is stored as no slug (NULL) and never matches a public read; empty item lists return `[]`. **Status:** Accepted. **Priority:** P0 (completes the visibility rule in D4). **Basis:** sourced from anchor decision D4. AC-2 is derived from it. AC-4 is a specified choice of the requirements author and matches current behavior.
+**Implementation:** implemented in wave 2 (public loadouts); AC-5 implemented in milestone A (2026-11-22: items carry `gear_name`, the list drops an item that has no gear row, `total_weight` follows the on-your-back view); AC-6 waits for milestone D; with tests in `pkg/api/loadout_authz_test.go`. A blank slug is stored as no slug (NULL) and never matches a public read; empty item lists return `[]`. **Status:** Accepted. **Priority:** P0 (completes the visibility rule in D4). **Basis:** sourced from anchor decision D4. AC-2 is derived from it. AC-4 is a specified choice of the requirements author and matches current behavior.
 
 **Statement:**
 The API shall return a loadout and its items by slug, without authentication, if and only if the loadout is marked public at the time of the request.
