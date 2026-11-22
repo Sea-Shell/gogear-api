@@ -38,7 +38,9 @@ ENV GOPRIVATE=github.com/Sea-Shell/gogear-api
 RUN go mod download
 RUN go mod verify
 RUN go mod tidy -e
-RUN go build -o gogear-api -ldflags="-s -w"
+# The release tag, shown in every backup name (BR-038). "dev" outside a release build.
+ARG VERSION=dev
+RUN go build -o gogear-api -ldflags="-s -w -X main.appVersion=${VERSION}"
 RUN chmod +x /app/gogear-api
 
 RUN ["upx", "-q", "gogear-api"]

@@ -99,3 +99,40 @@ func TestValidateConfig_GoogleClientID(t *testing.T) {
 		})
 	}
 }
+
+// database.backup-dir must not be the directory of the database file, so
+// backups never mix with the database and its -wal and -shm files (ARS-002).
+func TestValidateConfig_BackupDir(t *testing.T) {
+	for _, tc := range []struct {
+		name, file, backupDir string
+		wantErr               bool
+	}{
+		{"default", "/data/gogear.db", "", false},
+		{"blank is the default", "/data/gogear.db", "   ", false},
+		{"relative subdirectory", "/data/gogear.db", "backups", false},
+		{"absolute elsewhere", "/data/gogear.db", "/mnt/backups", false},
+		{"parent directory", "/data/gogear.db", "..", false},
+		{"same directory, absolute", "/data/gogear.db", "/data", true},
+		{"same directory, trailing slash", "/data/gogear.db", "/data/", true},
+		{"same directory, dot", "/data/gogear.db", ".", true},
+		{"same directory through a subdirectory", "/data/gogear.db", "x/..", true},
+		{"same directory with database options", "/data/gogear.db?_fk=0", "/data", true},
+		{"relative database file, dot", "gogear.db", ".", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &models.Config{}
+			cfg.Auth.GoogleClientID = "cid"
+			cfg.Auth.JWTAudience = "client"
+			cfg.Auth.JWTAdminAudience = "admin"
+			cfg.Database.File = tc.file
+			cfg.Database.BackupDir = tc.backupDir
+			err := validateConfig(cfg)
+			switch {
+			case tc.wantErr && (err == nil || !strings.Contains(err.Error(), "backup-dir")):
+				t.Fatalf("error = %v, want a backup-dir error", err)
+			case !tc.wantErr && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}

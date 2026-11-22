@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	migrate "github.com/golang-migrate/migrate/v4"
@@ -204,30 +206,29 @@ func TestMigration10OnFreshDatabaseSeedsNothing(t *testing.T) {
 	}
 }
 
-// ADR-002 D-8: runMigrations writes one stdout line the deploy check parses,
-// whatever the logger's level, both when it migrates and when nothing is left.
-func TestRunMigrationsPrintsVersionLineToStdout(t *testing.T) {
-	db := tempDB(t)
+// ADR-002 D-8: the startup routine writes one stdout line the deploy check
+// parses, whatever the logger's level, both when it migrates and when nothing
+// is left.
+func TestStartDatabasePrintsVersionLineToStdout(t *testing.T) {
+	cfg := startupConfig(t)
 	// A logger that drops every level, like general.log_level=error would.
 	silent := zap.NewNop().Sugar()
+	const want = "gogear-api migrations: version=11 dirty=false\n"
 
-	first := captureStdout(t, func() {
-		if err := runMigrations(db, migrationsPath(t), silent); err != nil {
-			t.Fatalf("runMigrations: %v", err)
+	for _, step := range []string{"migrating", "nothing to migrate"} {
+		var db *sql.DB
+		out := captureStdout(t, func() {
+			var hold bool
+			var err error
+			db, hold, err = startDatabase(context.Background(), cfg, silent)
+			if err != nil || hold {
+				t.Fatalf("startDatabase (%s): hold=%v err=%v", step, hold, err)
+			}
+		})
+		db.Close()
+		if !strings.HasSuffix(out, want) {
+			t.Errorf("stdout while %s = %q, want it to end with %q", step, out, want)
 		}
-	})
-	want := "gogear-api migrations: version=11 dirty=false\n"
-	if first != want {
-		t.Errorf("stdout after migrating = %q, want %q", first, want)
-	}
-
-	second := captureStdout(t, func() {
-		if err := runMigrations(db, migrationsPath(t), silent); err != nil {
-			t.Fatalf("runMigrations again: %v", err)
-		}
-	})
-	if second != want {
-		t.Errorf("stdout with nothing to migrate = %q, want %q", second, want)
 	}
 }
 

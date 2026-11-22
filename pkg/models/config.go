@@ -17,7 +17,11 @@ type Config struct {
 }
 
 type Database struct {
-	File       string `yaml:"file" json:"file"`
+	File string `yaml:"file" json:"file"`
+	// BackupDir is where pre-migration backups go (BR-038). Empty means a
+	// "backups" directory next to File; a relative value is resolved against
+	// File's directory.
+	BackupDir  string `yaml:"backup-dir" json:"backup-dir,omitempty"`
 	Connection string `yaml:"connection" json:"connection,omitempty"`
 	Username   string `yaml:"username" json:"username,omitempty"`
 	Password   string `yaml:"password" json:"password,omitempty"`

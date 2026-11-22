@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-006 — Pre-migration backup and one-action restore inside the application
 
-**Status:** Accepted (architect, 2026-11-22). Not implemented. Ships in the milestone A merge together with migration 000011 (task A6b, [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md)). Exact behavior, names and messages: [ARS-002](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md). Owner questions Q-8 and Q-9 are open; the design builds the requirement's current defaults and makes each answer a one-constant switch (D-7).
+**Status:** Accepted (architect, 2026-11-22). Implemented 2026-11-22 (task A6b, package `pkg/dbupgrade`). Ships in the milestone A merge together with migration 000011 (task A6b, [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md)). Exact behavior, names and messages: [ARS-002](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md). Owner questions Q-8 and Q-9 are open; the design builds the requirement's current defaults and makes each answer a one-constant switch (D-7).
 
 ## In brief
 

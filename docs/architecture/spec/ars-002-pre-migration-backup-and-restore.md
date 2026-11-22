@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ARS-002 — Pre-migration backup and restore: startup sequence, names, messages and tests
 
-**Status:** Accepted (architect, 2026-11-22). Not implemented. Realizes [ADR-006](/docs/architecture/decisions/adr-006-pre-migration-backup-and-restore.md) for [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). Implemented as task A6b of milestone A and merged in the same PR as migration 000011 ([ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md) merge rule).
+**Status:** Accepted (architect, 2026-11-22). Implemented 2026-11-22 (task A6b). Realizes [ADR-006](/docs/architecture/decisions/adr-006-pre-migration-backup-and-restore.md) for [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). Implemented as task A6b of milestone A and merged in the same PR as migration 000011 ([ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md) merge rule).
 
 ## In brief
 
