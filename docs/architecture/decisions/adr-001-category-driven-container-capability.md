@@ -277,5 +277,5 @@ Reconsider when:
 
 ## Open questions
 
-- **OQ-1 (closed 2026-11-22 by P-18 and ADR-002 D-7: any flagged gear → explicit container; top categories stay not container):** when seeding from the old flags, what does a sub-category get when only some of its gear was flagged? The candidate in D-5 is "any flagged → explicit container". It also leaves top categories at "not container". Nothing needs this answer while P-14 stands.
+- **OQ-1 (closed 2026-11-22 by P-18 and ADR-002 D-7: any flagged gear → explicit container; top categories stay not container):** when seeding from the old flags, what does a sub-category get when only some of its gear was flagged? The candidate in D-5 is "any flagged → explicit container". It also leaves top categories at "not container". It was not needed while P-14 stood; P-14 is now superseded by P-18, which adopted the candidate, and ADR-002 D-7 realises it in migration `000010`.
 - No contradiction between the requirements was found. BR-020 AC-8 ("a stored link whose container is no longer capable is not a violation") and BR-021 AC-6 agree with D-7's insert/update-only triggers.

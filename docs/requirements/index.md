@@ -155,7 +155,7 @@ Where the decisions were silent, the requirements author chose the least-privile
 
 No product question is open. One technical choice is open:
 
-- **T-1 (open, architect; not blocking the requirements)** — Which commit types are release-worthy for BR-022, and which version part each bumps. The architect decides and keeps the earlier release behavior of this repository where it is known. If none can be established and the choice changes what reaches the server (for example whether dependency-update chores deploy), the architect raises it to the owner through General.
+- **T-1 (decided by ADR-002 D-3; confirmation pending at the `verify` node)** — Which commit types are release-worthy for BR-022, and which version part each bumps. **Decided:** the upstream default rules of the pinned nrkno v5.1.6 (breaking → major, `feat` → minor, `fix` → patch, other types none), which match the past release behaviour of this repository (ADR-002 D-3; `perf` and `revert`, released by the old preset, no longer release, and none exist in history). Whether this is what actually happens is confirmed only by the first post-merge release run (`verify`). The architect was to keep the earlier release behavior of this repository where it is known. If none can be established and the choice changes what reaches the server (for example whether dependency-update chores deploy), the architect raises it to the owner through General.
 
 The product owner answered Q-1 to Q-5 on 2026-11-21 (anchor decisions D6 to D10), and refined Q-4 on 2026-11-22 (D11):
 

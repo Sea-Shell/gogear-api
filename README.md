@@ -4,7 +4,7 @@ A Go HTTP API for gear catalogs, personal inventory, containers and loadouts, ba
 
 ## Releases
 
-Merging to `main` releases and deploys automatically; nobody runs anything after the merge. Pull requests are squash-merged, and the squash commit title (the PR title) decides the release: a `fix` gives a patch release, a `feat` a minor release, and a breaking change a major release. A title of type `chore` or `ci` alone releases nothing: no tag, image or deploy, and the run still succeeds. With rebase or merge commits, every commit of the branch counts instead, so the highest type among them decides.
+Merging to `main` releases and deploys automatically; nobody runs anything after the merge. The release version comes from all commits since the last tag, and the highest type among them wins: a `fix` gives a patch release, a `feat` a minor release, and a breaking change a major release. Pull requests are squash-merged, so each merge adds one commit, its title, to that set (a rebase or merge adds every commit of the branch). `chore` and `ci` commits alone release nothing: no tag, image or deploy, and the run still succeeds. This holds only while no `fix` or `feat` commit is waiting unreleased; one such commit makes any later merge release. `perf` and `revert` commits do not release.
 
 ## Operating notes
 
