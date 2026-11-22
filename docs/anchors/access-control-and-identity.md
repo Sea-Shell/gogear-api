@@ -68,6 +68,8 @@ Adopted on General's proposal, open to owner change:
 - Admins set container capability on catalog categories, as part of the admin-only catalog (D1). A sub-category inherits its top category's setting unless the sub-category has its own explicit value.
 - A gear item's own container mark is no longer the source of truth. Gear gets its container status from its classification, so gear added later by users gets it automatically.
 
+Starting values (added 2026-11-22, from [release decision RD2](/docs/anchors/release-and-deployment.md)): existing data is not left for admins to mark by hand after deploy. The settings are seeded from the old per-gear container flags when the rule takes effect. The detailed seeding rule is in BR-021 AC-5 (provisional default P-18, adopted on General's proposal, open to owner change).
+
 The resulting requirements are BR-021 and the amended BR-020 and BR-001.
 
 ## Context (not a requirement)
