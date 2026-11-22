@@ -24,7 +24,7 @@ BR-038 AC-1 to AC-11, as mapped in ADR-006.
 |---|---|
 | Package | new `pkg/dbupgrade` (startup routine, backup, verify, retention, restore, policy); `main.go` calls it |
 | Config key | `database.backup-dir` (optional string). Absent or blank: `filepath.Join(filepath.Dir(database.file), "backups")`. A relative value is resolved against the directory of `database.file`. It must not equal `database.file`'s directory itself. That is refused at startup as invalid configuration, so backups never mix with the database and its `-wal`/`-shm` files |
-| Env (restore) | `GOGEAR_RESTORE_BACKUP=<file name>[#<tag>]` |
+| Env (restore) | `GOGEAR_RESTORE_BACKUP=<file name>[#<tag>]`; empty or absent = no request. Declared in `kubernetes-manifests/deployment.yaml` with `value: ""`, so each release deploy resets it (ADR-006 R-A; confirm on the first deploy) |
 | Build | `var appVersion = "dev"` in `main`; `Dockerfile`: `ARG VERSION=dev` and `-ldflags="-s -w -X main.appVersion=${VERSION}"`; `release.yaml` build step: `build-args: VERSION=${{ needs.release.outputs.tag }}` |
 | Workflow diagnostics | the pod-log grep in `release.yaml` becomes `panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:` |
 | Policy | `type Policy struct{ OnBackupFailure BackupFailure; OnMigrationFailure MigrationFailure }`; defaults `Refuse` and `Keep` as two constants in `pkg/dbupgrade/policy.go`. Changing an owner answer edits only those constants |
@@ -119,7 +119,9 @@ The same reasons are also logged through the logger at error level. Only `skippe
 Document:
 - the automatic backup (when it happens, the directory, names, retention of three per kind, the stdout lines);
 - how to find the backup names (`kubectl -n seashell logs deployment/gogear-api | grep 'gogear-api backup:'`);
-- the restore command and its two follow-ups (deploy the older release, or remove the variable with `kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP-`), and that the next release deploy removes the variable automatically;
+- the restore command and its two follow-ups (deploy the older release, or clear the request with `kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP=`);
+- that the next release deploy resets the variable to empty, because the manifest declares it empty. A client-side `kubectl apply` would keep a variable the manifest does not name. Removing it with the trailing-`-` form also works, and the next deploy adds it back as empty;
+- how to check the reset after a deploy (`kubectl -n seashell get deployment gogear-api -o jsonpath='{.spec.template.spec.containers[0].env}'` shows `GOGEAR_RESTORE_BACKUP` with `""`);
 - `#<tag>` to repeat a restore;
 - what a dirty start means and the current `OnMigrationFailure` behavior;
 - that backups are on the same disk as the database.
@@ -150,11 +152,13 @@ All tests use real files in `t.TempDir()` and call the startup routine, not inte
   - new `pkg/dbupgrade/` (routine, backup, verify, retention, restore, policy, tests);
   - `main.go` (call the routine in place of the direct `runMigrations` call, keep the version line, hold mode, `appVersion`);
   - `pkg/models/config.go` (`Database.BackupDir`) and `validateConfig`;
+  - `kubernetes-manifests/deployment.yaml` (declare `GOGEAR_RESTORE_BACKUP` with `value: ""` and a comment saying why; done in `d34c18d`);
   - `Dockerfile` (ARG and ldflags);
   - `.github/workflows/release.yaml` (build-args, diagnostics grep);
   - `README.md` (section 7);
   - the requirements index status of BR-038 and the ADR-006 and ARS-002 status lines;
   - existing migration tests only if the extracted `runMigrations` signature changes.
 - **Not in scope:** off-disk copies, scheduled backups, encryption, a restore workflow.
+- **Confirmation after merge (not a merge gate):** the first production deploy that carries the manifest declaration shows `GOGEAR_RESTORE_BACKUP` with value `""` in the Deployment spec (section 7 command). This proves the reset of ADR-006 R-A.
 - **Done when:** the tests of section 8 pass with `go test -race -count=1 ./...`, plus `go vet`, `gofmt` and the Swagger drift check (no API change expected). The replay suite and the milestone A tests stay green. A local `docker build --build-arg VERSION=v0.0.0-test` succeeds and the binary prints that version in a backup name.
 - **Dependencies:** none on A1 to A6, other than being in the same merge. It must land before the milestone A PR is merged.
