@@ -46,7 +46,7 @@ The new pod makes the `prerestore` backup, swaps the named backup in, and prints
 - deploy the older release that matches the backup (the `app` part of its name), or
 - remove the variable, so the next start backs up and migrates again: `kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP-`
 
-The next release deploy applies the manifest without the variable and so clears it too. Each value is restored once; a pod restart does not repeat it. To restore the same backup again, add a tag: `GOGEAR_RESTORE_BACKUP=<file name>#2`. A restore to the schema the image expects serves normally.
+The next release deploy clears it too: `kubernetes-manifests/deployment.yaml` declares the variable with an empty value, and the deploy applies the manifest in the rollout it does anyway (an empty value means no request). Keep that entry in the manifest. Each value is restored once; a pod restart does not repeat it. To restore the same backup again, add a tag: `GOGEAR_RESTORE_BACKUP=<file name>#2`. A restore to the schema the image expects serves normally.
 
 **A failed migration.** If a migration fails after the backup was made, the backup stays and the service reports it (`migration failed from=<N> target=<M>; the state before the attempt is in file=...`) and writes `backups/migration-failed.json`. The database is then left as the failed migration left it, and the service does not restore it by itself (`Keep`, the current default). Every later start prints `dirty schema=<N>` with the restore command for the newest `premigration` backup, makes no backup and does not start. Restore that backup with the command above, then deploy a fixed release.
 

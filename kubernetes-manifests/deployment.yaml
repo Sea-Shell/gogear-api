@@ -24,6 +24,11 @@ spec:
           env:
             - name: TZ
               value: "Europe/Oslo"
+            # Empty on purpose. The release deploy applies this manifest, so an
+            # owner's `kubectl set env ... GOGEAR_RESTORE_BACKUP=<file>` is reset
+            # to "no request" in the rollout that deploy already does (BR-038).
+            - name: GOGEAR_RESTORE_BACKUP
+              value: ""
           image: docker.io/bateau/gogear-api:v2.0.0@sha256:ef2711187f057cfa9260223783f49b5657dbbd052b7391683120884ca02d25ee
           imagePullPolicy: Always
           name: gogear-api
