@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-002 — Zero-touch release, deploy and container seeding
 
-**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-8. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
+**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-8. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives. **Note 2026-11-22:** [ADR-006](/docs/architecture/decisions/adr-006-pre-migration-backup-and-restore.md) D-9 adds the `VERSION` build argument to the build step and `gogear-api backup:` to the D-8 diagnostics grep; the D-8 checks themselves are unchanged.
 
 ## In brief
 

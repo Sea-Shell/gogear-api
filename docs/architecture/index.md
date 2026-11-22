@@ -10,6 +10,7 @@ Technical realization decisions for accepted requirements. Requirements live in 
 - [ADR-003 Loadout places as rows, registration-backed items, and weights computed on read](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md): one `loadout_places` table (Worn, Last minute, bags with per-trip parent and order), items that name the owner's registration with a snapshot when it is deleted, ticks and closed state as columns, and `total_weight` computed as on-your-back weight by views (BR-023 to BR-025, BR-027, BR-029, BR-030). Accepted; milestone A parts implemented (weights from measured values with milestone B).
 - [ADR-004 Expand-then-contract release of the loadout item contract](/docs/architecture/decisions/adr-004-expand-contract-release-of-the-loadout-item-contract.md): every milestone only adds to the API; gear-only item inserts keep working through a legacy path until a cutover merged after the deployed frontend adds items by registration (BR-022, BR-023 AC-1, AC-7, AC-8). Accepted; expand step (milestone A) implemented, cutover not.
 - [ADR-005 Gear catalog states for contributions and private items, one visibility rule, and a merge that only repoints](/docs/architecture/decisions/adr-005-gear-catalog-states-contributions-and-private-items.md): `approved` / `private` / `waiting` / `not_approved` on the gear row, one visibility predicate for every catalog read, and merge or replace that changes only the registrations' gear (BR-002, BR-032 to BR-034, BR-037, OC-002). Accepted; not implemented.
+- [ADR-006 Pre-migration backup and one-action restore inside the application](/docs/architecture/decisions/adr-006-pre-migration-backup-and-restore.md): plain-SQL version check before golang-migrate, a verified `VACUUM INTO` snapshot taken while no listener is open, three kept per kind, stdout announcement, restore through the `GOGEAR_RESTORE_BACKUP` env setting, dirty-state handling, and Q-8 and Q-9 as two policy constants (BR-038). Accepted; not implemented (task A6b, part of the milestone A merge).
 
 ## Designs
 
@@ -18,6 +19,7 @@ Technical realization decisions for accepted requirements. Requirements live in 
 ## Specifications
 
 - [ARS-001 Loadout loop schema, migrations and API contract](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md): migrations 000011 to 000014 and the cutover, the weight views, response shapes and every new or changed endpoint by milestone. Accepted; milestone A implemented, milestones B to E and the cutover not.
+- [ARS-002 Pre-migration backup and restore: startup sequence, names, messages and tests](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md): startup order, `database.backup-dir`, `GOGEAR_RESTORE_BACKUP`, file names and state files, stdout lines, build and workflow changes, required tests and task A6b (BR-038). Accepted; not implemented.
 
 ## Bundle files
 
