@@ -25,7 +25,8 @@ type Gear struct {
 
 // GearInput is the request body for creating a gear item. It has no container
 // field: the status comes from the sub-category, so a gear_is_container in a
-// request body is ignored.
+// request body is ignored. An absent or null gear_weight is stored as NULL
+// (ADR-003 D-7), never as 0.
 type GearInput struct {
 	GearID             *int64 `json:"gear_id" db:"gearId"`
 	GearTopCategoryID  int64  `json:"gear_top_category_id" db:"gearTopCategoryId"`
@@ -33,7 +34,7 @@ type GearInput struct {
 	GearManufactureID  int64  `json:"gear_manufacture_id" db:"gearManufactureId"`
 	GearName           string `json:"gear_name" db:"gearName"`
 	GearSizeDefinition string `json:"gear_size_definition" db:"gearSizeDefinition"`
-	GearWeight         int32  `json:"gear_weight" db:"gearWeight"`
+	GearWeight         *int32 `json:"gear_weight" db:"gearWeight"`
 	GearHeight         int32  `json:"gear_height" db:"gearHeight"`
 	GearLength         int32  `json:"gear_length" db:"gearLength"`
 	GearWidth          int32  `json:"gear_width" db:"gearWidth"`
