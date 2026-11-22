@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-002 — Zero-touch release, deploy and container seeding
 
-**Status:** Accepted (architect, 2026-11-22). Not implemented. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
+**Status:** Accepted (architect, 2026-11-22). Implemented, pending verification: migration `000010` and the D-8 version line are in the code, and `release.yaml` follows D-1, D-2, D-6 and D-8. The deploy path is proven only by the first push-triggered run on `main` (`verify` node). **Amended 2026-11-22:** factual corrections to D-3 and D-9 and to the AC-3 and AC-5 rows from the rehearsal; the decisions are unchanged. Closes ADR-001 OQ-1 and decides where ADR-001 D-5's seeding statement lives.
 
 ## In brief
 
@@ -34,9 +34,9 @@ timestamp: 2026-11-22T00:00:00Z
 |---|---|---|
 | BR-022 AC-1 (tag, image from the tag, deploy by digest, all or failed) | D-1, D-2, D-5 | post-merge run (`verify`): tag and GitHub release exist; image `:<tag>` digest equals the deployed digest |
 | BR-022 AC-2 (push-triggered, first attempt, no human step) | D-1 trigger `push: main`; D-8 evidence inside the run; no environment approvals | run event is `push`, `run_attempt == 1`, no dispatched run for the merge |
-| BR-022 AC-3 (nothing release-worthy: nothing published, green) | D-2 guard `released == 'true'`; D-3 default rules | rehearsal of a no-release history gives `released=false`; build and deploy skipped, run successful |
+| BR-022 AC-3 (nothing release-worthy: nothing published, green) | D-2 guard `released == 'true'`; D-3 default rules | dry run of a no-release history gives `released=false`; guard check shows build and deploy skipped; the release case is shown by a non-dry run against a bare repository and a stub API (`released=true`, a dry run cannot) |
 | BR-022 AC-4 (failure visible, own image only, no partial success) | D-2 tag check, D-5 digest checks, D-6 concurrency, D-8 post-deploy checks | a missing tag, empty or malformed digest, or a crashing pod fails the run |
-| BR-022 AC-5 (version higher than `v4.9.3`, no moved tag) | D-1 (semrel resolves the lightweight `v4.9.x` tags, probe); D-6 serialized runs | rehearsal computes `v4.9.4` or `v4.10.0` depending on the PR title type |
+| BR-022 AC-5 (version higher than `v4.9.3`, no moved tag) | D-1 (semrel resolves the lightweight `v4.9.x` tags, probe); D-6 serialized runs | dry run computes `v4.9.4` or `v4.10.0` depending on the squash title type |
 | BR-022 AC-6 (full-SHA pinning stays, nested included) | D-1 pins and the nested pins listed there | recursive pin scan in `rehearse` and `review` |
 | BR-022 AC-7 (a)–(e) (evidence) | D-8 in-run checks; (a)–(c) from run metadata and registry | the `verify` report |
 | BR-022 AC-8 (close merges) | D-6 | two merges in quick succession: the later run deploys the higher version; no run is cancelled while running |
@@ -55,7 +55,7 @@ How should `release.yaml` and the seeding of BR-021 AC-5 be realized so that a m
 - v5 exposes `released`, `version`, `tag`, `major`, `minor`, `patch`; there is no `git-tag`. With nothing to release, `released=false` and `tag` is the **latest existing tag**, not empty (probe). A guard on tag emptiness would therefore redeploy the old tag.
 - The repository has `sha_pinning_required: true` (research). Every `uses:` in the release path, including nested ones, must be a 40-hex SHA.
 - The semrel binary accepts the lightweight `v4.9.x` tags and computes `v4.9.4` from current history; default bump rules (breaking → major, `feat` → minor, `fix` → patch, others none) reproduce every past release decision; a caller `.semrelrc.yml` is decoded on top of the defaults; the tool panics if the GitHub API is unreachable (probe).
-- The PRs are squash-merged (`#NNN` suffixes on `main`), so the PR title decides the bump of a merge.
+- The PRs are squash-merged (`#NNN` suffixes on `main`), so the PR title decides the bump of a merge. This holds for squash merges only: a rebase or merge commit would put every commit of the branch into the range, so the highest type among them decides (the rehearsal gives `v4.10.0` for this branch because of its `feat(db)` commit, whatever the PR title). On current `main` any squash title that is not `feat` or breaking, but is a `fix`, gives `v4.9.4`, and a `chore` or `ci` title alone releases nothing. *(Wording corrected after the rehearsal; the decision is unchanged.)*
 - `deployment.yaml` uses `strategy: Recreate`, one replica, SQLite on a hostPath, no readiness or liveness probe. The app runs `m.Up()` at start and calls `log.Fatalf` on a migration error (`main.go` `runMigrations`), so a failed migration is a container exit and a restart, possibly after the rollout was reported complete.
 - The release path uses no Node.js: nrkno v5 is a Go binary in a container, and build and deploy run no Node steps. The plan's "Node 24.x where Node is used" is therefore not applicable.
 - Out of scope: release notes, floating tags, rollback (BR-022 Out of scope).
@@ -207,9 +207,9 @@ Rejected: a readiness probe and a `/health` field with the migration version. Th
 
 1. `actionlint` on `release.yaml`: no errors.
 2. A recursive pin scan of `release.yaml`, the reusable workflow at `a68fb147…`, and the action at `5afff0e9…`, including its composite steps: every `uses:` is a 40-hex SHA.
-3. A dry run of the **pinned** semrel action image (`ghcr.io/nrkno/github-action-semantic-release:5afff0e9b820879b997a3e381d09d1dc3941dc00`, cosign-verified as the action does) with `INPUT_SUBCOMMAND=release`, `INPUT_DRY_RUN=true`, `GITHUB_REF=refs/heads/main`, `GITHUB_EVENT_NAME=push`, a token that can only read, and a `GITHUB_OUTPUT` file in a temporary directory. Run it on two disposable local clones, whose push URL is set to an invalid path:
-   - **release case:** `origin/main` plus one squash commit carrying the planned PR title. Expected: `released=true`, `tag=v4.9.4` for a `fix` title or `v4.10.0` for a `feat` title.
-   - **no-release case:** the same history with a local lightweight tag at the simulated squash commit, plus one `chore:` commit. Expected: `released=false`, and `tag` equals that local tag.
+3. A dry run (it proves only the computed `tag`: semrel sets `released = !dryRun`, so a dry run never reports `released=true`; `released=true` is shown by a local non-dry run against a bare repository and a stub GitHub API) of the **pinned** semrel action image (`ghcr.io/nrkno/github-action-semantic-release:5afff0e9b820879b997a3e381d09d1dc3941dc00`, cosign-verified as the action does) with `INPUT_SUBCOMMAND=release`, `INPUT_DRY_RUN=true`, `GITHUB_REF=refs/heads/main`, `GITHUB_EVENT_NAME=push`, a token that can only read, and a `GITHUB_OUTPUT` file in a temporary directory. Run it on two disposable local clones, whose push URL is set to an invalid path:
+   - **release case:** `origin/main` plus one squash commit carrying the planned PR title. Expected: `tag=v4.9.4` for a `fix` title or `v4.10.0` for a `feat` title (`released=true` appears only in the non-dry-run variant above).
+   - **no-release case:** the same history with a local lightweight tag at the simulated squash commit, plus one `chore:` commit. Expected: `released=false`, and `tag` equals that local tag (this also holds in a dry run).
 4. Guard check: the `if:` expressions of build and deploy are exactly `needs.release.outputs.released == 'true'`. Under the no-release outputs they are false, and under empty outputs (release job skipped) they are false.
 5. Proof of no publishing: the remote tags and releases, and the Docker Hub tags, are the same before and after.
 

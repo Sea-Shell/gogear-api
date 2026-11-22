@@ -180,7 +180,7 @@ Links, registrations and gear data are not changed (P-15).
 
 **Down:** drop both triggers, drop both views, `ALTER TABLE … DROP COLUMN` for both new columns (a CHECK on the column itself does not block DROP COLUMN), and rename `gearIsContainerLegacy` back to `gearIsContainer`. Settings are lost. Links and legacy flag values are kept. Up again gives P-14 start values again.
 
-**README note:** `000009` adds category settings that all start as "not a container" (no gear is container-capable until an admin marks categories). It keeps the old per-gear flags as `gear.gearIsContainerLegacy`. It does not change links. It cannot be replayed. Its down migration discards the settings.
+**README note:** `000009` adds category settings that all start as "not a container" (no gear is container-capable until an admin marks categories; *amended 2026-11-22: migration `000010` now seeds them from the old flags, so no admin step is needed*). It keeps the old per-gear flags as `gear.gearIsContainerLegacy`. It does not change links. It cannot be replayed. Its down migration discards the settings.
 
 ### D-7 Database guard for links into non-capable containers
 
