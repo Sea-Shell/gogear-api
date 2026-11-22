@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-001 — Realizing category-driven container capability
 
-**Status:** Accepted (architect, 2026-11-22). Implemented on 2026-11-22: migration 000009 and the derived status and link guard in the first change, the admin API for the settings in the second. The decisions are unchanged. An independent review of the implementation is pending.
+**Status:** Accepted (architect, 2026-11-22). Implemented on 2026-11-22: migration 000009 and the derived status and link guard in the first change, the admin API for the settings in the second. The decisions are unchanged. An independent review of the implementation is pending. **Amended 2026-11-22:** P-14 is superseded by P-18 (BR-021 AC-5). The seeding from D-5 is realized in migration `000010` by [ADR-002](/docs/architecture/decisions/adr-002-zero-touch-release-deploy-and-seeding.md) D-7, which closes OQ-1.
 
 ## In brief
 
@@ -39,7 +39,7 @@ The provisional defaults P-13 to P-17 (P-11 is superseded) are listed in the req
 | BR-021 AC-2, BR-001 AC-6 (admin-only writes, open reads) | D-2 fields on the existing catalog routes behind `RequireAdmin` | non-admin create/update of each setting is 403 and nothing changes; reads work for any authenticated user |
 | BR-021 AC-3 (status only from the effective setting, at read time) | D-3 view `gear_container_capability`, D-4 read-only `gear_is_container`, D-5 rename of the old column | every gear/registration/container-contents response equals the view; a gear whose top-category reference disagrees; a write that sends `gear_is_container` has no effect |
 | BR-021 AC-4 / P-13 (missing sub-category is not capable) | D-3 `COALESCE(…, 0)` over a `LEFT JOIN` | gear row with a dangling `gearCategoryId` (seeded with foreign keys off) reports `false` |
-| BR-021 AC-5 / P-14 (start values, no carry-over) | D-6 column defaults; no seeding statement in `000009` | migration test on a v8 database with old flags set: every setting is the default, and every gear reports `false` |
+| BR-021 AC-5 / P-14 (start values, no carry-over; superseded by P-18, seeding in ADR-002 D-7) | D-6 column defaults; no seeding statement in `000009` | migration test on a v8 database with old flags set: every setting is the default, and every gear reports `false` |
 | BR-021 AC-6 / P-15 (existing links stay) | D-7 trigger fires only on link insert/update; no migration step touches links | AC-6 example; migration test keeps all links |
 | BR-021 AC-7 / P-16 (`container=true\|false`) | D-3 view, joined by the filters with the same expression as the reported value | filter results match the reported value after each catalog change |
 | BR-021 AC-8 (setting change vs link) | D-8 capability read inside the immediate link transaction; D-7 trigger | repeated race test: no link into a not-capable container is stored after the change was answered |
@@ -277,5 +277,5 @@ Reconsider when:
 
 ## Open questions
 
-- **OQ-1 (non-blocking; owner via General, only if P-14 is flipped):** when seeding from the old flags, what does a sub-category get when only some of its gear was flagged? The candidate in D-5 is "any flagged → explicit container". It also leaves top categories at "not container". Nothing needs this answer while P-14 stands.
+- **OQ-1 (closed 2026-11-22 by P-18 and ADR-002 D-7: any flagged gear → explicit container; top categories stay not container):** when seeding from the old flags, what does a sub-category get when only some of its gear was flagged? The candidate in D-5 is "any flagged → explicit container". It also leaves top categories at "not container". Nothing needs this answer while P-14 stands.
 - No contradiction between the requirements was found. BR-020 AC-8 ("a stored link whose container is no longer capable is not a violation") and BR-021 AC-6 agree with D-7's insert/update-only triggers.
