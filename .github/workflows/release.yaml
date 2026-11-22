@@ -207,7 +207,17 @@ jobs:
             *) fail "imageID does not end with @$BUILD_DIGEST" ;;
           esac
           want="gogear-api migrations: version=$expected dirty=false"
-          if ! k logs "$pod" | grep -F -- "$want"; then
+          # Read the log first so a failed read (for example missing RBAC on
+          # pods/log) is not reported as a missing migrations line.
+          errfile=$(mktemp)
+          trap 'rm -f "$errfile"' EXIT
+          log_rc=0
+          pod_log=$(k logs "$pod" 2>"$errfile") || log_rc=$?
+          if [ "$log_rc" -ne 0 ]; then
+            log_err=$(head -n 1 "$errfile" | cut -c1-200)
+            fail "Could not read pod logs (kubectl exit $log_rc): $log_err. The deploy service account needs get on pods/log."
+          fi
+          if ! grep -F -- "$want" <<<"$pod_log"; then
             fail "Pod log lacks '$want'"
           fi
           echo "Verified: $want"
