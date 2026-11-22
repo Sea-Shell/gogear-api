@@ -157,7 +157,7 @@ UPDATE gear_category SET categoryIsContainer = 1
 WHERE categoryId IN (SELECT gearCategoryId FROM gear WHERE gearIsContainerLegacy = 1);
 ```
 
-`000009` records this statement as a comment, marked "not applied (P-14)". `sql/database.sql` and `sql/patch.sql` are not changed. They are pre-migration seed and patch scripts and still create `gearIsContainer`, which `000009` renames on the way up. A database loaded from `database.sql` therefore keeps its seeded flags as recoverable legacy values.
+`000009` records this statement as a comment, marked "not applied (P-14)". `sql/database.sql` and `sql/patch.sql` were not changed by `000009` and have since been deleted (review follow-up). They were pre-migration seed and patch scripts and still create `gearIsContainer`, which `000009` renames on the way up. A database loaded from `database.sql` therefore keeps its seeded flags as recoverable legacy values.
 
 ### D-6 Migration shape: new `000009`, not an edit of `000008`
 

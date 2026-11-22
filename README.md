@@ -22,6 +22,8 @@ Migration `000008` deletes container links that break the nesting rules: self-li
 
 Migration `000009` adds the container settings of the catalog categories. Every setting starts as "not a container", so no gear is container-capable until an admin marks categories: **after deploying, an admin must mark the container categories** (`top_category_is_container` on a top category, or `category_container` on a sub-category, through the admin API) before any registration can hold items; the old per-gear flag is kept as `gear.gearIsContainerLegacy` and is no longer read. It does not change any link. It cannot be applied twice by hand: a second run fails on its first statement and changes nothing. Its down migration discards the category settings and keeps links and the old flag values.
 
+The migrations in `migrations/` are the only source of the schema. The old seed scripts `sql/database.sql` and `sql/patch.sql` were removed because they cannot create a current schema.
+
 The database runs in WAL mode. Next to the database file there are `<file>-wal` and `<file>-shm` files. A plain copy of the `.db` file while the service runs can be torn or miss recent writes, and checkpointing first does not prevent that, because the service can write again before the copy finishes. Use one of these:
 
 - **Stop the service, then copy.** Scale the Deployment to 0 and wait for the pod to end. Copy the `.db` file together with `-wal` and `-shm` if they exist. Run this on the node that holds the `hostPath` directory (`/data/disk2/opt/gogear-api` in `kubernetes-manifests/deployment.yaml`; the database path is `database.file` in the config).
