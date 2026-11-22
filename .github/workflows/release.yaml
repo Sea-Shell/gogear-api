@@ -171,11 +171,11 @@ jobs:
               echo "--- describe $p"
               k describe "$p" | tail -n 60 || true
               echo "--- error-level log lines $p (current, filtered)"
-              k logs "$p" --tail=500 | safe_logs || true
+              k logs "$p" --tail=500 2>/dev/null | safe_logs || true
               rc=$(k get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
               if [ -n "$rc" ] && [ "$rc" != "0" ]; then
                 echo "--- error-level log lines $p (previous container, filtered)"
-                k logs "$p" --previous --tail=500 | safe_logs || true
+                k logs "$p" --previous --tail=500 2>/dev/null | safe_logs || true
               fi
             done
             echo "::endgroup::"
@@ -214,8 +214,13 @@ jobs:
           log_rc=0
           pod_log=$(k logs "$pod" 2>"$errfile") || log_rc=$?
           if [ "$log_rc" -ne 0 ]; then
-            log_err=$(head -n 1 "$errfile" | cut -c1-200)
-            fail "Could not read pod logs (kubectl exit $log_rc): $log_err. The deploy service account needs get on pods/log."
+            log_err=$( { grep -m1 -iE '^error' "$errfile" || head -n 1 "$errfile"; } | cut -c1-200)
+            log_err=${log_err:-no error output}
+            hint="See the diagnostics below."
+            case "$log_err" in
+              *Forbidden*) hint="The deploy service account needs get on pods/log." ;;
+            esac
+            fail "Could not read pod logs (kubectl exit $log_rc): $log_err. $hint"
           fi
           if ! grep -F -- "$want" <<<"$pod_log"; then
             fail "Pod log lacks '$want'"
