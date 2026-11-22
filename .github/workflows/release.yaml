@@ -15,6 +15,10 @@ permissions:
   contents: read
 
 # Releases never overlap and a running release is never cancelled (ADR-002 D-6).
+# The group is deliberately not split by event name: a workflow_dispatch on main
+# must serialize with push runs, because both can tag and deploy. The cost is
+# that a dispatch may replace a pending push run; it then covers the same
+# commits, since a release includes every unreleased commit on main.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -142,15 +146,36 @@ jobs:
             echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
             exit 1
           fi
+          # Print why a check failed, bounded, then fail the step.
+          fail() {
+            echo "::error::$1"
+            echo "::group::Diagnostics"
+            kubectl -n seashell get pods -l app=gogear-api -o wide || true
+            for p in $(kubectl -n seashell get pods -l app=gogear-api -o name | head -n 5); do
+              echo "--- describe $p"
+              kubectl -n seashell describe "$p" | tail -n 60 || true
+              echo "--- logs $p (current, last 50 lines)"
+              kubectl -n seashell logs "$p" --tail=50 || true
+              rc=$(kubectl -n seashell get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
+              if [ -n "$rc" ] && [ "$rc" != "0" ]; then
+                echo "--- logs $p (previous container, last 50 lines)"
+                kubectl -n seashell logs "$p" --previous --tail=50 || true
+              fi
+            done
+            echo "::endgroup::"
+            exit 1
+          }
           echo "Waiting 180 s before checking the pod (tag $RELEASE_TAG, digest $BUILD_DIGEST, expected migration version $expected)"
           sleep 180
+          # Leftover Failed, Evicted (Failed) and Succeeded pods are not part of
+          # the rollout; terminating pods are not either.
           pods=$(kubectl -n seashell get pods -l app=gogear-api -o json \
-            | jq '[.items[] | select(.metadata.deletionTimestamp == null)]')
+            | jq '[.items[]
+                   | select(.metadata.deletionTimestamp == null)
+                   | select(.status.phase != "Failed" and .status.phase != "Succeeded")]')
           count=$(jq 'length' <<<"$pods")
           if [ "$count" != "1" ]; then
-            echo "::error::Expected exactly one gogear-api pod, found $count"
-            kubectl -n seashell get pods -l app=gogear-api
-            exit 1
+            fail "Expected exactly one live gogear-api pod, found $count"
           fi
           pod=$(jq -r '.[0].metadata.name' <<<"$pods")
           phase=$(jq -r '.[0].status.phase' <<<"$pods")
@@ -158,16 +183,15 @@ jobs:
           restarts=$(jq -r '.[0].status.containerStatuses[0].restartCount' <<<"$pods")
           image_id=$(jq -r '.[0].status.containerStatuses[0].imageID' <<<"$pods")
           echo "pod=$pod phase=$phase ready=$ready restartCount=$restarts imageID=$image_id"
-          [ "$phase" = "Running" ] || { echo "::error::Pod phase is $phase"; exit 1; }
-          [ "$ready" = "true" ] || { echo "::error::Pod container is not ready"; exit 1; }
-          [ "$restarts" = "0" ] || { echo "::error::Pod restartCount is $restarts"; exit 1; }
+          [ "$phase" = "Running" ] || fail "Pod phase is $phase"
+          [ "$ready" = "true" ] || fail "Pod container is not ready"
+          [ "$restarts" = "0" ] || fail "Pod restartCount is $restarts"
           case "$image_id" in
             *"@$BUILD_DIGEST") ;;
-            *) echo "::error::imageID does not end with @$BUILD_DIGEST"; exit 1 ;;
+            *) fail "imageID does not end with @$BUILD_DIGEST" ;;
           esac
           want="gogear-api migrations: version=$expected dirty=false"
           if ! kubectl -n seashell logs "$pod" | grep -F -- "$want"; then
-            echo "::error::Pod log lacks '$want'"
-            exit 1
+            fail "Pod log lacks '$want'"
           fi
           echo "Verified: $want"
