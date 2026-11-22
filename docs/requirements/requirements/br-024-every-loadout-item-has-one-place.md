@@ -1,0 +1,53 @@
+---
+type: Behavioral Requirement
+title: BR-024 Every loadout item is in exactly one place, and bags nest for the trip
+description: Each loadout keeps its bags (container registrations of the owner), their nesting and order for this trip, a built-in Worn place, an optional Last minute place, and the one place of every item; capacity and goal never refuse a move.
+tags: [loadouts, loadout-items, places, bags, containers, loadout-planning]
+timestamp: 2026-11-22T00:00:00Z
+---
+
+# BR-024 — Every loadout item is in exactly one place, and bags nest for the trip
+
+**Implementation:** not implemented. **Status:** Accepted. **Priority:** P1 (milestone A; sorting on the board and Pack depend on it). **Basis:** the statement, AC-1, AC-3 and AC-5 are sourced from capability need N1 of the accepted design (owner's yes, [LP1](/docs/anchors/loadout-planning-and-packing.md)) and from [LP3](/docs/anchors/loadout-planning-and-packing.md) (Worn and Last minute are per-loadout places). AC-2's container rule is derived from N2 ("bags that are real containers") and [BR-021](/docs/requirements/requirements/br-021-container-capability-from-category.md). AC-6 (bags are on your back) is derived from the design's definition of "on your back" ("all bags, their contents, Last minute, and loose items"). AC-7 is sourced from the accepted design's principle P3 ("never block, always show"). AC-8 and AC-9 are sourced from the design's board flow F4 ("bags in the user's order"; removing a bag "never deletes items"). AC-10 is derived. AC-4's default parent and the statuses are provisional defaults or specified choices, marked where they apply. How places and nesting are stored is the architect's choice (handoff Q-C).
+
+**Terms:**
+- *Place* of an item: where it travels on this trip. Exactly one of: one of the loadout's bags, **Worn**, **Last minute**, or no place (shown as "Not in a bag yet" in Plan and "Loose items" in Pack).
+- *Bag*: a registration of the loadout's owner chosen as a container for this loadout. Its own weight counts on your back ([BR-029](/docs/requirements/requirements/br-029-loadout-weights-and-summary-reported.md)).
+- *Parent bag* (for this trip): the bag of the same loadout that a bag sits inside. A *top-level bag* has none.
+- *Closet container link*: the container links of [BR-013](/docs/requirements/requirements/br-013-container-links-owner-scoped.md) and [BR-020](/docs/requirements/requirements/br-020-container-nesting-consistency.md). They describe where gear is stored at home, not where it travels on a trip.
+
+**Statement:**
+For each loadout, the API shall keep which bags it uses, how they nest and in which order for this trip, whether it has a Last minute place, and the one place of every item, so that every item is always in exactly one place.
+
+**Acceptance criteria:**
+
+- AC-1: Every loadout has a Worn place from the moment it is created. Worn cannot be removed. The owner can add one Last minute place and remove it again; a loadout has at most one. Adding a second Last minute place is refused with 409.
+- AC-2: The owner can make one of their registrations a bag of the loadout only if (a) they own it (otherwise the "not found" outcome of [BR-018](/docs/requirements/requirements/br-018-denial-outcomes.md)), (b) it is not already a bag of this loadout (otherwise 409), and (c) its gear is container-capable at that moment ([BR-021](/docs/requirements/requirements/br-021-container-capability-from-category.md); otherwise 409, with a response saying that this gear cannot hold items). Being a bag does not stop the same registration from backing items of the loadout ([BR-023](/docs/requirements/requirements/br-023-loadout-items-are-own-registrations.md) AC-2). **[One bag per registration per loadout, and the 409 statuses: provisional default P-21 — open to product-owner change]**
+- AC-3: A bag is either top level or inside exactly one other bag of the same loadout. A bag is never inside itself, directly or through other bags. Putting a bag inside itself is refused with 400; putting it inside one of the bags it already holds is refused with 409. A parent that is not a bag of this loadout is refused with the "not found" outcome. In each case nothing changes. Example: in L1, "Lid" is inside "Exos 58"; putting "Exos 58" inside "Lid" is refused with 409. (Statuses chosen to match BR-020 AC-4.)
+- AC-4: A bag's nesting for this trip is separate from the closet container links. Changing a bag's parent in a loadout never creates, changes or removes a closet container link, and changing a closet container link never changes any loadout. When a bag is added without a parent, it starts inside its closet direct container if that container is already a bag of the same loadout; otherwise it starts top level. Example: in the closet, "Lid" is inside "Exos 58"; "Exos 58" is already a bag of L1; adding "Lid" to L1 without a parent puts it inside "Exos 58". Exception: if that default parent can no longer receive new contents, because its gear is no longer container-capable (AC-6), the new bag starts top level and the request succeeds. It is not refused. Naming such a bag explicitly as the parent is still refused with 409 (AC-6). Example: "Exos 58"'s category was marked not a container after it became a bag of L1; adding "Lid" without a parent puts "Lid" at top level; adding it with parent "Exos 58" is 409. **[Starting point sourced from N1 ("starting from the closet's container links"); this exact rule, including the exception, is provisional default P-22 (with P-21 for the 409) — open to product-owner change]**
+- AC-5: Every item is in exactly one place at all times. A new item has no place unless the request gives one. Moving an item replaces its place in one step; the item is never in two places and never without a defined place. Moving an item to a bag that is not a bag of this loadout, or to Last minute when the loadout has none, is refused with the "not found" outcome, and the item stays where it was.
+- AC-6: Bags are always on your back. A bag cannot be put in Worn or Last minute; such a request is refused with 400. A bag whose gear stops being container-capable after it became a bag keeps the items and bags it holds, but receives no new ones: moving an item or a bag into it is refused with 409 and changes nothing. **[The second part follows BR-021 AC-6 (P-15); provisional default P-21]**
+- AC-7: A bag's capacity (the registration's maximum container weight) and the loadout's weight goal ([BR-028](/docs/requirements/requirements/br-028-loadout-stage-dates-and-goal.md)) never refuse a move or an added item. Going over them is shown by the client from the reported weights.
+- AC-8: Removing a bag from the loadout gives each item directly in it no place and makes each bag directly in it top level. Removing Last minute gives each of its items no place. Neither removes an item, a bag other than the one removed, or the registration from the closet. Removing a bag also ends its closed state ([BR-025](/docs/requirements/requirements/br-025-packing-progress-saved-per-loadout.md) AC-5).
+- AC-9: The owner can set the order of the loadout's bags. Reads return the bags in that order. A new bag goes last. Removing a bag keeps the order of the others.
+- AC-10: AC-3 and AC-5 hold when requests run at the same time, for example from two devices. Concurrent requests "put Lid inside Exos 58" and "put Exos 58 inside Lid" leave at most one of them in effect. Two concurrent moves of the same item leave it in exactly one of the two requested places. (Derived: otherwise two requests that are each valid alone could create a cycle or lose an item.)
+- AC-11: When several refusals apply, the "not found" outcome is decided first, then 400, then 409, as in BR-020 AC-5. A refusal reveals nothing about other users' data. (Specified choice.)
+- AC-12: Reading a loadout returns its bags with their parents and order, whether it has Last minute, and every item's place. Two reads with no change in between return the same arrangement, on any device. (Derived from US-002: "The plan is still there when they come back on another day or another device.")
+
+**Out of scope:** physical fit of contents, and the order of items inside a place.
+
+**Verification semantics:**
+Use real request handling and stored data. Create a loadout: it has Worn and no Last minute. Add Last minute twice: second is 409. Make a non-container registration a bag: 409. Make a registration that is already a bag a bag again: 409. Build "Lid" inside "Exos 58" and try the reverse (409), "Exos 58" inside itself (400), and a parent from another loadout (404). Add a bag whose closet container is already a bag: it starts nested. Repeat after marking that container's category not a container: the bag starts top level, and naming the container as parent is 409; check that no closet link changed, then change the trip nesting and check again. Move an item between every kind of place, and to a missing Last minute (404): it is always in exactly one place. Put a bag in Worn: 400. Mark the bag's category not container: moving into it is 409 and its contents stay. Overfill a bag past its capacity: accepted. Remove a bag holding items and a nested bag: the items have no place, the nested bag is top level, nothing else is gone. Reorder bags and read from a second session: same order and arrangement. Race the two nesting requests and two moves of one item many times: never a cycle, never an item in two or no defined place. Any stored state in which an item is in two places, or a bag is inside itself, falsifies the requirement.
+
+## Derived from
+
+- [Loadout planning and packing decisions — LP1, LP3](/docs/anchors/loadout-planning-and-packing.md)
+- [Access control and identity decisions — D4, D9, D11](/docs/anchors/access-control-and-identity.md)
+- Accepted frontend design "Loadout planning and packing", capability need N1, principles P2 and P3, flow F4, vocabulary (frontend repository, `docs/design/design-spec/loadout-planning-and-packing.md`)
+
+## Related
+
+- [BR-023 Loadout items refer to the owner's own closet registrations](/docs/requirements/requirements/br-023-loadout-items-are-own-registrations.md)
+- [BR-020 Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — the closet nesting; this requirement is the per-trip nesting.
+- [BR-021 The catalog category decides whether gear can be a container](/docs/requirements/requirements/br-021-container-capability-from-category.md)
+- [BR-015 Loadout items are reachable only through their own, owned loadout](/docs/requirements/requirements/br-015-loadout-items-scoped-to-owned-parent.md)

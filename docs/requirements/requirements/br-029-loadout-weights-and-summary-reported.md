@@ -1,0 +1,42 @@
+---
+type: Behavioral Requirement
+title: BR-029 Loadouts report every weight input and a current on-your-back total
+description: Loadout, registration and catalog reads report the values the frontend's weight model needs (quantities, catalog and measured weights with source, places, roles, capacities, counts); a loadout's single total is its current on-your-back weight; the owner can get a summary of every loadout for the home screen.
+tags: [loadouts, weight, total-weight, catalog, inventory, loadout-planning]
+timestamp: 2026-11-22T00:00:00Z
+---
+
+# BR-029 — Loadouts report every weight input and a current on-your-back total
+
+**Implementation:** not implemented. Today `Loadout.total_weight` is the sum of catalog `gearWeight × quantity`, and it goes stale after a catalog weight edit (wave 6 note); `/gear/list` (`GearListItem`) has no `gear_weight`. **Status:** Accepted. **Priority:** P1 (milestones A and B). **Basis:** AC-1, AC-5 and AC-6 are derived from the accepted design's weight model (the frontend computes the totals and must get every input) and capability need N8 ("weights available for every item the builder shows"; owner's yes, [LP1](/docs/anchors/loadout-planning-and-packing.md)). AC-2 is derived from N5 ("All loadouts using the registration see it") and F6. AC-3 states the meaning of a loadout's total in user terms, from the design's definition of "on your back" and the home card, which shows each loadout's on-your-back weight (F1); how the existing `total_weight` field is realized or renamed is the architect's (handoff Q-C). AC-4 is derived from the home flow F1. AC-7 is a specified choice.
+
+**Terms:**
+- *Effective unit weight* and *weight source*: as in [BR-026](/docs/requirements/requirements/br-026-measured-weight-on-a-registration.md), except for items whose registration was deleted ([BR-030](/docs/requirements/requirements/br-030-deleting-a-registration-keeps-loadouts-consistent.md)).
+- *On your back*: the weight of everything in the loadout that is not in Worn, as defined in AC-3.
+
+**Statement:**
+The API shall report, for the caller's loadouts and registrations and for catalog gear, every value the frontend's weight model needs, current at the time of the read, and shall report each loadout's total as its current on-your-back weight.
+
+**Acceptance criteria:**
+
+- AC-1: Reading a loadout reports, for each item: the item, its registration, the gear's name, maker and category, quantity, notes, place, tick, consumable role, catalog unit weight (or none), measured unit weight and source (or none), the registration's closet count ([BR-036](/docs/requirements/requirements/br-036-closet-count-of-a-registration.md)), its contribution state if its gear is not approved ([BR-002](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md)) or that it is private ([BR-037](/docs/requirements/requirements/br-037-private-items.md)), and whether its registration still exists (BR-030). For each bag: its registration, the gear's name, catalog and measured weight with source, capacity (the registration's maximum container weight, or none), parent bag, order and closed state. It also reports whether the loadout has Last minute, the closed state of Worn and Last minute, the stage, dates and goal ([BR-028](/docs/requirements/requirements/br-028-loadout-stage-dates-and-goal.md)).
+- AC-2: Every reported weight is current when it is read. After a measured weight changes, an admin changes a catalog weight, or a registration's gear changes (merge or replace), the next read of every affected loadout reports the new values and totals, with no other request needed.
+- AC-3: A loadout's total, wherever the API reports one, is its on-your-back weight in grams at the time of the read: for every item not in Worn, quantity × effective unit weight; plus, for every bag, its own effective unit weight once. Items and bags with no weight add 0. Items in no place and in Last minute count. Example: L1 has Exos 58 (bag, measured 1 180 g) holding a stove (catalog 83 g, quantity 1) and gas (measured 360 g, quantity 2), a rain shell in Worn (395 g) and a spork in no place (catalog 11 g): the total is 1 180 + 83 + 720 + 11 = 1 994 g. (The client's "try without" is not stored and does not affect this total.)
+- AC-4: The owner can get, for every one of their loadouts, without reading each loadout's items separately: name, stage, done time, dates, goal, on-your-back total, number of items, number of items ticked, number of bags, and which places are closed. (Whether this comes from the loadout list or elsewhere is a realization choice.)
+- AC-5: Every catalog gear list, search and single read reports the gear's catalog weight, or that it has none. Example: a catalog list entry for gear with a 395 g weight reports 395, never 0 or nothing.
+- AC-6: Every read of the caller's registrations reports, for each: catalog weight, measured weight and source, closet count, maximum container weight, own code ([BR-035](/docs/requirements/requirements/br-035-codes-and-scanning.md)) and contribution state if its gear is not approved, or that it is private.
+- AC-7: Base weight, worn weight, skin-out weight, measured share and uncertainty are computed by the client from these values. The API is not required to report them. (Specified choice; the design defines them as client computations.)
+
+**Verification semantics:**
+Build the AC-3 example and read the loadout: the total is 1 994 g, and every listed value of AC-1 is present for each item and bag. Change the gas registration's measured weight, then have an admin change the stove's catalog weight: the next read of the loadout and of the loadout summary reports the new totals without any other request. Read the catalog list: weights are present for gear that has one. Read the registration list: catalog weight, measured weight and source, count and capacity are present. A total that differs from the AC-3 rule, or a stale weight after a successful change, falsifies the requirement.
+
+## Derived from
+
+- [Loadout planning and packing decisions — LP1](/docs/anchors/loadout-planning-and-packing.md)
+- Accepted frontend design "Loadout planning and packing", weight model, capability needs N5 and N8, flow F1 (frontend repository, `docs/design/design-spec/loadout-planning-and-packing.md`)
+
+## Related
+
+- [BR-024 Every loadout item is in exactly one place, and bags nest for the trip](/docs/requirements/requirements/br-024-every-loadout-item-has-one-place.md)
+- [BR-026 The owner can record their own weight on a registration, with its source](/docs/requirements/requirements/br-026-measured-weight-on-a-registration.md)
+- [BR-016 Public loadouts are readable by slug without signing in; private ones are not](/docs/requirements/requirements/br-016-public-loadouts-by-slug.md) — the public view's total follows AC-3.
