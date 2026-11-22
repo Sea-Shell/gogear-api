@@ -113,6 +113,14 @@ jobs:
       - uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5
         with:
           version: 'v1.33.4'
+      # The one image reference of this run. k8s-deploy `images:` and the
+      # verification below both use it, so they cannot drift apart.
+      - name: Compose image reference
+        id: image
+        env:
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          BUILD_DIGEST: ${{ needs.build.outputs.digest }}
+        run: echo "ref=${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}/${IMAGE_NAME}:${RELEASE_TAG}@${BUILD_DIGEST}" >> "$GITHUB_OUTPUT"
       # Do the deploy on K8s cluster set in the above context
       - name: Deply manifests to k8s
         uses: azure/k8s-deploy@c7ebd0d5f39477a23f1b5dea0f52e6db04adf28e # v6
@@ -121,108 +129,19 @@ jobs:
           action: deploy
           namespace: seashell
           annotate-namespace: false
+          # The repository is private and this job has no registry login; the
+          # pull only feeds an annotation (ADR-002 D-11).
+          pull-images: false
           strategy: basic
           manifests: kubernetes-manifests
           images: |
-            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.tag }}@${{ needs.build.outputs.digest }}
-      # Prove the deploy: one healthy pod running this build's digest that
-      # migrated the database to the highest migration in the tag (ADR-002 D-8).
+            ${{ steps.image.outputs.ref }}
+      # Prove the deploy: the Deployment and its one healthy pod name exactly
+      # this run's image reference and the pod migrated the database to the
+      # highest migration in the tag (ADR-002 D-8, D-11). Every check is
+      # reported; the logic and its stub test live in .github/scripts.
       - name: Verify deployed pod
         env:
+          EXPECTED_IMAGE: ${{ steps.image.outputs.ref }}
           BUILD_DIGEST: ${{ needs.build.outputs.digest }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag }}
-        run: |
-          set -euo pipefail
-          if ! [[ "$BUILD_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::Build digest '$BUILD_DIGEST' is malformed"
-            exit 1
-          fi
-          expected=
-          for f in migrations/*.up.sql; do
-            [ -e "$f" ] || continue
-            n=${f##*/}
-            n=$((10#${n%%_*}))
-            if [ -z "$expected" ] || [ "$n" -gt "$expected" ]; then expected=$n; fi
-          done
-          if [ -z "$expected" ]; then
-            echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
-            exit 1
-          fi
-          k() { kubectl --request-timeout=20s -n seashell "$@"; }
-          # Keep only what cannot identify a user: error-level lines of the
-          # JSON app log reduced to level, message and error (never the other
-          # fields, which can carry request or user data), non-JSON crash
-          # output, and the migrations line. The repository is public.
-          safe_logs() {
-            local raw
-            raw=$(cat)
-            {
-              jq -R -r 'fromjson? | select(type == "object" and ((.level // "") | IN("error", "dpanic", "panic", "fatal")))
-                        | "\(.level) \(.message // "") \(.error // "")"' <<<"$raw" || true
-              grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:' || true
-            } | cut -c1-300 | tail -n 20
-          }
-          # Print why a check failed, bounded and filtered, then fail the step.
-          fail() {
-            echo "::error::$1"
-            echo "::group::Diagnostics"
-            k get pods -l app=gogear-api -o wide || true
-            for p in $(k get pods -l app=gogear-api -o name | head -n 5); do
-              echo "--- describe $p"
-              k describe "$p" | tail -n 60 || true
-              echo "--- error-level log lines $p (current, filtered)"
-              k logs "$p" --tail=500 2>/dev/null | safe_logs || true
-              rc=$(k get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
-              if [ -n "$rc" ] && [ "$rc" != "0" ]; then
-                echo "--- error-level log lines $p (previous container, filtered)"
-                k logs "$p" --previous --tail=500 2>/dev/null | safe_logs || true
-              fi
-            done
-            echo "::endgroup::"
-            exit 1
-          }
-          echo "Waiting 180 s before checking the pod (tag $RELEASE_TAG, digest $BUILD_DIGEST, expected migration version $expected)"
-          sleep 180
-          # Leftover Failed, Evicted (Failed) and Succeeded pods are not part of
-          # the rollout; terminating pods are not either.
-          pods=$(k get pods -l app=gogear-api -o json \
-            | jq '[.items[]
-                   | select(.metadata.deletionTimestamp == null)
-                   | select(.status.phase != "Failed" and .status.phase != "Succeeded")]')
-          count=$(jq 'length' <<<"$pods")
-          if [ "$count" != "1" ]; then
-            fail "Expected exactly one live gogear-api pod, found $count"
-          fi
-          pod=$(jq -r '.[0].metadata.name' <<<"$pods")
-          phase=$(jq -r '.[0].status.phase' <<<"$pods")
-          ready=$(jq -r '.[0].status.containerStatuses[0].ready' <<<"$pods")
-          restarts=$(jq -r '.[0].status.containerStatuses[0].restartCount' <<<"$pods")
-          image_id=$(jq -r '.[0].status.containerStatuses[0].imageID' <<<"$pods")
-          echo "pod=$pod phase=$phase ready=$ready restartCount=$restarts imageID=$image_id"
-          [ "$phase" = "Running" ] || fail "Pod phase is $phase"
-          [ "$ready" = "true" ] || fail "Pod container is not ready"
-          [ "$restarts" = "0" ] || fail "Pod restartCount is $restarts"
-          case "$image_id" in
-            *"@$BUILD_DIGEST") ;;
-            *) fail "imageID does not end with @$BUILD_DIGEST" ;;
-          esac
-          want="gogear-api migrations: version=$expected dirty=false"
-          # Read the log first so a failed read (for example missing RBAC on
-          # pods/log) is not reported as a missing migrations line.
-          errfile=$(mktemp)
-          trap 'rm -f "$errfile"' EXIT
-          log_rc=0
-          pod_log=$(k logs "$pod" 2>"$errfile") || log_rc=$?
-          if [ "$log_rc" -ne 0 ]; then
-            log_err=$( { grep -m1 -iE '^error' "$errfile" || head -n 1 "$errfile"; } | cut -c1-200)
-            log_err=${log_err:-no error output}
-            hint="See the diagnostics below."
-            case "$log_err" in
-              *Forbidden*) hint="The deploy service account needs get on pods/log." ;;
-            esac
-            fail "Could not read pod logs (kubectl exit $log_rc): $log_err. $hint"
-          fi
-          if ! grep -F -- "$want" <<<"$pod_log"; then
-            fail "Pod log lacks '$want'"
-          fi
-          echo "Verified: $want"
+        run: bash .github/scripts/verify-deployed-pod.sh
