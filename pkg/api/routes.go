@@ -24,11 +24,11 @@ func RegisterLoadoutRoutes(g *gin.RouterGroup) {
 	g.GET("/:loadout/get", GetLoadout)
 	g.POST("/:loadout/update", UpdateLoadout)
 	g.DELETE("/:loadout/delete", DeleteLoadout)
-	g.POST("/:loadout/import", ImportLoadout)
 
 	g.PUT("/:loadout/item/insert", InsertLoadoutItem)
 	g.GET("/:loadout/item/list", ListLoadoutItems)
 	g.POST("/:loadout/item/:item/update", UpdateLoadoutItem)
+	g.POST("/:loadout/item/:item/tick", TickLoadoutItem)
 	g.DELETE("/:loadout/item/:item/delete", DeleteLoadoutItem)
 }
 

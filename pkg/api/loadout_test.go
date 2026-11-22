@@ -115,7 +115,7 @@ func seedLoadout(t *testing.T, db *sql.DB, userID int64, isPublic bool, slug str
 		pub = 1
 	}
 	res, err := db.Exec(
-		`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug, totalWeight, createdAt, updatedAt) VALUES (?, 'test', '', ?, ?, 0, datetime('now'), datetime('now'))`,
+		`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug, createdAt, updatedAt) VALUES (?, 'test', '', ?, ?, datetime('now'), datetime('now'))`,
 		userID, pub, slug,
 	)
 	if err != nil {
@@ -128,7 +128,7 @@ func seedLoadout(t *testing.T, db *sql.DB, userID int64, isPublic bool, slug str
 func seedLoadoutItem(t *testing.T, db *sql.DB, loadoutID, gearID int64) {
 	t.Helper()
 	_, err := db.Exec(
-		`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes) VALUES (?, ?, 1, '')`,
+		`INSERT INTO loadout_items (loadoutId, detachedReason, detachedGearId, quantity, notes) VALUES (?, 'legacy', ?, 1, '')`,
 		loadoutID, gearID,
 	)
 	if err != nil {
@@ -406,44 +406,21 @@ func TestDeleteLoadout_OtherUser(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Import Tests
+// Import route removed (ADR-004 D-1)
 // ---------------------------------------------------------------------------
 
-func TestImportLoadout(t *testing.T) {
+func TestImportRouteIsGone(t *testing.T) {
 	db, router, _ := setupTest(t)
-
 	loadoutID := seedLoadout(t, db, 1, false, "import-me")
 	seedGear(t, db, 1)
-	seedGear(t, db, 2)
 
-	body := `{"gear_ids":[1,2]}`
-	w := authRequest(t, router, http.MethodPost, "/api/v1/loadout/"+itoa64(loadoutID)+"/import", body)
-
-	if w.Code != http.StatusCreated {
-		t.Errorf("TestImportLoadout: expected 201, got %d — body: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("TestImportLoadout: unmarshal error: %v", err)
-	}
-	if resp["status"] != "success" {
-		t.Errorf("TestImportLoadout: expected status=success, got %v", resp["status"])
-	}
-}
-
-func TestImportLoadout_OtherUser(t *testing.T) {
-	db, _, logger := setupTest(t)
-
-	loadoutID := seedLoadout(t, db, 1, false, "not-yours-import")
-	seedGear(t, db, 1)
-
-	router2 := routerWithUser(db, logger, 2)
-
-	body := `{"gear_ids":[1]}`
-	w := authRequest(t, router2, http.MethodPost, "/api/v1/loadout/"+itoa64(loadoutID)+"/import", body)
+	w := authRequest(t, router, http.MethodPost, "/api/v1/loadout/"+itoa64(loadoutID)+"/import", `{"gear_ids":[1]}`)
 	if w.Code != http.StatusNotFound {
-		t.Errorf("TestImportLoadout_OtherUser: expected 404, got %d — body: %s", w.Code, w.Body.String())
+		t.Errorf("import: expected 404 (no route), got %d — body: %s", w.Code, w.Body.String())
+	}
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM loadout_items WHERE loadoutId = ?`, loadoutID).Scan(&n); err != nil || n != 0 {
+		t.Errorf("import changed items: count %d, err %v", n, err)
 	}
 }
 
@@ -520,8 +497,8 @@ func TestUpdateLoadoutItem(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("TestUpdateLoadoutItem: unmarshal error: %v", err)
 	}
-	if resp["status"] != "success" {
-		t.Errorf("TestUpdateLoadoutItem: expected status=success, got %v", resp["status"])
+	if resp["quantity"] != float64(5) || resp["notes"] != "updated notes" {
+		t.Errorf("TestUpdateLoadoutItem: expected the updated item, got %v", resp)
 	}
 }
 

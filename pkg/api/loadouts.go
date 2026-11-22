@@ -3,7 +3,6 @@ package endpoints
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -310,78 +309,4 @@ func DeleteLoadout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.Status{Status: "success"})
-}
-
-// ImportLoadout imports gear IDs into a loadout as items.
-//
-//	@Summary		Import gear into loadout
-//	@Description	Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.
-//	@Security		BearerAuth
-//	@Tags			Loadouts
-//	@Accept			json
-//	@Produce		json
-//	@Param			loadout	path		int					true	"Loadout ID"
-//	@Param			request	body		map[string][]int64	true	"Gear IDs to import"
-//	@Success		201		{object}	models.Status
-//	@Failure		400		{object}	models.Error
-//	@Failure		404		{object}	models.Error
-//	@Failure		500		{object}	models.Error
-//	@Router			/api/v1/loadout/{loadout}/import [post]
-func ImportLoadout(c *gin.Context) {
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	userID := c.MustGet("user_id_int64").(int64)
-
-	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
-	if !ok {
-		return
-	}
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Errorf("read body: %v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
-		return
-	}
-
-	ctx := c.Request.Context()
-	err = inTx(ctx, db, func(tx *sql.Tx) error {
-		owned, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
-		if err != nil {
-			return err
-		}
-		if owned == nil {
-			return errLoadoutNotFound
-		}
-
-		var body struct {
-			GearIDs []int64 `json:"gear_ids"`
-		}
-		if err := json.Unmarshal(data, &body); err != nil {
-			return badRequest(err.Error())
-		}
-
-		for _, gearID := range body.GearIDs {
-			res, err := tx.ExecContext(ctx,
-				`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes)
-				 SELECT loadoutId, ?, 1, '' FROM loadouts WHERE loadoutId = ? AND userId = ?`,
-				gearID, loadoutID, userID)
-			if err != nil {
-				return gearReferenceError(ctx, tx, gearID, err)
-			}
-			// Exactly one row per gear: anything else rolls the import back.
-			if n, err := res.RowsAffected(); err != nil {
-				return err
-			} else if n != 1 {
-				return fmt.Errorf("import gear %d: inserted %d rows, want 1", gearID, n)
-			}
-		}
-		return LoadoutRecalculateWeight(ctx, tx, loadoutID)
-	})
-	if err != nil {
-		respondOpError(c, log, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, models.Status{Status: "success"})
 }

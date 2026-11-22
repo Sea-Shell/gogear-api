@@ -12,7 +12,7 @@ import (
 //
 // Status policy under test:
 //   - a request that names catalog gear that does not exist (registration
-//     insert, loadout item insert, import) is 404 "Gear not found";
+//     insert, loadout item insert by gear_id) is 404 "Gear not found";
 //   - any other invalid reference in a write is 400;
 //   - deleting a catalog row that other rows still reference is 409.
 
@@ -47,7 +47,7 @@ func newIntFixture(t *testing.T) *intFixture {
 	f.regThing = env.SeedRegistration(f.alice, f.gear)
 	f.loadoutWeightRaw = func() int {
 		var w int
-		if err := env.DB.QueryRow(`SELECT totalWeight FROM loadouts WHERE loadoutId = ?`, f.loadout).Scan(&w); err != nil {
+		if err := env.DB.QueryRow(`SELECT totalWeight FROM loadout_on_back_weight WHERE loadoutId = ?`, f.loadout).Scan(&w); err != nil {
 			t.Fatal(err)
 		}
 		return w
@@ -136,26 +136,6 @@ func TestLoadoutItemInsert_MissingGearIs404AndChangesNothing(t *testing.T) {
 		t.Fatal("refused insert changed the loadout")
 	}
 	expectStatus(t, f.env.Do(http.MethodPut, loPath(f.loadout, "item/insert"), f.aTok, map[string]any{"gear_id": f.gear, "quantity": 1}), http.StatusCreated)
-}
-
-// Import stays all-or-nothing: one missing gear ID rolls everything back and
-// the stored weight still matches the items.
-func TestImport_MissingGearRollsBackEverything(t *testing.T) {
-	f := newIntFixture(t)
-	weight := f.loadoutWeightRaw()
-	w := f.env.Do(http.MethodPost, loPath(f.loadout, "import"), f.aTok,
-		map[string]any{"gear_ids": []int64{f.gear, f.gear, f.missingGear, f.gear}})
-	expectStatus(t, w, http.StatusNotFound)
-	if n := f.env.Count("loadout_items", "loadoutId = ?", f.loadout); n != 1 {
-		t.Fatalf("%d items after failed import, want the 1 original", n)
-	}
-	if f.loadoutWeightRaw() != weight {
-		t.Fatalf("weight changed from %d to %d", weight, f.loadoutWeightRaw())
-	}
-	expectStatus(t, f.env.Do(http.MethodPost, loPath(f.loadout, "import"), f.aTok, map[string]any{"gear_ids": []int64{f.gear, f.gear}}), http.StatusCreated)
-	if n := f.env.Count("loadout_items", "loadoutId = ?", f.loadout); n != 3 {
-		t.Fatalf("%d items after good import, want 3", n)
-	}
 }
 
 // Cascades declared in the schema work with enforcement on, and the explicit
