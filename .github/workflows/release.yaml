@@ -86,6 +86,8 @@ jobs:
     runs-on: [ubuntu-latest]
     needs: [release, build]
     if: needs.release.outputs.released == 'true'
+    # 15 min rollout (k8s-deploy) + 3 min wait + setup, with margin.
+    timeout-minutes: 25
     permissions:
       id-token: write
       actions: read
@@ -146,20 +148,34 @@ jobs:
             echo "::error::No migrations/*.up.sql found in $RELEASE_TAG"
             exit 1
           fi
-          # Print why a check failed, bounded, then fail the step.
+          k() { kubectl --request-timeout=20s -n seashell "$@"; }
+          # Keep only what cannot identify a user: error-level lines of the
+          # JSON app log reduced to level, message and error (never the other
+          # fields, which can carry request or user data), non-JSON crash
+          # output, and the migrations line. The repository is public.
+          safe_logs() {
+            local raw
+            raw=$(cat)
+            {
+              jq -R -r 'fromjson? | select(type == "object" and ((.level // "") | IN("error", "dpanic", "panic", "fatal")))
+                        | "\(.level) \(.message // "") \(.error // "")"' <<<"$raw" || true
+              grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:' || true
+            } | cut -c1-300 | tail -n 20
+          }
+          # Print why a check failed, bounded and filtered, then fail the step.
           fail() {
             echo "::error::$1"
             echo "::group::Diagnostics"
-            kubectl -n seashell get pods -l app=gogear-api -o wide || true
-            for p in $(kubectl -n seashell get pods -l app=gogear-api -o name | head -n 5); do
+            k get pods -l app=gogear-api -o wide || true
+            for p in $(k get pods -l app=gogear-api -o name | head -n 5); do
               echo "--- describe $p"
-              kubectl -n seashell describe "$p" | tail -n 60 || true
-              echo "--- logs $p (current, last 50 lines)"
-              kubectl -n seashell logs "$p" --tail=50 || true
-              rc=$(kubectl -n seashell get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
+              k describe "$p" | tail -n 60 || true
+              echo "--- error-level log lines $p (current, filtered)"
+              k logs "$p" --tail=500 | safe_logs || true
+              rc=$(k get "$p" -o jsonpath='{.status.containerStatuses[0].restartCount}' || true)
               if [ -n "$rc" ] && [ "$rc" != "0" ]; then
-                echo "--- logs $p (previous container, last 50 lines)"
-                kubectl -n seashell logs "$p" --previous --tail=50 || true
+                echo "--- error-level log lines $p (previous container, filtered)"
+                k logs "$p" --previous --tail=500 | safe_logs || true
               fi
             done
             echo "::endgroup::"
@@ -169,7 +185,7 @@ jobs:
           sleep 180
           # Leftover Failed, Evicted (Failed) and Succeeded pods are not part of
           # the rollout; terminating pods are not either.
-          pods=$(kubectl -n seashell get pods -l app=gogear-api -o json \
+          pods=$(k get pods -l app=gogear-api -o json \
             | jq '[.items[]
                    | select(.metadata.deletionTimestamp == null)
                    | select(.status.phase != "Failed" and .status.phase != "Succeeded")]')
@@ -191,7 +207,7 @@ jobs:
             *) fail "imageID does not end with @$BUILD_DIGEST" ;;
           esac
           want="gogear-api migrations: version=$expected dirty=false"
-          if ! kubectl -n seashell logs "$pod" | grep -F -- "$want"; then
+          if ! k logs "$pod" | grep -F -- "$want"; then
             fail "Pod log lacks '$want'"
           fi
           echo "Verified: $want"
