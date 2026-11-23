@@ -40,6 +40,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # Stub-kubectl test of the release deploy check (ADR-002 D-11); needs
+      # bash and jq, both on the runner image.
+      - name: Test deploy verification script
+        run: bash .github/scripts/verify-deployed-pod_test.sh
+
       - name: Verify modules
         run: go mod verify
 

@@ -26,7 +26,7 @@ BR-038 AC-1 to AC-11, as mapped in ADR-006.
 | Config key | `database.backup-dir` (optional string). Absent or blank: `filepath.Join(filepath.Dir(database.file), "backups")`. A relative value is resolved against the directory of `database.file`. It must not equal `database.file`'s directory itself. That is refused at startup as invalid configuration, so backups never mix with the database and its `-wal`/`-shm` files |
 | Env (restore) | `GOGEAR_RESTORE_BACKUP=<file name>[#<tag>]`; empty or absent = no request. Declared in `kubernetes-manifests/deployment.yaml` with `value: ""`, so each release deploy resets it (ADR-006 R-A; confirm on the first deploy) |
 | Build | `var appVersion = "dev"` in `main`; `Dockerfile`: `ARG VERSION=dev` and `-ldflags="-s -w -X main.appVersion=${VERSION}"`; `release.yaml` build step: `build-args: VERSION=${{ needs.release.outputs.tag }}` |
-| Workflow diagnostics | the pod-log grep in `release.yaml` becomes `panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:` |
+| Workflow diagnostics | the pod-log filter `safe_logs` in `.github/scripts/verify-deployed-pod.sh` (ADR-002 D-11; test T-21 in `verify-deployed-pod_test.sh`) becomes `panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:` |
 | Policy | `type Policy struct{ OnBackupFailure BackupFailure; OnMigrationFailure MigrationFailure }`; defaults `Refuse` and `Keep` as two constants in `pkg/dbupgrade/policy.go`. Changing an owner answer edits only those constants |
 
 ## 2. Files in the backup directory
@@ -154,7 +154,8 @@ All tests use real files in `t.TempDir()` and call the startup routine, not inte
   - `pkg/models/config.go` (`Database.BackupDir`) and `validateConfig`;
   - `kubernetes-manifests/deployment.yaml` (declare `GOGEAR_RESTORE_BACKUP` with `value: ""` and a comment saying why; done in `d34c18d`);
   - `Dockerfile` (ARG and ldflags);
-  - `.github/workflows/release.yaml` (build-args, diagnostics grep);
+  - `.github/workflows/release.yaml` (build-args);
+  - `.github/scripts/verify-deployed-pod.sh` and `verify-deployed-pod_test.sh` (diagnostics grep, test T-21);
   - `README.md` (section 7);
   - the requirements index status of BR-038 and the ADR-006 and ARS-002 status lines;
   - existing migration tests only if the extracted `runMigrations` signature changes.
