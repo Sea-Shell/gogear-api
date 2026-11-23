@@ -3,7 +3,7 @@ type: Architecture Specification
 title: ARS-002 Pre-migration backup and restore - startup sequence, names, messages and tests
 description: Exact startup order, configuration key, environment variable, file names, state files, stdout lines, exit behavior and required tests for the automatic pre-migration backup and the one-action restore of BR-038 (ADR-006), plus the build and workflow changes.
 tags: [architecture, backup, restore, migrations, sqlite, startup, specification]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # ARS-002 — Pre-migration backup and restore: startup sequence, names, messages and tests
@@ -27,7 +27,7 @@ BR-038 AC-1 to AC-11, as mapped in ADR-006.
 | Env (restore) | `GOGEAR_RESTORE_BACKUP=<file name>[#<tag>]`; empty or absent = no request. Declared in `kubernetes-manifests/deployment.yaml` with `value: ""`, so each release deploy resets it (ADR-006 R-A; confirm on the first deploy) |
 | Build | `var appVersion = "dev"` in `main`; `Dockerfile`: `ARG VERSION=dev` and `-ldflags="-s -w -X main.appVersion=${VERSION}"`; `release.yaml` build step: `build-args: VERSION=${{ needs.release.outputs.tag }}` |
 | Workflow diagnostics | the pod-log filter `safe_logs` in `.github/scripts/verify-deployed-pod.sh` (ADR-002 D-11; test T-21 in `verify-deployed-pod_test.sh`) becomes `panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:` |
-| Policy | `type Policy struct{ OnBackupFailure BackupFailure; OnMigrationFailure MigrationFailure }`; defaults `Refuse` and `Keep` as two constants in `pkg/dbupgrade/policy.go`. Changing an owner answer edits only those constants |
+| Policy | `type Policy struct{ OnBackupFailure BackupFailure; OnMigrationFailure MigrationFailure }`; `pkg/dbupgrade/policy.go` selects `Refuse` (owner accepted for Q-8) and `Keep` (unchanged while Q-9 is open) |
 
 ## 2. Files in the backup directory
 
@@ -147,7 +147,7 @@ All tests use real files in `t.TempDir()` and call the startup routine, not inte
 ## 9. Task A6b (one coder session, inside the milestone A merge)
 
 - **Goal:** BR-038 in effect in the milestone A merge, so the first production start that applies 000011 makes a verified backup.
-- **Authority:** BR-038, ADR-006, this document. Q-8 and Q-9 stay at the defaults `Refuse` and `Keep`. Changing them later edits only `pkg/dbupgrade/policy.go` (tests 4 and 8 or 9 already cover both values).
+- **Authority:** BR-038, ADR-006, this document. The owner confirmed the existing `Refuse` policy (Q-8); `Keep` remains in effect while Q-9 is open. The Q-8 decision requires no change to `pkg/dbupgrade/policy.go`.
 - **Change surface:**
   - new `pkg/dbupgrade/` (routine, backup, verify, retention, restore, policy, tests);
   - `main.go` (call the routine in place of the direct `runMigrations` call, keep the version line, hold mode, `appVersion`);

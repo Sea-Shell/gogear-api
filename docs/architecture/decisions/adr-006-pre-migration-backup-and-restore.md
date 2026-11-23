@@ -1,14 +1,14 @@
 ---
 type: Architecture Decision
 title: ADR-006 Pre-migration backup and one-action restore inside the application
-description: How gogear-api realizes BR-038 - it reads the schema version itself before golang-migrate touches the database, takes a VACUUM INTO snapshot while no listener is open, verifies it (integrity, version, no concurrent commit), keeps three, reports every step on stdout, restores a named backup through one Kubernetes env setting, and handles golang-migrate's dirty state, with the owner questions Q-8 and Q-9 as two policy switches.
+description: How gogear-api realizes BR-038 - it reads the schema version itself before golang-migrate touches the database, takes a VACUUM INTO snapshot while no listener is open, verifies it (integrity, version, no concurrent commit), keeps three, reports every step on stdout, restores a named backup through one Kubernetes env setting, and handles golang-migrate's dirty state and the backup- and migration-failure policies.
 tags: [architecture, backup, restore, migrations, sqlite, release, deployment, data-safety]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # ADR-006 — Pre-migration backup and one-action restore inside the application
 
-**Status:** Accepted (architect, 2026-11-22). Implemented 2026-11-22 (task A6b, package `pkg/dbupgrade`). Ships in the milestone A merge together with migration 000011 (task A6b, [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md)). Exact behavior, names and messages: [ARS-002](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md). Owner questions Q-8 and Q-9 are open; the design builds the requirement's current defaults and makes each answer a one-constant switch (D-7).
+**Status:** Accepted (architect, 2026-11-22). Implemented 2026-11-22 (task A6b, package `pkg/dbupgrade`). Ships in the milestone A merge together with migration 000011 (task A6b, [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md)). Exact behavior, names and messages: [ARS-002](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md). The owner's Q-8 answer confirms the existing `Refuse` policy. Q-9 remains open; `Keep` still applies (D-7).
 
 ## In brief
 
@@ -22,7 +22,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 ## Derived from
 
-- [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md); provisional defaults P-37 to P-40; open questions Q-8 and Q-9 ([index](/docs/requirements/index.md))
+- [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md); provisional defaults P-37, P-38 and P-40; Q-8 (P-39 accepted) and open question Q-9 ([index](/docs/requirements/index.md))
 - [Release and deployment decisions — RD1, RD2, RD3](/docs/anchors/release-and-deployment.md)
 - [BR-022](/docs/requirements/requirements/br-022-merge-to-main-releases-and-deploys.md), [ADR-002](/docs/architecture/decisions/adr-002-zero-touch-release-deploy-and-seeding.md) D-8 (in-run pod check: one pod, `restartCount 0`, `gogear-api migrations: version=<N> dirty=false`)
 - Code and manifests read this session (branch head `7467b25`): `main.go` (`main`: config → `sql.Open` → `warnIfForeignKeysOff` → `runMigrations` → listener; `runMigrations` prints the version line); golang-migrate v4.19.1 `database/sqlite3/sqlite3.go` (`WithInstance` creates `schema_migrations`; `Run` and `SetVersion` use separate transactions); `kubernetes-manifests/deployment.yaml` (one replica, `Recreate`, `hostPath /data/disk2/opt/gogear-api` mounted at `/config`, config `/config/config.yaml`, no probes, uid `abc` 1001, `fsGroup 1000`); `Dockerfile` (`go build -ldflags="-s -w"`, no version embedded, no `sqlite3` binary); `.github/workflows/release.yaml` (build with `docker/build-push-action` v7.2.0, no build args; pod-log diagnostics grep `panic:|fatal error:|Failed to|gogear-api migrations:`); README "Back up the SQLite file first"
@@ -64,7 +64,7 @@ How does the application detect pending migrations, take and verify a consistent
 - **R-C A dispatched "restore" workflow** that scales down, runs a Job with `--restore`, and scales up: one click, but a new workflow with cluster permissions and three steps that can fail between them. Rejected for now; a revisit trigger is to use it if `kubectl` access is not available to the owner.
 
 **Where policy for Q-8 and Q-9 lives.**
-- **P-A Two constants in one policy struct passed into the startup routine (chosen):** an owner answer flips one constant, tests exercise both values, and there is no setting anyone can misconfigure.
+- **P-A Two constants in one policy struct passed into the startup routine (chosen):** a change to either policy requires changing only one constant, tests exercise both values, and there is no setting anyone can misconfigure.
 - **P-B Config keys:** more surface and validation, and a setting that can silently disable protection. Rejected.
 
 ## Decision
@@ -83,7 +83,7 @@ How does the application detect pending migrations, take and verify a consistent
 
   Then normal startup continues, with one difference: **while the variable is set, the application never migrates.** If the restored schema equals the image's latest, it serves normally. If it is older, it prints the restore-mode line and blocks without opening the listener, until the owner either deploys the older release (the image that matches the backup's `app` label) or removes the variable (`kubectl set env … GOGEAR_RESTORE_BACKUP-`), after which the next start backs up and migrates as usual (AC-9).
 - **D-7 — Policy switches for Q-8 and Q-9.** `Policy{OnBackupFailure, OnMigrationFailure}`, set from two constants in one file.
-  - `OnBackupFailure`: `Refuse` (default, P-39): print the failure line, apply no migration, exit 1. `MigrateWithoutBackup` (Q-8 option b): print a `WARNING … migrating without a backup` line and continue.
+  - `OnBackupFailure`: `Refuse` (accepted Q-8, formerly provisional P-39): print the failure line, apply no migration, exit 1. `MigrateWithoutBackup` (unselected Q-8 option b): print a `WARNING … migrating without a backup` line and continue.
   - `OnMigrationFailure`: `Keep` (default; BR-038 AC-10 says no automatic restore until Q-9 is answered): record `backups/migration-failed.json` (app version, from and target version, backup name), print the line naming the backup, exit 1. `Restore` (Q-9 recommended): additionally restore that backup by D-6 steps 3 to 5 (no pre-restore backup: the failed attempt changed only golang-migrate's dirty flag, because each SQLite migration runs in one transaction), then exit 1.
 - **D-8 — Dirty state.** If the plain read of D-1 finds `dirty = 1`, a previous migration failed. The application makes no backup (the database is flagged inconsistent), does not migrate (golang-migrate would refuse with `ErrDirty`), prints the dirty line naming the newest pre-migration backup from `migration-failed.json`, and exits 1. Under `OnMigrationFailure = Restore` this only occurs if the automatic restore itself failed. Under `Restore`, when the previous attempt was by the same app version and to the same target, the new backup *replaces* the backup named in `migration-failed.json` instead of rotating the oldest one out. It is a copy of the same restored state, so retries after Kubernetes restarts never push older backups out. A successful migration deletes `migration-failed.json`.
 - **D-9 — Release workflow.** No new gate. The deploy applies `kubernetes-manifests/deployment.yaml`, which declares `GOGEAR_RESTORE_BACKUP` empty, so a release rollout also clears any restore request (D-6); the first deploy with that declaration must confirm it (R-A). The backup adds seconds before the migration line; the 180 s wait of ADR-002 D-8 is unaffected. A backup or migration failure exits the container, so `restartCount` rises and the existing check fails the run visibly (AC-8). One change: the log filter `safe_logs` in `.github/scripts/verify-deployed-pod.sh` (the deploy check of [ADR-002](/docs/architecture/decisions/adr-002-zero-touch-release-deploy-and-seeding.md) D-11) adds `gogear-api backup:`, so the reason appears in the Actions log. Its stub test (T-21) covers the line. The lines contain only paths, times and versions, no user data. The build step passes `build-args: VERSION=${{ needs.release.outputs.tag }}`.
@@ -92,8 +92,8 @@ How does the application detect pending migrations, take and verify a consistent
 
 | Choice | Code cost | Operational consequence |
 |---|---|---|
-| Q-8 (a) refuse (default) | none beyond D-7 | a full disk stops the service until fixed; the release run fails visibly; every upgrade is protected |
-| Q-8 (b) migrate and warn | one branch and one line | the service stays up, but that upgrade has no way back; the release run passes, so the warning is seen only in the pod log, unless the workflow also greps for it (one more line in `release.yaml`) |
+| Q-8 (a) refuse (accepted) | none beyond D-7 | a full disk stops the service until fixed; the release run fails visibly; every upgrade is protected |
+| Q-8 (b) migrate and warn (not selected) | one branch and one line | the service stays up, but that upgrade has no way back; the release run passes, so the warning is seen only in the pod log, unless the workflow also greps for it (one more line in `release.yaml`) |
 | Q-9 keep and report (current default) | dirty line and `migration-failed.json` | the service stays down at the dirty version (crash loop, visible); the owner runs one restore command, then deploys a fixed release |
 | Q-9 restore and stop (recommended) | restore-on-failure path reusing D-6, plus the replace-not-rotate retention rule of D-8 and its tests (about one more test file) | the database is automatically back at the old version with a clean flag; Kubernetes restarts retry the same migration, and a transient cause (a full disk that was cleared) heals with no action; a persistent cause still crash-loops visibly until a fixed release |
 

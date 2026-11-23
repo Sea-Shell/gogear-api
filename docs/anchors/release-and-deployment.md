@@ -3,7 +3,7 @@ type: Anchor
 title: Release and deployment decisions
 description: Product-owner decision that a merge to main releases and deploys a new version of the GoGear API to the owner's Kubernetes server through the existing release workflow, with no manual step, and the consequences for data changes that ship with a release, including the application's own backup before it changes the database schema.
 tags: [release, deployment, ci-cd, product-decision]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # Release and deployment decisions
@@ -44,6 +44,12 @@ Why it came up: migration 000011 (loadout planning, milestone A) cannot be undon
 - The principle is broader than SQLite: the application, not its user, owns the safety of its own upgrades. Today the application runs only on a SQLite file on the server's disk. A database hosted outside the application does not exist yet, so no requirement is written for one now.
 
 The rules are in [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). It extends RD1 and RD2: a release still needs no manual step, and it must now also leave a way back.
+
+#### Q-8 follow-up — Stop without upgrading if the backup fails (2026-11-23)
+
+In the milestone A discussion, the owner was asked one question: “if the automatic backup fails, should the app stop without upgrading?” The owner replied, “yes, as you recommend.” The coordinating session relayed the question and answer for PR #490.
+
+The owner chose **Refuse**: if the automatic pre-migration backup fails, the application stops without upgrading rather than migrating with a warning. This confirms the existing behavior in [BR-038 AC-8](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). It does not answer Q-9, which concerns a migration that fails *after* a good backup.
 
 ## Context (not a requirement)
 

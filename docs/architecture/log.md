@@ -3,10 +3,14 @@ type: Log
 title: Architecture change log
 description: Chronological record of changes to the GoGear API architecture bundle.
 tags: [log]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # Architecture change log
+
+## 2026-11-23
+
+- **Reconciliation (BR-038 Q-8):** [ADR-006](/docs/architecture/decisions/adr-006-pre-migration-backup-and-restore.md) and [ARS-002](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md) record that the owner confirmed the already selected `Refuse` policy. No realization or implementation status changed. `Keep` remains selected while Q-9 is open.
 
 ## 2026-11-22
 

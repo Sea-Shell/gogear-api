@@ -3,10 +3,14 @@ type: Log
 title: Requirements change log
 description: Chronological record of changes to the GoGear API requirements bundle.
 tags: [log]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # Requirements change log
+
+## 2026-11-23
+
+- **Decision (BR-038 Q-8):** The owner accepted **Refuse** in [RD3](/docs/anchors/release-and-deployment.md). [BR-038 AC-8](/docs/requirements/requirements/br-038-backup-before-schema-migration.md) is no longer provisional: the application must stop without upgrading if the required backup cannot be made or fails verification. The [index](/docs/requirements/index.md) closes Q-8 and records P-39 as accepted. The existing behavior and implementation status are unchanged. Q-9 is still open and non-blocking; AC-10 is unchanged.
 
 ## 2026-11-22
 

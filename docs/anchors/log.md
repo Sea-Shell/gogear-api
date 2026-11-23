@@ -3,10 +3,14 @@ type: Log
 title: Anchors change log
 description: Chronological record of changes to the anchors bundle.
 tags: [log]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # Anchors change log
+
+## 2026-11-23
+
+- **Amendment:** [Release and deployment decisions, RD3](/docs/anchors/release-and-deployment.md) records the owner's answer to Q-8: stop without upgrading if the automatic pre-migration backup fails. Q-9 was not answered.
 
 ## 2026-11-22
 
