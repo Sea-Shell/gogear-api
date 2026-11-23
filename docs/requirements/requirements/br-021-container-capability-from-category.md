@@ -54,5 +54,5 @@ Use real request handling and stored data. Build the three examples of AC-1 and 
 
 - [BR-020 Containers nest to any depth, with one direct container per registration and no cycles](/docs/requirements/requirements/br-020-container-nesting-consistency.md) — uses this rule to decide which registrations may hold others.
 - [BR-001 Catalog changes are admin-only](/docs/requirements/requirements/br-001-catalog-changes-admin-only.md)
-- [BR-002 Catalog contributions require admin approval (planned)](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md)
+- [BR-002 Catalog contributions require admin approval, and the contributor can use them at once](/docs/requirements/requirements/br-002-catalog-contributions-require-admin-approval.md)
 - [BR-022 A merge to main releases and deploys a new version with no manual step](/docs/requirements/requirements/br-022-merge-to-main-releases-and-deploys.md) — the reason AC-5 seeds instead of waiting for an admin.

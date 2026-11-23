@@ -39,12 +39,13 @@ const userGearCapabilityJoin = `
 
 // userGearColumns lists the columns in the field order of models.UserGear.
 // Everything that comes from a LEFT JOIN or a nullable catalog column goes
-// through COALESCE, so a NULL never breaks a scan. The link columns stay NULL
+// through COALESCE, so a NULL never breaks a scan; the catalog weight is the
+// exception and stays NULL when it is 0 or missing (ADR-004 D-1). The link columns stay NULL
 // when there is no link.
 const userGearColumns = `ugr.userGearRegistrationId, ugr.gearId, ugr.userId, ugr.maxContainerWeight,
 	COALESCE(u.userId, 0), COALESCE(u.userUsername, ''), COALESCE(u.userName, ''),
 	COALESCE(g.gearId, 0), COALESCE(g.gearTopCategoryId, 0), COALESCE(g.gearCategoryId, 0), COALESCE(g.gearManufactureId, 0),
-	COALESCE(g.gearName, ''), COALESCE(g.gearWeight, 0), COALESCE(g.gearHeight, 0), COALESCE(g.gearLength, 0), COALESCE(g.gearWidth, 0),
+	COALESCE(g.gearName, ''), CASE WHEN g.gearWeight > 0 THEN g.gearWeight END, COALESCE(g.gearHeight, 0), COALESCE(g.gearLength, 0), COALESCE(g.gearWidth, 0),
 	COALESCE(g.gearStatus, 0), ` + userGearContainerExpr + `,
 	l.containerRegistrationId, l.userContainerId,
 	COALESCE(m.manufactureId, 0), COALESCE(m.manufactureName, ''),

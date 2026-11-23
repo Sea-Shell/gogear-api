@@ -10,20 +10,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 
 	endpoints "github.com/Sea-Shell/gogear-api/pkg/api"
+	"github.com/Sea-Shell/gogear-api/pkg/dbupgrade"
 	docs "github.com/Sea-Shell/gogear-api/pkg/docs"
 	models "github.com/Sea-Shell/gogear-api/pkg/models"
 	utils "github.com/Sea-Shell/gogear-api/pkg/utils"
 
 	gin "github.com/gin-gonic/gin"
-	migrate "github.com/golang-migrate/migrate/v4"
-	sqlite3 "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/mattn/go-sqlite3"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	zap "go.uber.org/zap"
@@ -33,8 +33,16 @@ import (
 )
 
 const (
-	configFile = "config.yaml"
+	configFile    = "config.yaml"
+	migrationsDir = "migrations"
+	// restoreEnv names the backup to restore at startup (ARS-002 section 1).
+	restoreEnv = "GOGEAR_RESTORE_BACKUP"
 )
+
+// appVersion is the release tag, set at build time with
+// -ldflags "-X main.appVersion=<tag>" (Dockerfile ARG VERSION). It is part of
+// every backup name.
+var appVersion = "dev"
 
 var googleConf *oauth2.Config
 
@@ -102,6 +110,7 @@ func configSummary(cfg *models.Config) []any {
 		"listen_port", cfg.General.ListenPort,
 		"log_level", cfg.General.LogLevel,
 		"database_file", cfg.Database.File,
+		"backup_dir", dbupgrade.ResolveBackupDir(cfg.Database.File, cfg.Database.BackupDir),
 		"jwt_issuer", cfg.Auth.JWTIssuer,
 		"jwt_secret_set", strings.TrimSpace(cfg.Auth.JWTSecret) != "",
 		"jwt_audience_set", cfg.Auth.JWTAudience != "",
@@ -152,6 +161,18 @@ func validateConfig(config *models.Config) error {
 	if strings.TrimSpace(config.Database.File) == "" {
 		return errors.New("database: file must not be empty")
 	}
+	// Backups must not mix with the database and its -wal and -shm files.
+	dbDir, err := filepath.Abs(filepath.Dir(dbupgrade.DatabasePath(config.Database.File)))
+	if err != nil {
+		return fmt.Errorf("database: file: %w", err)
+	}
+	backupDir, err := filepath.Abs(dbupgrade.ResolveBackupDir(config.Database.File, config.Database.BackupDir))
+	if err != nil {
+		return fmt.Errorf("database: backup-dir: %w", err)
+	}
+	if backupDir == dbDir {
+		return errors.New("database: backup-dir must not be the directory of database.file")
+	}
 	return nil
 }
 
@@ -168,38 +189,21 @@ func loadValidatedConfig(file string) (*models.Config, error) {
 	return config, nil
 }
 
-// runMigrations applies pending golang-migrate migrations from the given directory.
-// Uses the already-open *sql.DB so the same SQLite connection is used.
-func runMigrations(db *sql.DB, migrationsPath string, log *zap.SugaredLogger) error {
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		return fmt.Errorf("migration driver init: %w", err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
-		"sqlite3",
-		driver,
-	)
-	if err != nil {
-		return fmt.Errorf("migration instance init: %w", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("migration up: %w", err)
-	}
-
-	log.Infoln("Database migrations applied successfully")
-
-	// The deploy verification (ADR-002 D-8) parses this exact line from the pod
-	// log. It goes to stdout, not through the logger, because the configured
-	// log level may filter the logger's lines out.
-	version, dirty, err := m.Version()
-	if err != nil {
-		return fmt.Errorf("migration version: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "gogear-api migrations: version=%d dirty=%t\n", version, dirty)
-	return nil
+// startDatabase runs the startup routine of BR-038: restore request, backup
+// before pending migrations, migration. It returns the open database, or
+// hold=true when a requested restore left an older schema and the service must
+// neither migrate nor serve. The deploy verification (ADR-002 D-8) parses the
+// "gogear-api migrations:" line it prints to stdout.
+func startDatabase(ctx context.Context, config *models.Config, log *zap.SugaredLogger) (db *sql.DB, hold bool, err error) {
+	return dbupgrade.Run(ctx, dbupgrade.Config{
+		DatabaseFile:   config.Database.File,
+		BackupDir:      config.Database.BackupDir,
+		MigrationsPath: migrationsDir,
+		AppVersion:     appVersion,
+		RestoreRequest: os.Getenv(restoreEnv),
+		Policy:         dbupgrade.DefaultPolicy(),
+		Log:            log,
+	})
 }
 
 // reportForeignKeyViolations logs one warning per (table, parent) with orphan
@@ -360,29 +364,49 @@ func main() {
 	log := makeLogger(logLevel)
 	defer log.Sync()
 
-	db, err := sql.Open("sqlite3", utils.SQLiteDSN(config.Database.File))
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	if err := serve(ctx, config, log, func(router *gin.Engine) error {
+		// The signal handler exists only for restore mode's wait. Once serving,
+		// SIGTERM must end the process as it did before.
+		stop()
+		// Listen to all addresses and port defined
+		return router.Run("0.0.0.0:" + config.General.ListenPort)
+	}); err != nil {
+		log.Fatalf("Failed to run: %v", err)
+	}
+}
+
+// serve starts the database through the startup routine and only then hands
+// the router to listen: no request can be answered before the backup,
+// restore and migrations are done (ARS-002 section 3, invariant). When a
+// requested restore left an older schema it blocks until ctx is cancelled
+// without ever calling listen.
+func serve(ctx context.Context, config *models.Config, log *zap.SugaredLogger, listen func(*gin.Engine) error) error {
+	db, hold, err := startDatabase(ctx, config, log)
 	if err != nil {
-		log.Error(err)
+		return fmt.Errorf("start database: %w", err)
 	}
-
-	warnIfForeignKeysOff(context.Background(), db, log)
-
-	if err := runMigrations(db, "migrations", log); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
+	if hold {
+		<-ctx.Done()
+		return nil
 	}
+	defer db.Close()
 
-	if _, err := reportForeignKeyViolations(context.Background(), db, log); err != nil {
+	warnIfForeignKeysOff(ctx, db, log)
+
+	if _, err := reportForeignKeyViolations(ctx, db, log); err != nil {
 		log.Warnf("Could not audit foreign keys: %v", err)
 	}
 
 	// Legacy bootstrap: ensure columns that migrations do not manage.
 	// Keep for backward compatibility with databases created before golang-migrate.
 	if err := utils.EnsureColumn(db, "user_gear_registrations", "maxContainerWeight", "INTEGER"); err != nil {
-		log.Fatalf("Failed to ensure user_gear_registrations.maxContainerWeight exists: %v", err)
+		return fmt.Errorf("ensure user_gear_registrations.maxContainerWeight exists: %w", err)
 	}
 
 	log.Infoln("Connected to database")
-	defer db.Close()
 
 	docs.SwaggerInfo.Title = "GoGear API"
 	docs.SwaggerInfo.Description = "This is the API of GoGear."
@@ -393,10 +417,5 @@ func main() {
 	if os.Getenv(gin.EnvGinMode) == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	router := newRouter(config, db, log)
-
-	// Listen to all addresses and port defined
-	if err := router.Run("0.0.0.0:" + config.General.ListenPort); err != nil {
-		log.Fatal(err)
-	}
+	return listen(newRouter(config, db, log))
 }

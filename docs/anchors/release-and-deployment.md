@@ -1,9 +1,9 @@
 ---
 type: Anchor
 title: Release and deployment decisions
-description: Product-owner decision that a merge to main releases and deploys a new version of the GoGear API to the owner's Kubernetes server through the existing release workflow, with no manual step, and the consequences for data changes that ship with a release.
+description: Product-owner decision that a merge to main releases and deploys a new version of the GoGear API to the owner's Kubernetes server through the existing release workflow, with no manual step, and the consequences for data changes that ship with a release, including the application's own backup before it changes the database schema.
 tags: [release, deployment, ci-cd, product-decision]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-23T00:00:00Z
 ---
 
 # Release and deployment decisions
@@ -30,6 +30,26 @@ The precise rules (what counts as a manual step, the no-release case, the eviden
 This is a consequence of RD1, recorded here because it changes an earlier provisional default. When a release changes how stored data is interpreted, the release itself must bring the data into a usable state. An admin may still change data afterwards, but the product must not depend on an admin doing so before it is usable.
 
 Applied to container capability (anchor decision [D11](/docs/anchors/access-control-and-identity.md)): the category container settings are seeded from the old per-gear container flags when BR-021 takes effect, instead of starting empty and waiting for an admin to mark categories. This supersedes requirements provisional default P-14. The detailed seeding rule was adopted on General's proposal and stays open to owner change (BR-021 AC-5, provisional default P-18).
+
+### RD3 — The application protects its own upgrades with a backup (2026-11-22)
+
+Owner's words: "The backup should probably be handled in the application, no? since it is hosted in kuberntes it not so easy to do copys of databases. and, if the database is hosted outside, then it might even not be within reach for the user. I belive a application should handle all upgrade procedures it self, and not rely on the user for much."
+
+Why it came up: migration 000011 (loadout planning, milestone A) cannot be undone by deploying the older image. The older image does not start on schema version 11, and the down migration loses data and is not on the release path. So a copy of the database from before the upgrade is the only way back.
+
+*General's and the requirements author's reading, open to owner correction:*
+
+- Before the application changes the database schema, it makes a backup of the database itself, automatically. Nobody has to copy database files by hand, in Kubernetes or elsewhere.
+- Getting back to a backup should also need as little manual work as possible.
+- The principle is broader than SQLite: the application, not its user, owns the safety of its own upgrades. Today the application runs only on a SQLite file on the server's disk. A database hosted outside the application does not exist yet, so no requirement is written for one now.
+
+The rules are in [BR-038](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). It extends RD1 and RD2: a release still needs no manual step, and it must now also leave a way back.
+
+#### Q-8 follow-up — Stop without upgrading if the backup fails (2026-11-23)
+
+In the milestone A discussion, the owner was asked one question: “if the automatic backup fails, should the app stop without upgrading?” The owner replied, “yes, as you recommend.” The coordinating session relayed the question and answer for PR #490.
+
+The owner chose **Refuse**: if the automatic pre-migration backup fails, the application stops without upgrading rather than migrating with a warning. This confirms the existing behavior in [BR-038 AC-8](/docs/requirements/requirements/br-038-backup-before-schema-migration.md). It does not answer Q-9, which concerns a migration that fails *after* a good backup.
 
 ## Context (not a requirement)
 

@@ -29,8 +29,8 @@ func (e *authzEnv) seedLO(userID int64, public bool, slug string) int64 {
 		s = slug
 	}
 	res, err := e.DB.Exec(
-		`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug, totalWeight, createdAt, updatedAt)
-		 VALUES (?, 'orig-name', 'orig-desc', ?, ?, 0, ?, ?)`, userID, public, s, oldTimestamp, oldTimestamp)
+		`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug, createdAt, updatedAt)
+		 VALUES (?, 'orig-name', 'orig-desc', ?, ?, ?, ?)`, userID, public, s, oldTimestamp, oldTimestamp)
 	if err != nil {
 		e.T.Fatalf("seed loadout: %v", err)
 	}
@@ -50,17 +50,33 @@ func (e *authzEnv) seedGearW(weight int64) int64 {
 	return id
 }
 
-// seedItem adds an item and keeps the loadout's stored total consistent.
+// seedItem adds a legacy item (the kind the deployed frontend creates by
+// gear_id, ADR-004 D-2): no registration, gear read live. The loadout's total
+// comes from the loadout_on_back_weight view.
 func (e *authzEnv) seedItem(loadoutID, gearID, qty int64) int64 {
 	e.T.Helper()
-	res, err := e.DB.Exec(`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes) VALUES (?, ?, ?, 'orig-notes')`, loadoutID, gearID, qty)
+	res, err := e.DB.Exec(`INSERT INTO loadout_items (loadoutId, detachedReason, detachedGearId, quantity, notes) VALUES (?, 'legacy', ?, ?, 'orig-notes')`, loadoutID, gearID, qty)
 	if err != nil {
 		e.T.Fatalf("seed item: %v", err)
 	}
 	id, _ := res.LastInsertId()
-	if err := LoadoutRecalculateWeight(e.T.Context(), e.DB, loadoutID); err != nil {
-		e.T.Fatal(err)
+	return id
+}
+
+// seedRegItem adds an item that is the owner's registration, optionally in a
+// place (0 = no place).
+func (e *authzEnv) seedRegItem(loadoutID, registrationID, placeID, qty int64) int64 {
+	e.T.Helper()
+	var place any
+	if placeID != 0 {
+		place = placeID
 	}
+	res, err := e.DB.Exec(`INSERT INTO loadout_items (loadoutId, registrationId, placeId, quantity, notes) VALUES (?, ?, ?, ?, 'orig-notes')`,
+		loadoutID, registrationID, place, qty)
+	if err != nil {
+		e.T.Fatalf("seed registration item: %v", err)
+	}
+	id, _ := res.LastInsertId()
 	return id
 }
 
@@ -69,8 +85,8 @@ func (e *authzEnv) snapshot() string {
 	e.T.Helper()
 	var sb strings.Builder
 	for _, q := range []string{
-		`SELECT quote(loadoutId)||'|'||quote(userId)||'|'||quote(loadoutName)||'|'||quote(loadoutDescription)||'|'||quote(loadoutIsPublic)||'|'||quote(loadoutSlug)||'|'||quote(totalWeight)||'|'||quote(createdAt)||'|'||quote(updatedAt) FROM loadouts ORDER BY loadoutId`,
-		`SELECT quote(loadoutItemId)||'|'||quote(loadoutId)||'|'||quote(gearId)||'|'||quote(quantity)||'|'||quote(notes) FROM loadout_items ORDER BY loadoutItemId`,
+		`SELECT quote(loadoutId)||'|'||quote(userId)||'|'||quote(loadoutName)||'|'||quote(loadoutDescription)||'|'||quote(loadoutIsPublic)||'|'||quote(loadoutSlug)||'|'||quote((SELECT totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId))||'|'||quote(createdAt)||'|'||quote(updatedAt) FROM loadouts ORDER BY loadoutId`,
+		`SELECT quote(loadoutItemId)||'|'||quote(loadoutId)||'|'||quote(registrationId)||'|'||quote(placeId)||'|'||quote(detachedReason)||'|'||quote(detachedGearId)||'|'||quote(quantity)||'|'||quote(notes)||'|'||quote(ticked) FROM loadout_items ORDER BY loadoutItemId`,
 	} {
 		rows, err := e.DB.Query(q)
 		if err != nil {
@@ -92,7 +108,7 @@ func (e *authzEnv) snapshot() string {
 func (e *authzEnv) weight(loadoutID int64) int64 {
 	e.T.Helper()
 	var w int64
-	if err := e.DB.QueryRow(`SELECT totalWeight FROM loadouts WHERE loadoutId = ?`, loadoutID).Scan(&w); err != nil {
+	if err := e.DB.QueryRow(`SELECT totalWeight FROM loadout_on_back_weight WHERE loadoutId = ?`, loadoutID).Scan(&w); err != nil {
 		e.T.Fatal(err)
 	}
 	return w
@@ -202,7 +218,6 @@ func TestLoadout_ForeignAndUnknownGiveIdenticalNotFound(t *testing.T) {
 		{"update", http.MethodPost, func(l int64) string { return loPath(l, "update") }, validUpdate},
 		{"update conflicting body", http.MethodPost, func(l int64) string { return loPath(l, "update") }, conflicting},
 		{"delete", http.MethodDelete, func(l int64) string { return loPath(l, "delete") }, nil},
-		{"import", http.MethodPost, func(l int64) string { return loPath(l, "import") }, map[string]any{"gear_ids": []int64{f.g100}}},
 		{"item insert", http.MethodPut, func(l int64) string { return loPath(l, "item/insert") }, itemBody},
 		{"item list", http.MethodGet, func(l int64) string { return loPath(l, "item/list") }, nil},
 	}
@@ -399,70 +414,6 @@ func TestLoadoutItems_QuantityMustBePositive(t *testing.T) {
 	decodeJSON(t, w, &created)
 	if created.Quantity != 1 || created.LoadoutID != f.l1 {
 		t.Errorf("created item = %+v", created)
-	}
-}
-
-// ---- OC-001 G-5 / COR-04: atomic import, item mutations --------------------
-
-func TestImportLoadout_AtomicOnInsertFailure(t *testing.T) {
-	f := newLoFixture(t)
-	bad := f.env.seedGearW(1) // the trigger below rejects inserts of this gear
-	if _, err := f.env.DB.Exec(`CREATE TRIGGER fail_gear BEFORE INSERT ON loadout_items WHEN NEW.gearId = ` + fmt.Sprint(bad) +
-		` BEGIN SELECT RAISE(ABORT, 'injected failure'); END`); err != nil {
-		t.Fatal(err)
-	}
-	before := f.env.snapshot()
-	w := f.env.Do(http.MethodPost, loPath(f.l2, "import"), f.aTok, map[string]any{"gear_ids": []int64{f.g100, f.g250, bad}})
-	if w.Code < 500 {
-		t.Fatalf("failed import must not succeed: %d %s", w.Code, w.Body)
-	}
-	if got := f.env.snapshot(); got != before {
-		t.Fatalf("partial import left effects:\nbefore:\n%s\nafter:\n%s", before, got)
-	}
-}
-
-func TestImportLoadout_WeightRecalcFailureRollsBack(t *testing.T) {
-	f := newLoFixture(t)
-	if _, err := f.env.DB.Exec(`CREATE TRIGGER fail_recalc BEFORE UPDATE OF totalWeight ON loadouts
-		BEGIN SELECT RAISE(ABORT, 'injected failure'); END`); err != nil {
-		t.Fatal(err)
-	}
-	before := f.env.snapshot()
-	w := f.env.Do(http.MethodPost, loPath(f.l2, "import"), f.aTok, map[string]any{"gear_ids": []int64{f.g100}})
-	if w.Code < 500 {
-		t.Fatalf("import with failed recalculation must not succeed: %d %s", w.Code, w.Body)
-	}
-	if got := f.env.snapshot(); got != before {
-		t.Fatalf("import kept its items although the total could not be recalculated:\n%s", got)
-	}
-
-	// The same for item insert, update and delete.
-	for name, do := range map[string]func() int{
-		"insert": func() int {
-			return f.env.Do(http.MethodPut, loPath(f.l2, "item/insert"), f.aTok, map[string]any{"gear_id": f.g100, "quantity": 2}).Code
-		},
-		"update": func() int {
-			return f.env.Do(http.MethodPost, itemPath(f.l2, f.i2, "update"), f.aTok, map[string]any{"quantity": 7}).Code
-		},
-		"delete": func() int {
-			return f.env.Do(http.MethodDelete, itemPath(f.l2, f.i2, "delete"), f.aTok, nil).Code
-		},
-	} {
-		if code := do(); code < 500 {
-			t.Errorf("item %s with failed recalculation returned %d", name, code)
-		}
-		if got := f.env.snapshot(); got != before {
-			t.Fatalf("item %s kept its change although the total could not be recalculated:\n%s", name, got)
-		}
-	}
-}
-
-func TestImportLoadout_Success(t *testing.T) {
-	f := newLoFixture(t)
-	expectStatus(t, f.env.Do(http.MethodPost, loPath(f.l2, "import"), f.aTok,
-		map[string]any{"gear_ids": []int64{f.g100, f.g250}}), http.StatusCreated)
-	if w := f.env.weight(f.l2); w != 300+100+250 {
-		t.Errorf("total after import = %d, want 650", w)
 	}
 }
 
@@ -675,7 +626,6 @@ func TestLoadout_ForeignPublicNotReadableOrWritableThroughAuthenticatedRoutes(t 
 		{"item list", http.MethodGet, loPath(f.l1, "item/list"), nil},
 		{"update", http.MethodPost, loPath(f.l1, "update"), map[string]any{"loadout_name": "HACKED"}},
 		{"delete", http.MethodDelete, loPath(f.l1, "delete"), nil},
-		{"import", http.MethodPost, loPath(f.l1, "import"), map[string]any{"gear_ids": []int64{f.g100}}},
 		{"item insert", http.MethodPut, loPath(f.l1, "item/insert"), map[string]any{"gear_id": f.g100, "quantity": 1}},
 		{"item update", http.MethodPost, itemPath(f.l1, f.i1a, "update"), map[string]any{"quantity": 9}},
 		{"item delete", http.MethodDelete, itemPath(f.l1, f.i1a, "delete"), nil},
@@ -724,7 +674,7 @@ func TestLoadoutItemsOwned_QueryBindsOwner(t *testing.T) {
 // happen; Alice must then get no items instead of the new owner's.
 func TestListLoadoutItems_OwnerChangedAfterCheckReturnsNoItems(t *testing.T) {
 	f := newLoFixture(t)
-	onFirstRead(t, "loadout_items", "loadoutItemId", func() {
+	onFirstRead(t, "loadout_items", "notes", func() { // only the item query reads notes (the loadout summary reads ticked)
 		if _, err := f.env.DB.Exec(`UPDATE loadouts SET userId = ? WHERE loadoutId = ?`, f.bob, f.l1); err != nil {
 			t.Error(err)
 		}
@@ -739,25 +689,5 @@ func TestListLoadoutItems_OwnerChangedAfterCheckReturnsNoItems(t *testing.T) {
 	decodeJSON(t, w, &items)
 	if len(items) != 0 {
 		t.Fatalf("Alice received %d items of a loadout she no longer owns: %s", len(items), w.Body)
-	}
-}
-
-// ---- COR-04: import checks that each insert added exactly one row ----------
-
-func TestImportLoadout_SkippedInsertRollsBack(t *testing.T) {
-	f := newLoFixture(t)
-	skipped := f.env.seedGearW(1)
-	// The trigger makes the insert of this gear a silent no-op: no error, zero rows.
-	if _, err := f.env.DB.Exec(`CREATE TRIGGER skip_gear BEFORE INSERT ON loadout_items WHEN NEW.gearId = ` + fmt.Sprint(skipped) +
-		` BEGIN SELECT RAISE(IGNORE); END`); err != nil {
-		t.Fatal(err)
-	}
-	before := f.env.snapshot()
-	w := f.env.Do(http.MethodPost, loPath(f.l2, "import"), f.aTok, map[string]any{"gear_ids": []int64{f.g100, skipped}})
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("status %d, want 500; body %s", w.Code, w.Body)
-	}
-	if got := f.env.snapshot(); got != before {
-		t.Fatalf("import with a skipped insert left effects:\nbefore:\n%s\nafter:\n%s", before, got)
 	}
 }

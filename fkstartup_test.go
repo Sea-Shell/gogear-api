@@ -33,8 +33,8 @@ func TestReportForeignKeyViolations_WarnsPerTableAndLeavesData(t *testing.T) {
 		got[f["table"].(string)+"->"+f["parent_table"].(string)] = f["orphan_rows"].(int64)
 	}
 	want := map[string]int64{
-		"loadout_items->gear": 2, // items 4, 5
-		"loadouts->users":     1,
+		// Items 4 and 5 (gear missing) were orphans; 000011 does not copy them (BR-023 AC-7).
+		"loadouts->users": 1,
 		// The orphan container link of the legacy data is removed by 000008.
 		"user_gear_registrations->gear":  1,
 		"user_gear_registrations->users": 1,
@@ -54,6 +54,9 @@ func TestReportForeignKeyViolations_WarnsPerTableAndLeavesData(t *testing.T) {
 	}
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM user_gear_registrations`); n != 4 {
 		t.Errorf("audit deleted rows: %d registrations left", n)
+	}
+	if n := scalar[int](t, db, `SELECT COUNT(*) FROM loadout_items WHERE loadoutItemId IN (4, 5)`); n != 0 {
+		t.Errorf("orphan items 4 and 5 survived 000011: %d rows", n)
 	}
 }
 

@@ -466,6 +466,7 @@ func GetGear(c *gin.Context) {
 	if err != nil {
 		log.Errorf("urlParamter is of wrong type: %#v", err)
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
 	}
 
 	var extraSQL []string

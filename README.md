@@ -16,7 +16,43 @@ Read these before deploying a new version.
 - `auth.google-client-id` is required. The service refuses to start without it, because an empty audience would make Google token validation skip the audience check.
 - `database.file` must be set. An empty value is refused.
 
-### Back up the SQLite file first
+### Automatic backup before schema migrations, and restore
+
+The service backs up its own database. Each time it starts and finds a pending migration (one in `migrations/` that the database has not applied), it makes a backup before the first migration changes anything. No step by you is needed, and the release workflow does it too. It makes no backup when nothing is pending, and none on the first start on an empty volume.
+
+- **Where.** In the directory `backups` next to the database file (for example `/config/backups`, on the same `hostPath` volume). Change it with `database.backup-dir`; a relative value is resolved against the directory of `database.file`. It must not be the database's own directory. The directory is created with mode `0700`; backup files get the database file's permissions.
+- **How.** `VACUUM INTO` writes a standalone copy of the committed content, write-ahead log included. The service opens the copy read-only and checks it (`PRAGMA integrity_check` is `ok`, schema version as expected, nothing was committed meanwhile) before it keeps it and before it migrates.
+- **Names.** `gogear-<UTC time>-<kind>-schema<N>-app<version>.db`, for example `gogear-20261122T181500Z-premigration-schema10-appv4.11.0.db`. `kind` is `premigration` or `prerestore`, `N` is the schema version the backup holds, and `version` is the release tag of the image that made it. Only files with this exact name pattern are counted or deleted; the service never touches other files in the directory.
+- **Retention.** The three newest backups of each kind. An older one is removed only after the new one passed its check.
+- **If the backup fails** (full disk, unwritable directory), no migration runs, the database stays as it was, and the service exits. The release run then fails and shows the reason. Fix the cause and the next start backs up and migrates. This is the current default (`Refuse` in `pkg/dbupgrade/policy.go`).
+- **Limit.** Backups are on the same disk as the database. They do not protect against losing that disk. Copy them elsewhere yourself if that matters.
+
+Find the backups in the pod log:
+
+```
+kubectl -n seashell logs deployment/gogear-api | grep 'gogear-api backup:'
+```
+
+Every start lists the backups it keeps (`kept file=...`); a new backup, a removed one, a skipped one and each failure have their own line.
+
+**Restore** (the database is replaced as a whole, and the replaced database is kept first as a `prerestore` backup, so a restore can be undone):
+
+```
+kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP=<backup file name>
+```
+
+The new pod makes the `prerestore` backup, swaps the named backup in, and prints `restored file=...`. While the variable is set the service **never migrates**. If the restored schema is older than the image expects, it prints `restore mode ...` and waits without serving. Then do one of:
+
+- deploy the older release that matches the backup (the `app` part of its name), or
+- remove the variable, so the next start backs up and migrates again: `kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP-`
+
+The next release deploy clears it too: `kubernetes-manifests/deployment.yaml` declares the variable with an empty value, and the deploy applies the manifest in the rollout it does anyway (an empty value means no request). Keep that entry in the manifest. Each value is restored once; a pod restart does not repeat it. To restore the same backup again, add a tag: `GOGEAR_RESTORE_BACKUP=<file name>#2`. A restore to the schema the image expects serves normally.
+
+**A failed migration.** If a migration fails after the backup was made, the backup stays and the service reports it (`migration failed from=<N> target=<M>; the state before the attempt is in file=...`) and writes `backups/migration-failed.json`. The database is then left as the failed migration left it, and the service does not restore it by itself (`Keep`, the current default). Every later start prints `dirty schema=<N>` with the restore command for the newest `premigration` backup, makes no backup and does not start. Restore that backup with the command above, then deploy a fixed release.
+
+The manual methods below still work as an extra, for example for a copy on another disk.
+
+### Notes on individual migrations, and manual backups
 
 Migration `000005` changes data: it clamps loadout item quantities of 0 or below to 1, turns blank loadout slugs into NULL, and deletes identical duplicate container links. The down migration removes the constraints but does not restore those changes. The original quantities stay in the table `audit_000005_clamped_loadout_item_quantity`. Every run of the migration adds its own rows (with a `clampedAt` timestamp), so if the migration is rolled back and applied again and clamps the same item a second time, both original values are kept.
 
@@ -28,7 +64,7 @@ Migration `000009` adds the container settings of the catalog categories (`top_c
 
 Migration `000010` seeds the container settings from the old per-gear flags: a sub-category with at least one flagged gear item becomes an explicit container category, unless it already has an explicit setting. Top categories are not changed. It runs once per database, whether the database comes from version 8 or 9, and seeds nothing on a fresh database. No admin action is needed after deploying it. Its down migration changes no data (a seeded setting cannot be told apart from one an admin set), so down to 9 keeps the seeded settings. Admins can still change any setting through the admin API afterwards.
 
-After running its migrations the service prints `gogear-api migrations: version=<N> dirty=<true|false>` to stdout, whatever the log level (also when nothing changed). The release workflow checks this line after a deploy.
+After running its migrations the service prints `gogear-api migrations: version=<N> dirty=<true|false>` to stdout, whatever the log level (also when nothing changed). The release workflow checks this line after a deploy. The `gogear-api backup:` lines (above) go to stdout the same way, and the workflow includes them in its failure diagnostics.
 
 The migrations in `migrations/` are the only source of the schema. The old seed scripts `sql/database.sql` and `sql/patch.sql` were removed because they cannot create a current schema.
 

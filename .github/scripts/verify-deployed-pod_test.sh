@@ -360,7 +360,7 @@ want_rc 1; want_line '^H-1 FAIL: phase=Running '; want_line '^I-4 FAIL'; want_li
 finish "T-20 no container status, bash -e"
 
 # T-21 privacy: only error-level lines (level, message, error) and crash lines
-# of non-JSON output are printed. A JSON info line is never printed, even when
+# of non-JSON output are printed, plus the migrations and backup lines. A JSON info line is never printed, even when
 # its message looks like a crash line.
 new_case
 cat >"$fx/logs.txt" <<'LOG'
@@ -368,11 +368,13 @@ cat >"$fx/logs.txt" <<'LOG'
 {"level":"info","message":"Failed to refresh token","username":"bob-secret"}
 {"level":"error","message":"boom","error":"db locked","username":"bob-secret"}
 panic: plain crash line
+gogear-api backup: failed dir=/config/backups step=snapshot error=no space left on device
 gogear-api migrations: version=9 dirty=false
 LOG
 run_case
 want_rc 1; want_line '^M-1 FAIL'
 want_line '^error boom db locked$'; want_line '^panic: plain crash line$'
+want_line '^gogear-api backup: failed dir=/config/backups'
 want_no 'routine info message'; want_no 'Failed to refresh'; want_no 'bob-secret|username'
 finish "T-21 log filtering"
 

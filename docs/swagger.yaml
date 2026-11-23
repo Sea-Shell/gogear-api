@@ -8,6 +8,15 @@ definitions:
       id_token:
         type: string
     type: object
+  models.ClosedPlace:
+    properties:
+      name:
+        type: string
+      place_id:
+        type: integer
+      place_kind:
+        type: string
+    type: object
   models.Error:
     properties:
       error:
@@ -193,6 +202,8 @@ definitions:
         type: string
       gear_top_category_id:
         type: integer
+      gear_weight:
+        type: integer
       manufacture_id:
         type: integer
       manufacture_name:
@@ -232,8 +243,18 @@ definitions:
     type: object
   models.Loadout:
     properties:
+      bag_count:
+        type: integer
+      closed_places:
+        description: 'ClosedPlaces is never nil: it encodes as [] when no place is
+          closed.'
+        items:
+          $ref: '#/definitions/models.ClosedPlace'
+        type: array
       created_at:
         type: string
+      item_count:
+        type: integer
       loadout_description:
         type: string
       loadout_id:
@@ -244,6 +265,8 @@ definitions:
         type: string
       loadout_slug:
         type: string
+      ticked_count:
+        type: integer
       total_weight:
         type: integer
       updated_at:
@@ -251,18 +274,62 @@ definitions:
       user_id:
         type: integer
     type: object
+  models.LoadoutFull:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.LoadoutItem'
+        type: array
+      loadout:
+        $ref: '#/definitions/models.Loadout'
+      places:
+        items:
+          $ref: '#/definitions/models.LoadoutPlace'
+        type: array
+    type: object
   models.LoadoutItem:
     properties:
-      gear_id:
+      catalog_weight:
         type: integer
+      category_name:
+        type: string
+      detached_reason:
+        type: string
+      gear_id:
+        description: |-
+          GearID is read-only: the registration's gear, else the detached gear. It
+          is null only for a deleted registration whose gear was already missing.
+        type: integer
+      gear_name:
+        description: |-
+          Names are read live from the current gear, except for an item whose
+          registration was deleted: its gear_name is the snapshot and the other
+          names are null.
+        type: string
       loadout_id:
         type: integer
       loadout_item_id:
         type: integer
+      manufacture_name:
+        type: string
       notes:
         type: string
+      place_id:
+        type: integer
       quantity:
         type: integer
+      registration_exists:
+        type: boolean
+      ticked:
+        type: boolean
+      top_category_name:
+        type: string
+      unit_weight:
+        type: integer
+      usergear_registration_id:
+        type: integer
+      weight_source:
+        type: string
     type: object
   models.LoadoutItemNoID:
     properties:
@@ -272,8 +339,39 @@ definitions:
         type: integer
       notes:
         type: string
+      place_id:
+        type: integer
       quantity:
         type: integer
+      usergear_registration_id:
+        type: integer
+    type: object
+  models.LoadoutItemPublic:
+    properties:
+      gear_id:
+        type: integer
+      gear_name:
+        type: string
+      loadout_id:
+        type: integer
+      loadout_item_id:
+        type: integer
+      notes:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  models.LoadoutItemTick:
+    properties:
+      ticked:
+        type: boolean
+    type: object
+  models.LoadoutItemTickResult:
+    properties:
+      loadout_item_id:
+        type: integer
+      ticked:
+        type: boolean
     type: object
   models.LoadoutItemUpdate:
     properties:
@@ -281,6 +379,8 @@ definitions:
         type: integer
       notes:
         type: string
+      place_id:
+        type: integer
       quantity:
         type: integer
     type: object
@@ -295,6 +395,71 @@ definitions:
       loadout_slug:
         type: string
       user_id:
+        type: integer
+    type: object
+  models.LoadoutPlace:
+    properties:
+      catalog_weight:
+        type: integer
+      closed:
+        type: boolean
+      gear_id:
+        type: integer
+      gear_is_container:
+        type: boolean
+      gear_name:
+        type: string
+      loadout_id:
+        type: integer
+      max_container_weight:
+        type: integer
+      parent_place_id:
+        type: integer
+      place_id:
+        type: integer
+      place_kind:
+        description: '"worn", "last_minute" or "bag"'
+        type: string
+      position:
+        type: integer
+      unit_weight:
+        type: integer
+      usergear_registration_id:
+        type: integer
+      weight_source:
+        type: string
+    type: object
+  models.LoadoutPlaceClose:
+    properties:
+      closed:
+        type: boolean
+    type: object
+  models.LoadoutPlaceCloseResult:
+    properties:
+      closed:
+        type: boolean
+      place_id:
+        type: integer
+    type: object
+  models.LoadoutPlaceInsert:
+    properties:
+      parent_place_id:
+        type: integer
+      place_kind:
+        type: string
+      usergear_registration_id:
+        type: integer
+    type: object
+  models.LoadoutPlaceOrder:
+    properties:
+      place_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  models.LoadoutPlaceUpdate:
+    properties:
+      parent_place_id:
         type: integer
     type: object
   models.LoadoutPublic:
@@ -1052,6 +1217,44 @@ paths:
       summary: Delete loadout
       tags:
       - Loadouts
+  /api/v1/loadout/{loadout}/full:
+    get:
+      consumes:
+      - application/json
+      description: Get one loadout of the caller with all its places (Worn, Last minute,
+        then bags by position) and all its items (by item ID), read from one transaction
+        so the three parts describe one state. Unknown and other users' loadouts both
+        return 404.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoadoutFull'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Get loadout board
+      tags:
+      - Loadouts
   /api/v1/loadout/{loadout}/get:
     get:
       consumes:
@@ -1082,53 +1285,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get loadout
-      tags:
-      - Loadouts
-  /api/v1/loadout/{loadout}/import:
-    post:
-      consumes:
-      - application/json
-      description: Import gear items into a loadout. All gear is added and the total
-        weight recalculated, or nothing changes.
-      parameters:
-      - description: Loadout ID
-        in: path
-        name: loadout
-        required: true
-        type: integer
-      - description: Gear IDs to import
-        in: body
-        name: request
-        required: true
-        schema:
-          additionalProperties:
-            items:
-              format: int64
-              type: integer
-            type: array
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.Status'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.Error'
-      security:
-      - BearerAuth: []
-      summary: Import gear into loadout
       tags:
       - Loadouts
   /api/v1/loadout/{loadout}/item/{item}/delete:
@@ -1172,14 +1328,65 @@ paths:
       summary: Delete loadout item
       tags:
       - Loadouts
+  /api/v1/loadout/{loadout}/item/{item}/tick:
+    post:
+      consumes:
+      - application/json
+      description: Set (not toggle) the packed state of an item of a loadout owned
+        by the caller. Setting the value it already has succeeds and changes nothing.
+        An item that was removed, or a loadout that is gone or not the caller's, is
+        404 and changes nothing.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Item ID
+        in: path
+        name: item
+        required: true
+        type: integer
+      - description: ticked (boolean, required)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutItemTick'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoadoutItemTickResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Tick loadout item
+      tags:
+      - Loadouts
   /api/v1/loadout/{loadout}/item/{item}/update:
     post:
       consumes:
       - application/json
       description: Update an item of a loadout owned by the caller. Only fields present
-        in the body change. The item must belong to the loadout in the path, otherwise
-        404. A loadout_id or loadout_item_id in the body that differs from the path
-        is refused with 400.
+        in the body change; place_id null removes the item from its place. The item
+        must belong to the loadout in the path, otherwise 404, and so must a place_id.
+        A loadout_id or loadout_item_id in the body that differs from the path is
+        refused with 400. A bag whose gear cannot hold items is 409. Never changes
+        ticked.
       parameters:
       - description: Loadout ID
         in: path
@@ -1203,13 +1410,17 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Status'
+            $ref: '#/definitions/models.LoadoutItem'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/models.Error'
         "500":
@@ -1225,9 +1436,15 @@ paths:
     put:
       consumes:
       - application/json
-      description: Add gear to a loadout owned by the caller. quantity defaults to
-        1; zero or negative is refused with 400. A loadout_id in the body that differs
-        from the path is refused with 400.
+      description: 'Add one of the caller''s gear registrations to a loadout, optionally
+        into a place (Worn, Last minute or a bag of the loadout). quantity defaults
+        to 1; zero or negative is refused with 400. A loadout_id in the body that
+        differs from the path is refused with 400. Deprecated legacy path (until the
+        cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the
+        item to the caller''s lowest-ID registration of that gear, or keeps it as
+        a legacy item that reads the gear live. Sending both is 400. A foreign or
+        unknown registration or place is 404; a place that is a bag whose gear cannot
+        hold items is 409.'
       parameters:
       - description: Loadout ID
         in: path
@@ -1253,6 +1470,10 @@ paths:
             $ref: '#/definitions/models.Error'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/models.Error'
         "500":
@@ -1300,6 +1521,257 @@ paths:
       security:
       - BearerAuth: []
       summary: List loadout items
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/place/{place}/close:
+    post:
+      consumes:
+      - application/json
+      description: Set (not toggle) the closed state of Worn, Last minute or a bag
+        of a loadout owned by the caller, whatever the ticks of its items. Setting
+        the value it already has succeeds. Never changes a tick or the closed state
+        of another place. A place ID of 0 or a non-number ("no place" cannot be closed)
+        is 400; an unknown or foreign place is 404; a missing or non-boolean closed
+        is 400.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Place ID
+        in: path
+        name: place
+        required: true
+        type: integer
+      - description: closed (boolean, required)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutPlaceClose'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoadoutPlaceCloseResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Close or open loadout place
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/place/{place}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a bag or Last minute from a loadout owned by the caller.
+        Items directly in it get no place, bags directly in it become top level, and
+        its closed state ends; nothing else is removed and the registration stays
+        in the closet. Worn cannot be removed (400). An unknown or foreign place is
+        404.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Place ID
+        in: path
+        name: place
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Status'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Delete loadout place
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/place/{place}/update:
+    post:
+      consumes:
+      - application/json
+      description: Put a bag of a loadout owned by the caller inside another bag of
+        the same loadout (parent_place_id a number) or at top level (null). parent_place_id
+        is required. Never writes a closet container link. An unknown or foreign place
+        or parent is 404; a place that is not a bag, a bag inside itself, or a parent
+        that is Worn or Last minute is 400; a parent that is inside this bag (a cycle)
+        or a new parent bag whose gear cannot hold items is 409. Leaving the parent
+        as it is succeeds.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Place ID
+        in: path
+        name: place
+        required: true
+        type: integer
+      - description: parent_place_id (number or null, required)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutPlaceUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoadoutPlace'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Update loadout bag parent
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/place/insert:
+    put:
+      consumes:
+      - application/json
+      description: Add a bag (one of the caller's container registrations) or the
+        Last minute place to a loadout owned by the caller. A bag without parent_place_id
+        starts inside its closet container when that container is a bag of this loadout
+        whose gear can still hold items, otherwise at top level; parent_place_id null
+        means top level; the closet links are never written. A new bag goes last in
+        the bag order. An unknown or foreign registration or parent is 404; a place_kind
+        other than bag or last_minute, a missing registration, or a parent that is
+        not a bag (Worn, Last minute) is 400; a registration already a bag of this
+        loadout, gear that cannot hold items, a parent bag that cannot hold items,
+        or a second Last minute is 409. Capacity and the weight goal never refuse.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Place data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutPlaceInsert'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoadoutPlace'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Insert loadout place
+      tags:
+      - Loadouts
+  /api/v1/loadout/{loadout}/place/order:
+    post:
+      consumes:
+      - application/json
+      description: Set the order of the bags of a loadout owned by the caller. place_ids
+        must list every bag of the loadout exactly once. An ID that is not a place
+        of this loadout is 404; Worn or Last minute, a duplicate, or a missing bag
+        is 400. Returns the bags in the new order.
+      parameters:
+      - description: Loadout ID
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Every bag ID once
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutPlaceOrder'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LoadoutPlace'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Order loadout bags
       tags:
       - Loadouts
   /api/v1/loadout/{loadout}/update:
@@ -1615,7 +2087,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: List items for a public loadout by slug. No authentication required.
+      description: List items for a public loadout by slug, with gear_name. An item
+        without a current gear row is not listed. No authentication required.
       parameters:
       - description: Loadout slug
         in: path
@@ -1629,7 +2102,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.LoadoutItem'
+              $ref: '#/definitions/models.LoadoutItemPublic'
             type: array
         "400":
           description: Bad Request

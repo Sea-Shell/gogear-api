@@ -69,6 +69,8 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           push: true
+          build-args: |
+            VERSION=${{ needs.release.outputs.tag }}
           cache-from: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache
           cache-to: type=registry,ref=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:build-cache,mode=max,ignore-error=true
           tags: |

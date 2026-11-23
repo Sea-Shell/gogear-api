@@ -3,7 +3,6 @@ package endpoints
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -160,6 +159,59 @@ func GetLoadout(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, loadout)
 }
 
+// GetLoadoutFull returns a loadout with its places and items.
+//
+//	@Summary		Get loadout board
+//	@Description	Get one loadout of the caller with all its places (Worn, Last minute, then bags by position) and all its items (by item ID), read from one transaction so the three parts describe one state. Unknown and other users' loadouts both return 404.
+//	@Security		BearerAuth
+//	@Tags			Loadouts
+//	@Accept			json
+//	@Produce		json
+//	@Param			loadout	path		int	true	"Loadout ID"
+//	@Success		200		{object}	models.LoadoutFull
+//	@Failure		400		{object}	models.Error
+//	@Failure		404		{object}	models.Error
+//	@Failure		500		{object}	models.Error
+//	@Router			/api/v1/loadout/{loadout}/full [get]
+func GetLoadoutFull(c *gin.Context) {
+	log := c.MustGet("logger").(*zap.SugaredLogger)
+	db := c.MustGet("db").(*sql.DB)
+	userID := c.MustGet("user_id_int64").(int64)
+
+	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
+	if !ok {
+		return
+	}
+
+	var full models.LoadoutFull
+	err := inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
+		ctx := c.Request.Context()
+		loadout, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		if loadout == nil {
+			return errLoadoutNotFound
+		}
+		places, err := LoadoutPlaces(ctx, tx, loadoutID)
+		if err != nil {
+			return err
+		}
+		items, err := LoadoutItemsOwned(ctx, tx, loadoutID, userID)
+		if err != nil {
+			return err
+		}
+		full = models.LoadoutFull{Loadout: *loadout, Places: places, Items: *items}
+		return nil
+	})
+	if err != nil {
+		respondOpError(c, log, err)
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, full)
+}
+
 // UpdateLoadout updates an existing loadout.
 //
 //	@Summary		Update loadout
@@ -310,78 +362,4 @@ func DeleteLoadout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.Status{Status: "success"})
-}
-
-// ImportLoadout imports gear IDs into a loadout as items.
-//
-//	@Summary		Import gear into loadout
-//	@Description	Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.
-//	@Security		BearerAuth
-//	@Tags			Loadouts
-//	@Accept			json
-//	@Produce		json
-//	@Param			loadout	path		int					true	"Loadout ID"
-//	@Param			request	body		map[string][]int64	true	"Gear IDs to import"
-//	@Success		201		{object}	models.Status
-//	@Failure		400		{object}	models.Error
-//	@Failure		404		{object}	models.Error
-//	@Failure		500		{object}	models.Error
-//	@Router			/api/v1/loadout/{loadout}/import [post]
-func ImportLoadout(c *gin.Context) {
-	log := c.MustGet("logger").(*zap.SugaredLogger)
-	db := c.MustGet("db").(*sql.DB)
-	userID := c.MustGet("user_id_int64").(int64)
-
-	loadoutID, ok := parseLoadoutIDParam(c, "loadout")
-	if !ok {
-		return
-	}
-
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Errorf("read body: %v", err)
-		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: "internal error"})
-		return
-	}
-
-	ctx := c.Request.Context()
-	err = inTx(ctx, db, func(tx *sql.Tx) error {
-		owned, err := LoadoutGetOwned(ctx, tx, loadoutID, userID)
-		if err != nil {
-			return err
-		}
-		if owned == nil {
-			return errLoadoutNotFound
-		}
-
-		var body struct {
-			GearIDs []int64 `json:"gear_ids"`
-		}
-		if err := json.Unmarshal(data, &body); err != nil {
-			return badRequest(err.Error())
-		}
-
-		for _, gearID := range body.GearIDs {
-			res, err := tx.ExecContext(ctx,
-				`INSERT INTO loadout_items (loadoutId, gearId, quantity, notes)
-				 SELECT loadoutId, ?, 1, '' FROM loadouts WHERE loadoutId = ? AND userId = ?`,
-				gearID, loadoutID, userID)
-			if err != nil {
-				return gearReferenceError(ctx, tx, gearID, err)
-			}
-			// Exactly one row per gear: anything else rolls the import back.
-			if n, err := res.RowsAffected(); err != nil {
-				return err
-			} else if n != 1 {
-				return fmt.Errorf("import gear %d: inserted %d rows, want 1", gearID, n)
-			}
-		}
-		return LoadoutRecalculateWeight(ctx, tx, loadoutID)
-	})
-	if err != nil {
-		respondOpError(c, log, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, models.Status{Status: "success"})
 }

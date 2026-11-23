@@ -42,6 +42,7 @@ Use real request handling and stored data. Build the 25-level chain of AC-2. Try
 
 ## Related
 
+- [BR-024 Every loadout item is in exactly one place, and bags nest for the trip](/docs/requirements/requirements/br-024-every-loadout-item-has-one-place.md) — per-trip nesting of bags in a loadout; it never changes the closet links governed here.
 - [BR-021 The catalog category decides whether gear can be a container](/docs/requirements/requirements/br-021-container-capability-from-category.md)
 - [BR-013 Container links involve only the caller's own registrations](/docs/requirements/requirements/br-013-container-links-owner-scoped.md)
 - [BR-012 Gear registrations are readable and changeable only by their owner](/docs/requirements/requirements/br-012-inventory-registrations-owner-scoped.md)

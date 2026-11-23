@@ -1009,6 +1009,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/loadout/{loadout}/full": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get one loadout of the caller with all its places (Worn, Last minute, then bags by position) and all its items (by item ID), read from one transaction so the three parts describe one state. Unknown and other users' loadouts both return 404.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Get loadout board",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutFull"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/loadout/{loadout}/get": {
             "get": {
                 "security": [
@@ -1058,77 +1113,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/loadout/{loadout}/import": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Import gear items into a loadout. All gear is added and the total weight recalculated, or nothing changes.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Loadouts"
-                ],
-                "summary": "Import gear into loadout",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Loadout ID",
-                        "name": "loadout",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Gear IDs to import",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "array",
-                                "items": {
-                                    "type": "integer",
-                                    "format": "int64"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Status"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/loadout/{loadout}/item/insert": {
             "put": {
                 "security": [
@@ -1136,7 +1120,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Add gear to a loadout owned by the caller. quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400.",
+                "description": "Add one of the caller's gear registrations to a loadout, optionally into a place (Worn, Last minute or a bag of the loadout). quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400. Deprecated legacy path (until the cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the item to the caller's lowest-ID registration of that gear, or keeps it as a legacy item that reads the gear live. Sending both is 400. A foreign or unknown registration or place is 404; a place that is a bag whose gear cannot hold items is 409.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1180,6 +1164,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1313,6 +1303,77 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/loadout/{loadout}/item/{item}/tick": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Set (not toggle) the packed state of an item of a loadout owned by the caller. Setting the value it already has succeeds and changes nothing. An item that was removed, or a loadout that is gone or not the caller's, is 404 and changes nothing.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Tick loadout item",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Item ID",
+                        "name": "item",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "ticked (boolean, required)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutItemTick"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutItemTickResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/loadout/{loadout}/item/{item}/update": {
             "post": {
                 "security": [
@@ -1320,7 +1381,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change. The item must belong to the loadout in the path, otherwise 404. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400.",
+                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change; place_id null removes the item from its place. The item must belong to the loadout in the path, otherwise 404, and so must a place_id. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400. A bag whose gear cannot hold items is 409. Never changes ticked.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1360,6 +1421,282 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
+                            "$ref": "#/definitions/models.LoadoutItem"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loadout/{loadout}/place/insert": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add a bag (one of the caller's container registrations) or the Last minute place to a loadout owned by the caller. A bag without parent_place_id starts inside its closet container when that container is a bag of this loadout whose gear can still hold items, otherwise at top level; parent_place_id null means top level; the closet links are never written. A new bag goes last in the bag order. An unknown or foreign registration or parent is 404; a place_kind other than bag or last_minute, a missing registration, or a parent that is not a bag (Worn, Last minute) is 400; a registration already a bag of this loadout, gear that cannot hold items, a parent bag that cannot hold items, or a second Last minute is 409. Capacity and the weight goal never refuse.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Insert loadout place",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Place data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlaceInsert"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlace"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loadout/{loadout}/place/order": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Set the order of the bags of a loadout owned by the caller. place_ids must list every bag of the loadout exactly once. An ID that is not a place of this loadout is 404; Worn or Last minute, a duplicate, or a missing bag is 400. Returns the bags in the new order.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Order loadout bags",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Every bag ID once",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlaceOrder"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.LoadoutPlace"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loadout/{loadout}/place/{place}/close": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Set (not toggle) the closed state of Worn, Last minute or a bag of a loadout owned by the caller, whatever the ticks of its items. Setting the value it already has succeeds. Never changes a tick or the closed state of another place. A place ID of 0 or a non-number (\"no place\" cannot be closed) is 400; an unknown or foreign place is 404; a missing or non-boolean closed is 400.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Close or open loadout place",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Place ID",
+                        "name": "place",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "closed (boolean, required)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlaceClose"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlaceCloseResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loadout/{loadout}/place/{place}/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a bag or Last minute from a loadout owned by the caller. Items directly in it get no place, bags directly in it become top level, and its closed state ends; nothing else is removed and the registration stays in the closet. Worn cannot be removed (400). An unknown or foreign place is 404.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Delete loadout place",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Place ID",
+                        "name": "place",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
                             "$ref": "#/definitions/models.Status"
                         }
                     },
@@ -1371,6 +1708,83 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/loadout/{loadout}/place/{place}/update": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Put a bag of a loadout owned by the caller inside another bag of the same loadout (parent_place_id a number) or at top level (null). parent_place_id is required. Never writes a closet container link. An unknown or foreign place or parent is 404; a place that is not a bag, a bag inside itself, or a parent that is Worn or Last minute is 400; a parent that is inside this bag (a cycle) or a new parent bag whose gear cannot hold items is 409. Leaving the parent as it is succeeds.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loadouts"
+                ],
+                "summary": "Update loadout bag parent",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Loadout ID",
+                        "name": "loadout",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Place ID",
+                        "name": "place",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "parent_place_id (number or null, required)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlaceUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoadoutPlace"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/models.Error"
                         }
@@ -1772,7 +2186,7 @@ const docTemplate = `{
         },
         "/api/v1/public/loadout/{slug}/items": {
             "get": {
-                "description": "List items for a public loadout by slug. No authentication required.",
+                "description": "List items for a public loadout by slug, with gear_name. An item without a current gear row is not listed. No authentication required.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1798,7 +2212,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.LoadoutItem"
+                                "$ref": "#/definitions/models.LoadoutItemPublic"
                             }
                         }
                     },
@@ -2961,6 +3375,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ClosedPlace": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "place_id": {
+                    "type": "integer"
+                },
+                "place_kind": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Error": {
             "type": "object",
             "properties": {
@@ -3236,6 +3664,9 @@ const docTemplate = `{
                 "gear_top_category_id": {
                     "type": "integer"
                 },
+                "gear_weight": {
+                    "type": "integer"
+                },
                 "manufacture_id": {
                     "type": "integer"
                 },
@@ -3291,8 +3722,21 @@ const docTemplate = `{
         "models.Loadout": {
             "type": "object",
             "properties": {
+                "bag_count": {
+                    "type": "integer"
+                },
+                "closed_places": {
+                    "description": "ClosedPlaces is never nil: it encodes as [] when no place is closed.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ClosedPlace"
+                    }
+                },
                 "created_at": {
                     "type": "string"
+                },
+                "item_count": {
+                    "type": "integer"
                 },
                 "loadout_description": {
                     "type": "string"
@@ -3309,6 +3753,9 @@ const docTemplate = `{
                 "loadout_slug": {
                     "type": "string"
                 },
+                "ticked_count": {
+                    "type": "integer"
+                },
                 "total_weight": {
                     "type": "integer"
                 },
@@ -3320,11 +3767,45 @@ const docTemplate = `{
                 }
             }
         },
+        "models.LoadoutFull": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LoadoutItem"
+                    }
+                },
+                "loadout": {
+                    "$ref": "#/definitions/models.Loadout"
+                },
+                "places": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.LoadoutPlace"
+                    }
+                }
+            }
+        },
         "models.LoadoutItem": {
             "type": "object",
             "properties": {
-                "gear_id": {
+                "catalog_weight": {
                     "type": "integer"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "detached_reason": {
+                    "type": "string"
+                },
+                "gear_id": {
+                    "description": "GearID is read-only: the registration's gear, else the detached gear. It\nis null only for a deleted registration whose gear was already missing.",
+                    "type": "integer"
+                },
+                "gear_name": {
+                    "description": "Names are read live from the current gear, except for an item whose\nregistration was deleted: its gear_name is the snapshot and the other\nnames are null.",
+                    "type": "string"
                 },
                 "loadout_id": {
                     "type": "integer"
@@ -3332,11 +3813,35 @@ const docTemplate = `{
                 "loadout_item_id": {
                     "type": "integer"
                 },
+                "manufacture_name": {
+                    "type": "string"
+                },
                 "notes": {
                     "type": "string"
                 },
+                "place_id": {
+                    "type": "integer"
+                },
                 "quantity": {
                     "type": "integer"
+                },
+                "registration_exists": {
+                    "type": "boolean"
+                },
+                "ticked": {
+                    "type": "boolean"
+                },
+                "top_category_name": {
+                    "type": "string"
+                },
+                "unit_weight": {
+                    "type": "integer"
+                },
+                "usergear_registration_id": {
+                    "type": "integer"
+                },
+                "weight_source": {
+                    "type": "string"
                 }
             }
         },
@@ -3352,8 +3857,56 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "place_id": {
+                    "type": "integer"
+                },
                 "quantity": {
                     "type": "integer"
+                },
+                "usergear_registration_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.LoadoutItemPublic": {
+            "type": "object",
+            "properties": {
+                "gear_id": {
+                    "type": "integer"
+                },
+                "gear_name": {
+                    "type": "string"
+                },
+                "loadout_id": {
+                    "type": "integer"
+                },
+                "loadout_item_id": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.LoadoutItemTick": {
+            "type": "object",
+            "properties": {
+                "ticked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.LoadoutItemTickResult": {
+            "type": "object",
+            "properties": {
+                "loadout_item_id": {
+                    "type": "integer"
+                },
+                "ticked": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3365,6 +3918,9 @@ const docTemplate = `{
                 },
                 "notes": {
                     "type": "string"
+                },
+                "place_id": {
+                    "type": "integer"
                 },
                 "quantity": {
                     "type": "integer"
@@ -3387,6 +3943,106 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.LoadoutPlace": {
+            "type": "object",
+            "properties": {
+                "catalog_weight": {
+                    "type": "integer"
+                },
+                "closed": {
+                    "type": "boolean"
+                },
+                "gear_id": {
+                    "type": "integer"
+                },
+                "gear_is_container": {
+                    "type": "boolean"
+                },
+                "gear_name": {
+                    "type": "string"
+                },
+                "loadout_id": {
+                    "type": "integer"
+                },
+                "max_container_weight": {
+                    "type": "integer"
+                },
+                "parent_place_id": {
+                    "type": "integer"
+                },
+                "place_id": {
+                    "type": "integer"
+                },
+                "place_kind": {
+                    "description": "\"worn\", \"last_minute\" or \"bag\"",
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "unit_weight": {
+                    "type": "integer"
+                },
+                "usergear_registration_id": {
+                    "type": "integer"
+                },
+                "weight_source": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.LoadoutPlaceClose": {
+            "type": "object",
+            "properties": {
+                "closed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.LoadoutPlaceCloseResult": {
+            "type": "object",
+            "properties": {
+                "closed": {
+                    "type": "boolean"
+                },
+                "place_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.LoadoutPlaceInsert": {
+            "type": "object",
+            "properties": {
+                "parent_place_id": {
+                    "type": "integer"
+                },
+                "place_kind": {
+                    "type": "string"
+                },
+                "usergear_registration_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.LoadoutPlaceOrder": {
+            "type": "object",
+            "properties": {
+                "place_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "models.LoadoutPlaceUpdate": {
+            "type": "object",
+            "properties": {
+                "parent_place_id": {
                     "type": "integer"
                 }
             }

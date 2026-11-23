@@ -74,14 +74,14 @@ spec_image() { # json-on-stdin; path prefix as $1
 # Keep only what cannot identify a user: error-level lines of the JSON app
 # log reduced to level, message and error (never the other fields, which can
 # carry request or user data), non-JSON crash output, and the migrations
-# line. The repository is public.
+# and backup lines (BR-038). The repository is public.
 safe_logs() {
   local raw
   raw=$(cat)
   {
     jq -R -r 'fromjson? | select(type == "object" and ((.level // "") | IN("error", "dpanic", "panic", "fatal")))
               | "\(.level) \(.message // "") \(.error // "")"' <<<"$raw" || true
-    grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:' || true
+    grep -v '^{' <<<"$raw" | grep -E 'panic:|fatal error:|Failed to|gogear-api migrations:|gogear-api backup:' || true
   } | cut -c1-300 | tail -n 20
 }
 

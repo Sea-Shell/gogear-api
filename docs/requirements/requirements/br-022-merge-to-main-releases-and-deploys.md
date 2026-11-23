@@ -45,4 +45,5 @@ Before the merge: show from a non-publishing rehearsal that the release step wou
 
 ## Related
 
+- [BR-038 The application backs up its database before it applies schema migrations](/docs/requirements/requirements/br-038-backup-before-schema-migration.md) — a release with a pending migration must also leave a way back (anchor RD3).
 - [BR-021 The catalog category decides whether gear can be a container](/docs/requirements/requirements/br-021-container-capability-from-category.md) — its AC-5 seeds the container settings in the release itself, so the first deploy under this requirement needs no admin follow-up (anchor RD2).

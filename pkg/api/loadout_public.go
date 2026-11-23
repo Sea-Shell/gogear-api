@@ -72,12 +72,12 @@ func GetPublicLoadout(c *gin.Context) {
 // GetPublicLoadoutItems returns items for a public loadout by slug.
 //
 //	@Summary		List public loadout items
-//	@Description	List items for a public loadout by slug. No authentication required.
+//	@Description	List items for a public loadout by slug, with gear_name. An item without a current gear row is not listed. No authentication required.
 //	@Tags			Loadouts
 //	@Accept			json
 //	@Produce		json
 //	@Param			slug	path		string	true	"Loadout slug"
-//	@Success		200		{object}	[]models.LoadoutItem
+//	@Success		200		{object}	[]models.LoadoutItemPublic
 //	@Failure		400		{object}	models.Error
 //	@Failure		404		{object}	models.Error
 //	@Failure		500		{object}	models.Error
@@ -103,15 +103,11 @@ func GetPublicLoadoutItems(c *gin.Context) {
 		return
 	}
 
-	items, err := LoadoutItemsByLoadout(db, *l.LoadoutID)
+	items, err := LoadoutItemsPublic(db, *l.LoadoutID)
 	if err != nil {
 		log.Errorf("Error fetching loadout items: %#v", err)
 		c.IndentedJSON(http.StatusInternalServerError, models.Error{Error: err.Error()})
 		return
-	}
-
-	if items == nil {
-		items = &[]models.LoadoutItem{}
 	}
 
 	c.IndentedJSON(http.StatusOK, items)

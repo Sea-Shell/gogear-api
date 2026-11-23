@@ -3,6 +3,7 @@ package endpoints
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,16 +24,39 @@ type sqlRunner interface {
 }
 
 // Loadout column list. loadoutSlug is nullable (NULL means "no slug"), so it
-// is read through COALESCE and the API shows no slug as "".
-const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, loadoutIsPublic, COALESCE(loadoutSlug, ''), totalWeight, createdAt, updatedAt`
+// is read through COALESCE and the API shows no slug as "". total_weight is
+// the on-your-back weight from the view (BR-029 AC-3); nothing stores it. The
+// counts and closed places come from the place and item tables in the same
+// statement, so a list needs no per-loadout item read (BR-029 AC-4).
+// closed_places is a JSON array in the order of the place list (Worn, Last
+// minute, bags by position); json_group_array gives [] when none is closed.
+const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, loadoutIsPublic, COALESCE(loadoutSlug, ''),
+	COALESCE((SELECT w.totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId), 0),
+	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId),
+	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId AND li.ticked = 1),
+	(SELECT COUNT(*) FROM loadout_places p WHERE p.loadoutId = loadouts.loadoutId AND p.placeKind = 'bag'),
+	(SELECT json_group_array(json_object('place_id', p.placeId, 'place_kind', p.placeKind,
+	        'name', CASE p.placeKind WHEN 'worn' THEN 'Worn' WHEN 'last_minute' THEN 'Last minute' ELSE COALESCE(g.gearName, '') END)
+	        ORDER BY CASE p.placeKind WHEN 'worn' THEN 0 WHEN 'last_minute' THEN 1 ELSE 2 END, p.position, p.placeId)
+	 FROM loadout_places p
+	 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = p.registrationId
+	 LEFT JOIN gear g ON g.gearId = r.gearId
+	 WHERE p.loadoutId = loadouts.loadoutId AND p.closed = 1),
+	createdAt, updatedAt`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
 func scanLoadout(r rowScanner) (*models.Loadout, error) {
 	var l models.Loadout
+	var closed string
 	if err := r.Scan(&l.LoadoutID, &l.UserID, &l.LoadoutName, &l.LoadoutDescription,
-		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.ItemCount, &l.TickedCount, &l.BagCount,
+		&closed, &l.CreatedAt, &l.UpdatedAt); err != nil {
 		return nil, err
+	}
+	l.ClosedPlaces = []models.ClosedPlace{}
+	if err := json.Unmarshal([]byte(closed), &l.ClosedPlaces); err != nil {
+		return nil, fmt.Errorf("decode closed places: %w", err)
 	}
 	return &l, nil
 }
@@ -92,42 +116,73 @@ func LoadoutListByUser(db *sql.DB, userID int64) (*[]models.Loadout, error) {
 	return &loadouts, nil
 }
 
-// LoadoutItemsByLoadout returns all items belonging to a loadout. The result
-// is never nil, so it encodes as [] when empty. It does not check ownership:
-// use it only for a loadout already known to be public.
-func LoadoutItemsByLoadout(db *sql.DB, loadoutID int64) (*[]models.LoadoutItem, error) {
-	rows, err := db.Query(
-		`SELECT loadoutItemId, loadoutId, gearId, quantity, notes FROM loadout_items WHERE loadoutId = ? ORDER BY loadoutItemId`, loadoutID)
-	if err != nil {
-		return nil, fmt.Errorf("query loadout items: %w", err)
+// itemSelect is the one read of a loadout item (ARS-001 section 3). Names and
+// the catalog weight are live from the current gear (the registration's gear,
+// or detachedGearId for a legacy item); an item whose registration was
+// deleted shows its snapshot name and no other live gear value. Weights come
+// from the loadout_item_weight view, the only definition of them.
+const itemSelect = `SELECT li.loadoutItemId, li.loadoutId,
+	COALESCE(r.gearId, li.detachedGearId),
+	li.quantity, li.notes, li.registrationId, li.registrationId IS NOT NULL, li.detachedReason,
+	COALESCE(li.detachedGearName, g.gearName, ''),
+	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL ELSE m.manufactureName END,
+	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL ELSE c.categoryName END,
+	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL ELSE t.topCategoryName END,
+	li.placeId, li.ticked,
+	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL WHEN g.gearWeight > 0 THEN g.gearWeight END,
+	iw.unitWeight, COALESCE(iw.weightSource, 'none')
+FROM loadout_items li
+LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = li.registrationId
+LEFT JOIN gear g ON g.gearId = COALESCE(r.gearId, li.detachedGearId)
+LEFT JOIN manufacture m ON m.manufactureId = g.gearManufactureId
+LEFT JOIN gear_category c ON c.categoryId = g.gearCategoryId
+LEFT JOIN gear_top_category t ON t.topCategoryId = g.gearTopCategoryId
+LEFT JOIN loadout_item_weight iw ON iw.loadoutItemId = li.loadoutItemId`
+
+func scanLoadoutItem(r rowScanner) (*models.LoadoutItem, error) {
+	var it models.LoadoutItem
+	if err := r.Scan(&it.LoadoutItemID, &it.LoadoutID, &it.GearID, &it.Quantity, &it.Notes,
+		&it.UsergearRegistrationID, &it.RegistrationExists, &it.DetachedReason,
+		&it.GearName, &it.ManufactureName, &it.CategoryName, &it.TopCategoryName,
+		&it.PlaceID, &it.Ticked, &it.CatalogWeight, &it.UnitWeight, &it.WeightSource); err != nil {
+		return nil, err
 	}
-	return scanLoadoutItems(rows)
+	return &it, nil
+}
+
+// LoadoutItemByID reads one item of loadoutID inside the caller's runner (nil,
+// nil when it is not an item of that loadout). It does not check ownership.
+func LoadoutItemByID(ctx context.Context, q sqlRunner, loadoutID, itemID int64) (*models.LoadoutItem, error) {
+	it, err := scanLoadoutItem(q.QueryRowContext(ctx,
+		itemSelect+` WHERE li.loadoutItemId = ? AND li.loadoutId = ?`, itemID, loadoutID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query loadout item: %w", err)
+	}
+	return it, nil
 }
 
 // LoadoutItemsOwned returns the items of loadoutID only when it belongs to
 // userID; the owner is bound in the query itself (OC-001 G-2), so the result
-// is empty for anyone else's loadout.
-func LoadoutItemsOwned(ctx context.Context, db *sql.DB, loadoutID, userID int64) (*[]models.LoadoutItem, error) {
+// is empty for anyone else's loadout. The result is never nil, so it encodes
+// as [] when empty.
+func LoadoutItemsOwned(ctx context.Context, db sqlRunner, loadoutID, userID int64) (*[]models.LoadoutItem, error) {
 	rows, err := db.QueryContext(ctx,
-		`SELECT li.loadoutItemId, li.loadoutId, li.gearId, li.quantity, li.notes
-		 FROM loadout_items li
-		 JOIN loadouts l ON l.loadoutId = li.loadoutId AND l.userId = ?
+		itemSelect+` JOIN loadouts l ON l.loadoutId = li.loadoutId AND l.userId = ?
 		 WHERE li.loadoutId = ? ORDER BY li.loadoutItemId`, userID, loadoutID)
 	if err != nil {
 		return nil, fmt.Errorf("query loadout items: %w", err)
 	}
-	return scanLoadoutItems(rows)
-}
-
-func scanLoadoutItems(rows *sql.Rows) (*[]models.LoadoutItem, error) {
 	defer rows.Close()
 	items := []models.LoadoutItem{}
 	for rows.Next() {
-		var it models.LoadoutItem
-		if err := rows.Scan(&it.LoadoutItemID, &it.LoadoutID, &it.GearID, &it.Quantity, &it.Notes); err != nil {
+		it, err := scanLoadoutItem(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan loadout item: %w", err)
 		}
-		items = append(items, it)
+		items = append(items, *it)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows error: %w", err)
@@ -135,20 +190,32 @@ func scanLoadoutItems(rows *sql.Rows) (*[]models.LoadoutItem, error) {
 	return &items, nil
 }
 
-// LoadoutRecalculateWeight updates totalWeight based on gear weights and
-// quantities. Pass the *sql.Tx of the mutation so both commit or roll back
-// together (OC-001 G-5).
-func LoadoutRecalculateWeight(ctx context.Context, q sqlRunner, loadoutID int64) error {
-	const stmt = `UPDATE loadouts SET totalWeight = (
-        SELECT IFNULL(SUM(g.gearWeight * li.quantity), 0)
-        FROM loadout_items li
-        JOIN gear g ON g.gearId = li.gearId
-        WHERE li.loadoutId = ?
-    ) WHERE loadoutId = ?`
-	if _, err := q.ExecContext(ctx, stmt, loadoutID, loadoutID); err != nil {
-		return fmt.Errorf("recalculate weight for loadout %d: %w", loadoutID, err)
+// LoadoutItemsPublic returns the items of a loadout already known to be public.
+// An item is listed only if it has a current gear row (BR-016 AC-5). The result
+// is never nil, so it encodes as [] when empty.
+func LoadoutItemsPublic(db *sql.DB, loadoutID int64) (*[]models.LoadoutItemPublic, error) {
+	rows, err := db.Query(
+		`SELECT li.loadoutItemId, li.loadoutId, g.gearId, li.quantity, li.notes, COALESCE(li.detachedGearName, g.gearName)
+		 FROM loadout_items li
+		 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = li.registrationId
+		 JOIN gear g ON g.gearId = COALESCE(r.gearId, li.detachedGearId)
+		 WHERE li.loadoutId = ? ORDER BY li.loadoutItemId`, loadoutID)
+	if err != nil {
+		return nil, fmt.Errorf("query public loadout items: %w", err)
 	}
-	return nil
+	defer rows.Close()
+	items := []models.LoadoutItemPublic{}
+	for rows.Next() {
+		var it models.LoadoutItemPublic
+		if err := rows.Scan(&it.LoadoutItemID, &it.LoadoutID, &it.GearID, &it.Quantity, &it.Notes, &it.GearName); err != nil {
+			return nil, fmt.Errorf("scan public loadout item: %w", err)
+		}
+		items = append(items, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	return &items, nil
 }
 
 // nullableSlug maps a blank slug to NULL so the UNIQUE index never sees "".
@@ -175,7 +242,7 @@ func isForeignKeyViolation(err error) bool {
 }
 
 // errGearNotFound is the answer when a request names catalog gear that does
-// not exist (registration insert, loadout item insert, import). Any other
+// not exist (registration insert, legacy loadout item insert). Any other
 // foreign-key refusal of a write is 400 (see gearReferenceError).
 var errGearNotFound = &opError{http.StatusNotFound, "Gear not found"}
 
@@ -209,6 +276,9 @@ func (e *opError) Error() string { return e.msg }
 var (
 	errLoadoutNotFound = &opError{http.StatusNotFound, "Loadout not found"}
 	errItemNotFound    = &opError{http.StatusNotFound, "Loadout item not found"}
+	// One body for a place that does not exist or belongs to another loadout
+	// (BR-024 AC-11); registrations use errRegistrationNotFound likewise.
+	errPlaceNotFound = &opError{http.StatusNotFound, "Place not found"}
 )
 
 func badRequest(msg string) *opError { return &opError{http.StatusBadRequest, msg} }

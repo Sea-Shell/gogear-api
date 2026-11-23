@@ -427,7 +427,7 @@ func TestDeleteUser_SelfRemovesAllOwnDataAndNothingElse(t *testing.T) {
 	if got := env.data(b); got != bBefore {
 		t.Errorf("other user's data changed: %+v want %+v", got, bBefore)
 	}
-	if n := env.Count("loadout_items", "gearId = ?", shared); n != 1 {
+	if n := env.Count("loadout_items", "detachedGearId = ?", shared); n != 1 {
 		t.Errorf("other user's item referencing shared gear affected: %d", n)
 	}
 	// public slug 404s now

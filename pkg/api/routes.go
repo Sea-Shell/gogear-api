@@ -22,14 +22,21 @@ func RegisterLoadoutRoutes(g *gin.RouterGroup) {
 	g.PUT("/insert", InsertLoadout)
 	g.GET("/list", ListLoadouts)
 	g.GET("/:loadout/get", GetLoadout)
+	g.GET("/:loadout/full", GetLoadoutFull)
 	g.POST("/:loadout/update", UpdateLoadout)
 	g.DELETE("/:loadout/delete", DeleteLoadout)
-	g.POST("/:loadout/import", ImportLoadout)
 
 	g.PUT("/:loadout/item/insert", InsertLoadoutItem)
 	g.GET("/:loadout/item/list", ListLoadoutItems)
 	g.POST("/:loadout/item/:item/update", UpdateLoadoutItem)
+	g.POST("/:loadout/item/:item/tick", TickLoadoutItem)
 	g.DELETE("/:loadout/item/:item/delete", DeleteLoadoutItem)
+
+	g.PUT("/:loadout/place/insert", InsertLoadoutPlace)
+	g.POST("/:loadout/place/order", OrderLoadoutPlaces)
+	g.POST("/:loadout/place/:place/update", UpdateLoadoutPlace)
+	g.POST("/:loadout/place/:place/close", CloseLoadoutPlace)
+	g.DELETE("/:loadout/place/:place/delete", DeleteLoadoutPlace)
 }
 
 // RegisterPublicLoadoutRoutes wires the unauthenticated, read-only public

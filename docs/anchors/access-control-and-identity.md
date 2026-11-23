@@ -18,6 +18,8 @@ timestamp: 2026-11-22T00:00:00Z
 
 The catalog is gear, manufacturers, categories and top categories. Users may eventually contribute to the catalog, but only through admin approval. Interim rule for this remediation: catalog changes (create, update, delete) are admin-only. The approval-based contribution is planned and not yet implemented. Its workflow is not specified beyond "contributions require admin approval".
 
+*Refined on 2026-11-22 by [LP2](/docs/anchors/loadout-planning-and-packing.md):* a user's new gear goes into the shared catalog, the contributor can use it at once, and other users see it only after an admin approves it. Users may also keep private items that only they see, and send them to the catalog later ([LP8](/docs/anchors/loadout-planning-and-packing.md)). The workflow rules from the accepted design are recorded there: designer's choice DC-1 (open to owner change) and DC-2 (accepted by the owner with a condition).
+
 ### D2 — Google identity
 
 Accounts are bound to the stable Google subject identifier (`sub`). An existing account with no stored `sub` gets it filled in once, automatically, on the next sign-in, matched by email. This backfill is allowed only when Google reports the email as verified (`email_verified` is true). After binding, sign-in is by `sub` only. An email match alone never links an account.
