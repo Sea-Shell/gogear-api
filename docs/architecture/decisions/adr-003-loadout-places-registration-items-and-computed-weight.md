@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ADR-003 — Loadout places as rows, registration-backed items, and weights computed on read
 
-**Status:** Accepted (architect, 2026-11-22). Milestone A parts implemented (2026-11-22; weights from measured values, stage and later parts are not). Answers handoff question Q-C. **Amended 2026-11-22 after the critic review (Loom qa `279ad7b0`):** D-3 (`detachedGearId` without `ON DELETE` action, legacy items read live) and D-5 (a registration's owner never changes); the decisions are otherwise unchanged. Exact tables, triggers, views and endpoints are in [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md); the overall design is [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md).
+**Status:** Accepted (architect, 2026-11-22). Milestone A parts implemented (2026-11-22). The milestone B parts (weights from measured values, consumable role, stage) are implemented in code on branch `loadout-loop-milestone-b` (2026-11-24; local only: not merged, not released, not deployed, not accepted). Later parts are not. Answers handoff question Q-C. **Amended 2026-11-22 after the critic review (Loom qa `279ad7b0`):** D-3 (`detachedGearId` without `ON DELETE` action, legacy items read live) and D-5 (a registration's owner never changes); the decisions are otherwise unchanged. Exact tables, triggers, views and endpoints are in [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md); the overall design is [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md).
 
 ## In brief
 

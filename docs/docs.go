@@ -873,7 +873,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug.",
+                "description": "Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug. A new loadout is always in stage planning: stage may be left out, null or \\\"planning\\\", any other value is 400. It has no done_at. start_date and end_date (YYYY-MM-DD) and weight_goal (whole grams, at least 1) are optional; null is the same as absent. An invalid date or goal, or an end_date before the start_date, is 400.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1120,7 +1120,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Add one of the caller's gear registrations to a loadout, optionally into a place (Worn, Last minute or a bag of the loadout). quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400. Deprecated legacy path (until the cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the item to the caller's lowest-ID registration of that gear, or keeps it as a legacy item that reads the gear live. Sending both is 400. A foreign or unknown registration or place is 404; a place that is a bag whose gear cannot hold items is 409.",
+                "description": "Add one of the caller's gear registrations to a loadout, optionally into a place (Worn, Last minute or a bag of the loadout). quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400. Deprecated legacy path (until the cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the item to the caller's lowest-ID registration of that gear, or keeps it as a legacy item that reads the gear live. Sending both is 400. consumable (true or false, default false) sets the item's food, water or fuel role in this loadout only; anything else is 400. A foreign or unknown registration or place is 404; a place that is a bag whose gear cannot hold items is 409.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1381,7 +1381,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change; place_id null removes the item from its place. The item must belong to the loadout in the path, otherwise 404, and so must a place_id. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400. A bag whose gear cannot hold items is 409. Never changes ticked.",
+                "description": "Update an item of a loadout owned by the caller. Only fields present in the body change; place_id null removes the item from its place. The item must belong to the loadout in the path, otherwise 404, and so must a place_id. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400. consumable (true or false) switches the item's food, water or fuel role for this loadout only and changes nothing else; anything else is 400. A bag whose gear cannot hold items is 409. Never changes ticked.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1805,7 +1805,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400.",
+                "description": "Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400. stage (planning, packing or done) can change from any stage to any other; setting done when the loadout is not done stores the time as done_at, setting done again keeps it, and any other stage clears it. Nothing else ever changes the stage. start_date and end_date (YYYY-MM-DD) and weight_goal (whole grams, at least 1) can be set, changed, and removed with null; an invalid value, an unknown stage, or an end_date before the start_date (judged on the values after the update) is 400 and changes nothing. Being over the goal is never refused.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2532,7 +2532,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Insert user registered gear with corresponding values",
+                "description": "Insert user registered gear with corresponding values. closet_count (how many the owner has, a whole number of at least 1) defaults to 1. measured_weight (whole grams, at least 1) and measured_weight_source (\"weighed\" or \"guess\") are the owner's own unit weight; give both or neither. A value that breaks these rules is 400. Neither changes the catalog.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2663,7 +2663,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user registered gear identified by ID",
+                "description": "Update user registered gear identified by ID. Only the owner can; anyone else gets 404. Absent fields keep their stored value. max_container_weight, and measured_weight with measured_weight_source, are clearable: null removes them (the measured weight and its source only together, after which the catalog weight counts again). measured_weight is whole grams, at least 1, and is always sent with measured_weight_source (\"weighed\" or \"guess\"); one without the other is 400. closet_count is a whole number of at least 1. Using more than closet_count in loadouts is never refused. Changing any of these never changes the catalog or another registration.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3735,6 +3735,12 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "done_at": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
                 "item_count": {
                     "type": "integer"
                 },
@@ -3753,6 +3759,18 @@ const docTemplate = `{
                 "loadout_slug": {
                     "type": "string"
                 },
+                "stage": {
+                    "description": "Stage is \"planning\", \"packing\" or \"done\" (BR-028). DoneAt is when the\nloadout was last set to done, and null unless Stage is \"done\". StartDate\nand EndDate are calendar dates (YYYY-MM-DD) and WeightGoal is the target\non-your-back weight in grams; each is null when not set.",
+                    "type": "string",
+                    "enum": [
+                        "planning",
+                        "packing",
+                        "done"
+                    ]
+                },
+                "start_date": {
+                    "type": "string"
+                },
                 "ticked_count": {
                     "type": "integer"
                 },
@@ -3763,6 +3781,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "integer"
+                },
+                "weight_goal": {
                     "type": "integer"
                 }
             }
@@ -3796,6 +3817,13 @@ const docTemplate = `{
                 "category_name": {
                     "type": "string"
                 },
+                "closet_count": {
+                    "type": "integer"
+                },
+                "consumable": {
+                    "description": "Consumable is this item's role in this loadout (food, water or fuel,\nBR-027). It belongs to the item, not to its registration.",
+                    "type": "boolean"
+                },
                 "detached_reason": {
                     "type": "string"
                 },
@@ -3814,6 +3842,13 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "manufacture_name": {
+                    "type": "string"
+                },
+                "measured_weight": {
+                    "description": "The registration's own weight and count, read live (BR-026, BR-036). All\nthree are null for an item with no registration (legacy or deleted): it\nreports only unit_weight and weight_source, as they were or as the\ncatalog has them.",
+                    "type": "integer"
+                },
+                "measured_weight_source": {
                     "type": "string"
                 },
                 "notes": {
@@ -3848,6 +3883,9 @@ const docTemplate = `{
         "models.LoadoutItemNoID": {
             "type": "object",
             "properties": {
+                "consumable": {
+                    "type": "boolean"
+                },
                 "gear_id": {
                     "type": "integer"
                 },
@@ -3913,6 +3951,9 @@ const docTemplate = `{
         "models.LoadoutItemUpdate": {
             "type": "object",
             "properties": {
+                "consumable": {
+                    "type": "boolean"
+                },
                 "loadout_item_id": {
                     "type": "integer"
                 },
@@ -3930,6 +3971,10 @@ const docTemplate = `{
         "models.LoadoutNoID": {
             "type": "object",
             "properties": {
+                "end_date": {
+                    "type": "string",
+                    "format": "date"
+                },
                 "loadout_description": {
                     "type": "string"
                 },
@@ -3942,8 +3987,16 @@ const docTemplate = `{
                 "loadout_slug": {
                     "type": "string"
                 },
+                "start_date": {
+                    "type": "string",
+                    "format": "date"
+                },
                 "user_id": {
                     "type": "integer"
+                },
+                "weight_goal": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -3970,6 +4023,13 @@ const docTemplate = `{
                 },
                 "max_container_weight": {
                     "type": "integer"
+                },
+                "measured_weight": {
+                    "description": "The bag registration's own weight, null when it has none (BR-026).",
+                    "type": "integer"
+                },
+                "measured_weight_source": {
+                    "type": "string"
                 },
                 "parent_place_id": {
                     "type": "integer"
@@ -4076,6 +4136,10 @@ const docTemplate = `{
         "models.LoadoutUpdate": {
             "type": "object",
             "properties": {
+                "end_date": {
+                    "type": "string",
+                    "format": "date"
+                },
                 "loadout_description": {
                     "type": "string"
                 },
@@ -4090,6 +4154,22 @@ const docTemplate = `{
                 },
                 "loadout_slug": {
                     "type": "string"
+                },
+                "stage": {
+                    "type": "string",
+                    "enum": [
+                        "planning",
+                        "packing",
+                        "done"
+                    ]
+                },
+                "start_date": {
+                    "type": "string",
+                    "format": "date"
+                },
+                "weight_goal": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -4179,6 +4259,9 @@ const docTemplate = `{
                 "category_top_category_id": {
                     "type": "integer"
                 },
+                "closet_count": {
+                    "type": "integer"
+                },
                 "container_link_id": {
                     "type": "integer"
                 },
@@ -4228,6 +4311,13 @@ const docTemplate = `{
                 "max_container_weight": {
                     "type": "integer"
                 },
+                "measured_weight": {
+                    "description": "The owner's own weight with its source (\"weighed\" or \"guess\"), both null\nwhen none (BR-026). UnitWeight and WeightSource are the effective values\nevery loadout uses: the measured weight, else the catalog weight with\nsource \"catalog\", else null with source \"none\". ClosetCount is how many\nidentical items the registration stands for (BR-036); it never multiplies\na weight.",
+                    "type": "integer"
+                },
+                "measured_weight_source": {
+                    "type": "string"
+                },
                 "top_category_icon": {
                     "type": "string"
                 },
@@ -4236,6 +4326,9 @@ const docTemplate = `{
                 },
                 "top_category_name": {
                     "type": "string"
+                },
+                "unit_weight": {
+                    "type": "integer"
                 },
                 "user_id": {
                     "type": "integer"
@@ -4254,14 +4347,30 @@ const docTemplate = `{
                 },
                 "usergear_user_id": {
                     "type": "integer"
+                },
+                "weight_source": {
+                    "type": "string"
                 }
             }
         },
         "models.UserGearLink": {
             "type": "object",
             "properties": {
+                "closet_count": {
+                    "type": "integer"
+                },
                 "max_container_weight": {
                     "type": "integer"
+                },
+                "measured_weight": {
+                    "type": "integer"
+                },
+                "measured_weight_source": {
+                    "type": "string",
+                    "enum": [
+                        "weighed",
+                        "guess"
+                    ]
                 },
                 "usergear_gear_id": {
                     "type": "integer"
@@ -4277,8 +4386,21 @@ const docTemplate = `{
         "models.UserGearLinkNoID": {
             "type": "object",
             "properties": {
+                "closet_count": {
+                    "type": "integer"
+                },
                 "max_container_weight": {
                     "type": "integer"
+                },
+                "measured_weight": {
+                    "type": "integer"
+                },
+                "measured_weight_source": {
+                    "type": "string",
+                    "enum": [
+                        "weighed",
+                        "guess"
+                    ]
                 },
                 "usergear_gear_id": {
                     "type": "integer"
