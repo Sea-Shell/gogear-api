@@ -35,7 +35,7 @@ const (
 const placeSelect = `SELECT p.placeId, p.loadoutId, p.placeKind, p.closed, p.registrationId,
 	g.gearId, g.gearName, cap.isContainer = 1, r.maxContainerWeight,
 	CASE WHEN g.gearWeight > 0 THEN g.gearWeight END,
-	w.unitWeight, w.weightSource, p.parentPlaceId, p.position
+	w.unitWeight, w.weightSource, r.measuredWeight, r.measuredWeightSource, p.parentPlaceId, p.position
 FROM loadout_places p
 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = p.registrationId
 LEFT JOIN gear g ON g.gearId = r.gearId
@@ -49,7 +49,7 @@ func scanLoadoutPlace(r rowScanner) (*models.LoadoutPlace, error) {
 	var p models.LoadoutPlace
 	if err := r.Scan(&p.PlaceID, &p.LoadoutID, &p.PlaceKind, &p.Closed, &p.UsergearRegistrationID,
 		&p.GearID, &p.GearName, &p.GearIsContainer, &p.MaxContainerWeight, &p.CatalogWeight,
-		&p.UnitWeight, &p.WeightSource, &p.ParentPlaceID, &p.Position); err != nil {
+		&p.UnitWeight, &p.WeightSource, &p.MeasuredWeight, &p.MeasuredWeightSource, &p.ParentPlaceID, &p.Position); err != nil {
 		return nil, err
 	}
 	return &p, nil

@@ -150,7 +150,7 @@ func GetUserGear(c *gin.Context) {
 // InsertUserGear puts gear on the users gear list
 //
 //	@Summary		Insert user registered gear
-//	@Description	Insert user registered gear with corresponding values
+//	@Description	Insert user registered gear with corresponding values. closet_count (how many the owner has, a whole number of at least 1) defaults to 1. measured_weight (whole grams, at least 1) and measured_weight_source ("weighed" or "guess") are the owner's own unit weight; give both or neither. A value that breaks these rules is 400. Neither changes the catalog.
 //	@Security		BearerAuth
 //	@Tags			User gear
 //	@Accept			json
@@ -183,14 +183,35 @@ func InsertUserGear(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "usergear_user_id does not match the authenticated user"})
 		return
 	}
+	// On insert a null new field is the same as an absent one.
+	ctx := c.Request.Context()
+	fields, err := parseRegistrationFields(data, false)
+	if err != nil {
+		// An unknown gear is 404 before a malformed field is 400 (ARS-001 section 1).
+		var exists bool
+		if qerr := db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM gear WHERE gearId = ?)`, body.GearID).Scan(&exists); qerr == nil && !exists {
+			respondUserGearError(c, log, errGearNotFound)
+			return
+		}
+		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
+		return
+	}
 
 	// The owner is the caller. A registration ID in the body is not read.
 	// Gear existence is enforced by the foreign key: a gear ID that is not in
 	// the catalog is 404 (see gearReferenceError).
-	ctx := c.Request.Context()
+	closetCount := int64(1)
+	if fields.closetCount != nil {
+		closetCount = *fields.closetCount
+	}
+	var measured, source any // NULL unless the request gave both
+	if fields.measured == measuredSet {
+		measured, source = fields.measuredWeight, fields.measuredSource
+	}
 	if _, err := db.ExecContext(ctx,
-		`INSERT INTO user_gear_registrations (gearId, userId, maxContainerWeight) VALUES (?, ?, ?)`,
-		body.GearID, callerID, body.MaxContainerWeight); err != nil {
+		`INSERT INTO user_gear_registrations (gearId, userId, maxContainerWeight, closetCount, measuredWeight, measuredWeightSource)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		body.GearID, callerID, body.MaxContainerWeight, closetCount, measured, source); err != nil {
 		respondUserGearError(c, log, gearReferenceError(ctx, db, body.GearID, err))
 		return
 	}
@@ -201,7 +222,7 @@ func InsertUserGear(c *gin.Context) {
 // UpdateUserGear updates a record of user registered gear
 //
 //	@Summary		Update user registered gear with ID
-//	@Description	Update user registered gear identified by ID
+//	@Description	Update user registered gear identified by ID. Only the owner can; anyone else gets 404. Absent fields keep their stored value. max_container_weight, and measured_weight with measured_weight_source, are clearable: null removes them (the measured weight and its source only together, after which the catalog weight counts again). measured_weight is whole grams, at least 1, and is always sent with measured_weight_source ("weighed" or "guess"); one without the other is 400. closet_count is a whole number of at least 1. Using more than closet_count in loadouts is never refused. Changing any of these never changes the catalog or another registration.
 //	@Security		BearerAuth
 //	@Tags			User gear
 //	@Accept			json
@@ -240,8 +261,6 @@ func UpdateUserGear(c *gin.Context) {
 	}
 	_, setWeight := raw["max_container_weight"]
 
-	// Only the maximum container weight is updatable. The gear and the owner
-	// of a registration never change, whatever the body says.
 	err = inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
 		ctx := c.Request.Context()
 		// A foreign or unknown target is 404 before any body conflict is reported.
@@ -258,12 +277,33 @@ func UpdateUserGear(c *gin.Context) {
 		if body.UserID != nil && *body.UserID != callerID {
 			return badRequest("usergear_user_id does not match the authenticated user")
 		}
-		if !setWeight {
+		fields, err := parseRegistrationFields(data, true)
+		if err != nil {
+			return badRequest(err.Error())
+		}
+		// Only the fields the request names change. The gear and the owner of
+		// a registration never change, whatever the body says.
+		var sets []string
+		var args []any
+		if setWeight {
+			sets, args = append(sets, "maxContainerWeight = ?"), append(args, body.MaxContainerWeight)
+		}
+		switch fields.measured {
+		case measuredSet:
+			sets = append(sets, "measuredWeight = ?", "measuredWeightSource = ?")
+			args = append(args, fields.measuredWeight, fields.measuredSource)
+		case measuredCleared:
+			sets = append(sets, "measuredWeight = NULL", "measuredWeightSource = NULL")
+		}
+		if fields.closetCount != nil {
+			sets, args = append(sets, "closetCount = ?"), append(args, *fields.closetCount)
+		}
+		if len(sets) == 0 {
 			return nil
 		}
 		res, err := tx.ExecContext(ctx,
-			`UPDATE user_gear_registrations SET maxContainerWeight = ? WHERE userGearRegistrationId = ? AND userId = ?`,
-			body.MaxContainerWeight, id, callerID)
+			`UPDATE user_gear_registrations SET `+strings.Join(sets, ", ")+` WHERE userGearRegistrationId = ? AND userId = ?`,
+			append(args, id, callerID)...)
 		if err != nil {
 			return err
 		}
@@ -364,3 +404,79 @@ func respondUserGearError(c *gin.Context, log interface{ Errorf(string, ...any) 
 	}
 	respondInternal(c, log, "registration operation failed", err)
 }
+
+// measuredChange says what a request does to a registration's measured weight.
+type measuredChange int
+
+const (
+	measuredUnchanged measuredChange = iota // neither field named
+	measuredSet                             // both named with values
+	measuredCleared                         // both named null (update only)
+)
+
+// registrationFields are the milestone B fields of a registration write that
+// passed validation (BR-026 AC-1, BR-036 AC-1).
+type registrationFields struct {
+	measured       measuredChange
+	measuredWeight int64  // set when measured == measuredSet
+	measuredSource string // "weighed" or "guess"
+	closetCount    *int64 // nil: not named
+}
+
+// parseRegistrationFields reads measured_weight, measured_weight_source and
+// closet_count from a request body. A weight is a whole number of grams of at
+// least 1, always with its source; one without the other is refused. clearable
+// is the update rule: both null removes the measured weight. On insert a null
+// field is the same as an absent one, as is a null closet_count everywhere
+// (it is never cleared). A fraction, a string or a number that does not fit
+// is refused, so the stored value is always exactly what was asked for.
+func parseRegistrationFields(body []byte, clearable bool) (registrationFields, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return registrationFields{}, err
+	}
+	weight, hasWeight := raw["measured_weight"]
+	source, hasSource := raw["measured_weight_source"]
+	weightNull, sourceNull := isJSONNull(weight), isJSONNull(source)
+	if !clearable {
+		hasWeight, hasSource = hasWeight && !weightNull, hasSource && !sourceNull
+	}
+
+	var f registrationFields
+	switch {
+	case !hasWeight && !hasSource:
+	case hasWeight != hasSource:
+		return f, errors.New("measured_weight and measured_weight_source must be given together")
+	case weightNull && sourceNull:
+		f.measured = measuredCleared
+	case weightNull || sourceNull:
+		return f, errors.New("measured_weight and measured_weight_source must be given together")
+	default:
+		w, ok := wholeGrams(weight)
+		if !ok {
+			return f, errors.New("measured_weight must be a whole number of grams, at least 1")
+		}
+		var src string
+		if err := json.Unmarshal(source, &src); err != nil || (src != "weighed" && src != "guess") {
+			return f, errors.New(`measured_weight_source must be "weighed" or "guess"`)
+		}
+		f.measured, f.measuredWeight, f.measuredSource = measuredSet, w, src
+	}
+
+	if count, ok := raw["closet_count"]; ok && !isJSONNull(count) {
+		n, valid := wholeGrams(count)
+		if !valid {
+			return f, errors.New("closet_count must be a whole number, at least 1")
+		}
+		f.closetCount = &n
+	}
+	return f, nil
+}
+
+// wholeGrams parses a JSON number written as a plain integer of at least 1.
+func wholeGrams(raw json.RawMessage) (int64, bool) {
+	n, err := strconv.ParseInt(string(raw), 10, 64)
+	return n, err == nil && n >= 1
+}
+
+func isJSONNull(raw json.RawMessage) bool { return string(raw) == "null" }

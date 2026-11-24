@@ -120,7 +120,9 @@ func LoadoutListByUser(db *sql.DB, userID int64) (*[]models.Loadout, error) {
 // the catalog weight are live from the current gear (the registration's gear,
 // or detachedGearId for a legacy item); an item whose registration was
 // deleted shows its snapshot name and no other live gear value. Weights come
-// from the loadout_item_weight view, the only definition of them.
+// from the loadout_item_weight view, the only definition of them. The
+// registration's own weight and count are live and null when the item has no
+// registration (the LEFT JOIN finds nothing).
 const itemSelect = `SELECT li.loadoutItemId, li.loadoutId,
 	COALESCE(r.gearId, li.detachedGearId),
 	li.quantity, li.notes, li.registrationId, li.registrationId IS NOT NULL, li.detachedReason,
@@ -130,7 +132,8 @@ const itemSelect = `SELECT li.loadoutItemId, li.loadoutId,
 	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL ELSE t.topCategoryName END,
 	li.placeId, li.ticked,
 	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL WHEN g.gearWeight > 0 THEN g.gearWeight END,
-	iw.unitWeight, COALESCE(iw.weightSource, 'none')
+	iw.unitWeight, COALESCE(iw.weightSource, 'none'),
+	r.measuredWeight, r.measuredWeightSource, r.closetCount
 FROM loadout_items li
 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = li.registrationId
 LEFT JOIN gear g ON g.gearId = COALESCE(r.gearId, li.detachedGearId)
@@ -144,7 +147,8 @@ func scanLoadoutItem(r rowScanner) (*models.LoadoutItem, error) {
 	if err := r.Scan(&it.LoadoutItemID, &it.LoadoutID, &it.GearID, &it.Quantity, &it.Notes,
 		&it.UsergearRegistrationID, &it.RegistrationExists, &it.DetachedReason,
 		&it.GearName, &it.ManufactureName, &it.CategoryName, &it.TopCategoryName,
-		&it.PlaceID, &it.Ticked, &it.CatalogWeight, &it.UnitWeight, &it.WeightSource); err != nil {
+		&it.PlaceID, &it.Ticked, &it.CatalogWeight, &it.UnitWeight, &it.WeightSource,
+		&it.MeasuredWeight, &it.MeasuredWeightSource, &it.ClosetCount); err != nil {
 		return nil, err
 	}
 	return &it, nil

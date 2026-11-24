@@ -41,7 +41,8 @@ const userGearCapabilityJoin = `
 // Everything that comes from a LEFT JOIN or a nullable catalog column goes
 // through COALESCE, so a NULL never breaks a scan; the catalog weight is the
 // exception and stays NULL when it is 0 or missing (ADR-004 D-1). The link columns stay NULL
-// when there is no link.
+// when there is no link. The effective weight and its source come from the view
+// registration_effective_weight (joined as w), the only definition of them.
 const userGearColumns = `ugr.userGearRegistrationId, ugr.gearId, ugr.userId, ugr.maxContainerWeight,
 	COALESCE(u.userId, 0), COALESCE(u.userUsername, ''), COALESCE(u.userName, ''),
 	COALESCE(g.gearId, 0), COALESCE(g.gearTopCategoryId, 0), COALESCE(g.gearCategoryId, 0), COALESCE(g.gearManufactureId, 0),
@@ -50,7 +51,8 @@ const userGearColumns = `ugr.userGearRegistrationId, ugr.gearId, ugr.userId, ugr
 	l.containerRegistrationId, l.userContainerId,
 	COALESCE(m.manufactureId, 0), COALESCE(m.manufactureName, ''),
 	COALESCE(t.topCategoryId, 0), COALESCE(t.topCategoryName, ''), COALESCE(t.topCategoryIcon, ''),
-	COALESCE(c.categoryId, 0), COALESCE(c.categoryName, ''), COALESCE(c.categoryTopCategoryId, 0)`
+	COALESCE(c.categoryId, 0), COALESCE(c.categoryName, ''), COALESCE(c.categoryTopCategoryId, 0),
+	ugr.measuredWeight, ugr.measuredWeightSource, w.unitWeight, COALESCE(w.weightSource, 'none'), ugr.closetCount`
 
 // userGearCatalogJoins joins the one-to-one catalog and owner rows.
 const userGearCatalogJoins = `
@@ -58,7 +60,8 @@ const userGearCatalogJoins = `
 	LEFT JOIN users u ON u.userId = ugr.userId
 	LEFT JOIN manufacture m ON m.manufactureId = g.gearManufactureId
 	LEFT JOIN gear_top_category t ON t.topCategoryId = g.gearTopCategoryId
-	LEFT JOIN gear_category c ON c.categoryId = g.gearCategoryId` + userGearCapabilityJoin
+	LEFT JOIN gear_category c ON c.categoryId = g.gearCategoryId
+	LEFT JOIN registration_effective_weight w ON w.registrationId = ugr.userGearRegistrationId` + userGearCapabilityJoin
 
 // userGearOwnLinkJoin attaches at most one container link to a registration:
 // the lowest-numbered link whose container belongs to the same owner. A
@@ -82,7 +85,8 @@ func scanUserGear(r rowScanner) (models.UserGear, error) {
 		&x.ContainerLinkID, &x.ContainerID,
 		&x.ManufactureID, &x.ManufactureName,
 		&x.TopCategoryID, &x.TopCategoryName, &x.TopCategoryIcon,
-		&x.CategoryID, &x.CategoryName, &x.CategoryTopCategoryID)
+		&x.CategoryID, &x.CategoryName, &x.CategoryTopCategoryID,
+		&x.MeasuredWeight, &x.MeasuredWeightSource, &x.UnitWeight, &x.WeightSource, &x.ClosetCount)
 	return x, err
 }
 

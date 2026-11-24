@@ -16,8 +16,11 @@ type LoadoutPlace struct {
 	CatalogWeight          *int64  `json:"catalog_weight"`
 	UnitWeight             *int64  `json:"unit_weight"`
 	WeightSource           *string `json:"weight_source"`
-	ParentPlaceID          *int64  `json:"parent_place_id"`
-	Position               *int64  `json:"position"`
+	// The bag registration's own weight, null when it has none (BR-026).
+	MeasuredWeight       *int64  `json:"measured_weight"`
+	MeasuredWeightSource *string `json:"measured_weight_source"`
+	ParentPlaceID        *int64  `json:"parent_place_id"`
+	Position             *int64  `json:"position"`
 }
 
 // LoadoutPlaceInsert is the body of the place insert request. place_kind is

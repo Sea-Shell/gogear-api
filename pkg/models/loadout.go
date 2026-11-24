@@ -93,6 +93,13 @@ type LoadoutItem struct {
 	CatalogWeight   *int64  `json:"catalog_weight"`
 	UnitWeight      *int64  `json:"unit_weight"`
 	WeightSource    string  `json:"weight_source"`
+	// The registration's own weight and count, read live (BR-026, BR-036). All
+	// three are null for an item with no registration (legacy or deleted): it
+	// reports only unit_weight and weight_source, as they were or as the
+	// catalog has them.
+	MeasuredWeight       *int64  `json:"measured_weight"`
+	MeasuredWeightSource *string `json:"measured_weight_source"`
+	ClosetCount          *int64  `json:"closet_count"`
 }
 
 // LoadoutItemNoID is used for adding an item to a loadout. Send
