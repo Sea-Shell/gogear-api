@@ -338,8 +338,8 @@ func TestMigration11KeepsItemIDSequence(t *testing.T) {
 func TestMigration11SequenceOnFreshAndFullDatabases(t *testing.T) {
 	fresh := tempDB(t)
 	runMigrate(t, fresh, migrationsPath(t))
-	if v := scalar[int](t, fresh, `SELECT version FROM schema_migrations`); v != 11 {
-		t.Fatalf("fresh database at version %d, want 11", v)
+	if v, want := scalar[int](t, fresh, `SELECT version FROM schema_migrations`), latestMigration(t); v != want {
+		t.Fatalf("fresh database at version %d, want %d", v, want)
 	}
 	mustExec(t, fresh, `INSERT INTO users (userId, userUsername, userPassword, userEmail) VALUES (1, 'a', '', 'a@example.com')`)
 	mustExec(t, fresh, `INSERT INTO loadouts (userId, loadoutName) VALUES (1, 'L')`)
@@ -555,8 +555,8 @@ func TestMigration11FullDownAndUpWithData(t *testing.T) {
 	mustExec(t, db, `UPDATE loadout_items SET placeId = ? WHERE loadoutItemId = 1`, bag)
 
 	runMigrate(t, db, migrationsPath(t)) // already at the latest version
-	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 11 {
-		t.Errorf("version after a second Up = %d, want 11", v)
+	if v, want := scalar[int](t, db, `SELECT version FROM schema_migrations`), latestMigration(t); v != want {
+		t.Errorf("version after a second Up = %d, want %d", v, want)
 	}
 	runMigrateDown(t, db, migrationsPath(t))
 	if n := scalar[int](t, db, `SELECT COUNT(*) FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT IN ('schema_migrations', 'audit_000005_clamped_loadout_item_quantity')`); n != 0 {

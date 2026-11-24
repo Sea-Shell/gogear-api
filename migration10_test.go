@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -155,8 +156,8 @@ func TestMigration10SeedsOnceThroughGolangMigrate(t *testing.T) {
 	if got := categorySettings(t, db); !reflect.DeepEqual(got, []int{1, -1, -1, -1}) {
 		t.Errorf("sub-category settings after a second Up = %v, want [1 NULL NULL NULL]", got)
 	}
-	if v := scalar[int](t, db, `SELECT version FROM schema_migrations`); v != 11 {
-		t.Errorf("version = %d, want 11", v)
+	if v, want := scalar[int](t, db, `SELECT version FROM schema_migrations`), latestMigration(t); v != want {
+		t.Errorf("version = %d, want %d", v, want)
 	}
 }
 
@@ -213,7 +214,7 @@ func TestStartDatabasePrintsVersionLineToStdout(t *testing.T) {
 	cfg := startupConfig(t)
 	// A logger that drops every level, like general.log_level=error would.
 	silent := zap.NewNop().Sugar()
-	const want = "gogear-api migrations: version=11 dirty=false\n"
+	want := fmt.Sprintf("gogear-api migrations: version=%d dirty=false\n", latestMigration(t))
 
 	for _, step := range []string{"migrating", "nothing to migrate"} {
 		var db *sql.DB

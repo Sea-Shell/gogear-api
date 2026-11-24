@@ -16,7 +16,7 @@ import (
 )
 
 // startupConfig returns a configuration whose database is a new file at
-// schema version 10 with data, so the first start applies migration 11.
+// schema version 10 with data, so the first start applies every later migration.
 func startupConfig(t *testing.T) *models.Config {
 	t.Helper()
 	t.Setenv(restoreEnv, "")
@@ -54,8 +54,8 @@ func TestListenerIsReachedOnlyAfterBackupAndMigration(t *testing.T) {
 		if router == nil {
 			t.Error("listen received no router")
 		}
-		if v := schemaVersion(t, cfg.Database.File); v != 11 {
-			t.Errorf("schema = %d when the listener opened, want 11", v)
+		if v, want := schemaVersion(t, cfg.Database.File), latestMigration(t); v != want {
+			t.Errorf("schema = %d when the listener opened, want %d", v, want)
 		}
 		backups, _ := filepath.Glob(filepath.Join(filepath.Dir(cfg.Database.File), "backups", "gogear-*-premigration-schema10-app"+appVersion+".db"))
 		if len(backups) != 1 {
