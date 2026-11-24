@@ -120,7 +120,9 @@ users ─┬─ user_gear_registrations ──(gearId)── gear ── manufac
               └──< loadout_items ────────┘ placeId
                      registrationId (SET NULL) | detached snapshot, quantity, notes, ticked, consumable
 
-views: registration_effective_weight → loadout_item_weight → loadout_on_back_weight
+views: registration_effective_weight → loadout_item_weight → loadout_on_back_weight (A)
+       milestone B: loadout_on_back_item_terms + loadout_on_back_bag_terms replace it;
+       the API adds the terms exactly (math/big): total_weight is a bare JSON integer, any size
 ```
 
 **Board read:** `GET /loadout/{id}/full` reads loadout (with total and counts), places and items in one transaction.
