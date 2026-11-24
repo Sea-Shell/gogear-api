@@ -245,25 +245,12 @@ func UpdateUserGear(c *gin.Context) {
 		respondInternal(c, log, "read body", err)
 		return
 	}
-	var body struct {
-		RegistrationID     *int64 `json:"usergear_registration_id"`
-		UserID             *int64 `json:"usergear_user_id"`
-		MaxContainerWeight *int32 `json:"max_container_weight"`
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &body); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
-		return
-	}
-	_, setWeight := raw["max_container_weight"]
 
 	err = inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
 		ctx := c.Request.Context()
-		// A foreign or unknown target is 404 before any body conflict is reported.
+		// A foreign or unknown target is 404 before the body is read as
+		// anything but bytes: a malformed or invalid body must not tell a
+		// non-owner more than "not found" (BR-018 AC-4).
 		owned, err := registrationOwned(ctx, tx, id, callerID)
 		if err != nil {
 			return err
@@ -271,6 +258,19 @@ func UpdateUserGear(c *gin.Context) {
 		if !owned {
 			return errRegistrationNotFound
 		}
+		var body struct {
+			RegistrationID     *int64 `json:"usergear_registration_id"`
+			UserID             *int64 `json:"usergear_user_id"`
+			MaxContainerWeight *int32 `json:"max_container_weight"`
+		}
+		if err := json.Unmarshal(data, &body); err != nil {
+			return badRequest(err.Error())
+		}
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return badRequest(err.Error())
+		}
+		_, setWeight := raw["max_container_weight"]
 		if body.RegistrationID != nil && *body.RegistrationID != id {
 			return badRequest("request body registration ID does not match route parameter")
 		}

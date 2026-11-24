@@ -302,6 +302,64 @@ func TestMeasuredWeight_OwnerOnlyAndNoAdminException(t *testing.T) {
 	}
 }
 
+// BR-018 AC-4 and ARS-001 section 1: ownership is decided before the body is
+// read. A foreign or unknown registration is the same 404 for every body,
+// including a body that is not JSON, that has a wrong-typed old field, or that
+// breaks several rules at once; the owner of the same registration gets the
+// 400 for the same bodies, and nothing is stored either way.
+func TestRegistrationUpdate_RefusalOrderIsOwnershipThenBody(t *testing.T) {
+	b := newBoard(t)
+	gear := b.gear("Tent", 700, false)
+	reg := b.alicesReg(gear)
+	b.measure(b.user, reg, 687, "weighed")
+	before := b.stored()
+	beforeReg, _ := json.Marshal(b.regGet(b.user, reg, http.StatusOK))
+
+	bodies := map[string]string{
+		"invalid weight and wrong-typed max container weight": `{"measured_weight": 0, "max_container_weight": "not a number"}`,
+		"wrong-typed max container weight alone":              `{"max_container_weight": "not a number"}`,
+		"wrong-typed ID fields":                               `{"usergear_registration_id": "x", "usergear_user_id": "y"}`,
+		"every rule broken":                                   `{"usergear_registration_id": 999999, "usergear_user_id": 999999, "max_container_weight": "x", "measured_weight": -1, "measured_weight_source": "x", "closet_count": 0}`,
+		"not JSON":                                            `this is not json`,
+		"JSON that is not an object":                          `[1, 2, 3]`,
+		"empty body":                                          ``,
+	}
+
+	unknown := b.env.Do(http.MethodPost, ugPath(reg+1000, "update"), b.bTok, `{"closet_count": 2}`).Body.String()
+	for name, body := range bodies {
+		for who, tok := range map[string]string{"bob": b.bTok, "admin": b.admin} {
+			w := b.env.Do(http.MethodPost, ugPath(reg, "update"), tok, body)
+			if w.Code != http.StatusNotFound {
+				t.Errorf("foreign registration, %s, as %s: status %d, want 404; body: %s", name, who, w.Code, w.Body.String())
+			} else if w.Body.String() != unknown {
+				t.Errorf("foreign registration, %s, as %s: answers differently from an unknown one: %q vs %q", name, who, w.Body.String(), unknown)
+			}
+		}
+		w := b.env.Do(http.MethodPost, ugPath(reg+1000, "update"), b.bTok, body)
+		if w.Code != http.StatusNotFound || w.Body.String() != unknown {
+			t.Errorf("missing registration, %s: status %d body %q, want the 404 %q", name, w.Code, w.Body.String(), unknown)
+		}
+		// The owner is told what is wrong with the same body.
+		if w := b.env.Do(http.MethodPost, ugPath(reg, "update"), b.user, body); w.Code != http.StatusBadRequest {
+			t.Errorf("owner, %s: status %d, want 400; body: %s", name, w.Code, w.Body.String())
+		}
+	}
+
+	if b.stored() != before {
+		t.Error("a refused request changed stored data")
+	}
+	if got, _ := json.Marshal(b.regGet(b.user, reg, http.StatusOK)); string(got) != string(beforeReg) {
+		t.Errorf("registration changed:\n%s\n%s", beforeReg, got)
+	}
+
+	// A valid body from the owner still works after the reorder, including a
+	// field that the first decode used to handle (max_container_weight).
+	b.regUpdate(b.user, reg, `{"max_container_weight": 1500, "closet_count": 3}`, http.StatusOK)
+	if g := b.regGet(b.user, reg, http.StatusOK); g.ClosetCount != 3 || g.UnitWeight == nil || *g.UnitWeight != 687 {
+		t.Errorf("owner's valid update: closet_count %d, unit weight %v", g.ClosetCount, g.UnitWeight)
+	}
+}
+
 // The measured weight is read where registrations are read: the list and the
 // container contents, with the same fields.
 func TestMeasuredWeight_ReportedInEveryRegistrationRead(t *testing.T) {
