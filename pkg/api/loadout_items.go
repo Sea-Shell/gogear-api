@@ -43,7 +43,7 @@ func affectedOne(res sql.Result, err error, notFound *opError) error {
 // InsertLoadoutItem adds an item to a loadout.
 //
 //	@Summary		Insert loadout item
-//	@Description	Add one of the caller's gear registrations to a loadout, optionally into a place (Worn, Last minute or a bag of the loadout). quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400. Deprecated legacy path (until the cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the item to the caller's lowest-ID registration of that gear, or keeps it as a legacy item that reads the gear live. Sending both is 400. A foreign or unknown registration or place is 404; a place that is a bag whose gear cannot hold items is 409.
+//	@Description	Add one of the caller's gear registrations to a loadout, optionally into a place (Worn, Last minute or a bag of the loadout). quantity defaults to 1; zero or negative is refused with 400. A loadout_id in the body that differs from the path is refused with 400. Deprecated legacy path (until the cutover, ADR-004 D-2): gear_id instead of usergear_registration_id binds the item to the caller's lowest-ID registration of that gear, or keeps it as a legacy item that reads the gear live. Sending both is 400. consumable (true or false, default false) sets the item's food, water or fuel role in this loadout only; anything else is 400. A foreign or unknown registration or place is 404; a place that is a bag whose gear cannot hold items is 409.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -85,12 +85,13 @@ func InsertLoadoutItem(c *gin.Context) {
 		}
 
 		var body struct {
-			LoadoutID      *int64  `json:"loadout_id"`
-			GearID         *int64  `json:"gear_id"`
-			RegistrationID *int64  `json:"usergear_registration_id"`
-			Quantity       *int64  `json:"quantity"`
-			Notes          *string `json:"notes"`
-			PlaceID        *int64  `json:"place_id"`
+			LoadoutID      *int64          `json:"loadout_id"`
+			GearID         *int64          `json:"gear_id"`
+			RegistrationID *int64          `json:"usergear_registration_id"`
+			Quantity       *int64          `json:"quantity"`
+			Notes          *string         `json:"notes"`
+			PlaceID        *int64          `json:"place_id"`
+			Consumable     json.RawMessage `json:"consumable"`
 		}
 		if err := json.Unmarshal(data, &body); err != nil {
 			return badRequest(err.Error())
@@ -154,6 +155,10 @@ func InsertLoadoutItem(c *gin.Context) {
 		if quantity < 1 {
 			return badRequest("quantity must be at least 1")
 		}
+		consumable, err := optionalBool(body.Consumable, "consumable")
+		if err != nil {
+			return err
+		}
 		notes := ""
 		if body.Notes != nil {
 			notes = *body.Notes
@@ -167,9 +172,9 @@ func InsertLoadoutItem(c *gin.Context) {
 			reason = "legacy"
 		}
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO loadout_items (loadoutId, registrationId, placeId, quantity, notes, detachedReason, detachedGearId)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			loadoutID, registrationID, body.PlaceID, quantity, notes, reason, detachedGearID)
+			`INSERT INTO loadout_items (loadoutId, registrationId, placeId, quantity, notes, detachedReason, detachedGearId, consumable)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			loadoutID, registrationID, body.PlaceID, quantity, notes, reason, detachedGearID, consumable != nil && *consumable)
 		if err != nil {
 			return err
 		}
@@ -293,7 +298,7 @@ func ListLoadoutItems(c *gin.Context) {
 // UpdateLoadoutItem updates a loadout item.
 //
 //	@Summary		Update loadout item
-//	@Description	Update an item of a loadout owned by the caller. Only fields present in the body change; place_id null removes the item from its place. The item must belong to the loadout in the path, otherwise 404, and so must a place_id. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400. A bag whose gear cannot hold items is 409. Never changes ticked.
+//	@Description	Update an item of a loadout owned by the caller. Only fields present in the body change; place_id null removes the item from its place. The item must belong to the loadout in the path, otherwise 404, and so must a place_id. A loadout_id or loadout_item_id in the body that differs from the path is refused with 400. consumable (true or false) switches the item's food, water or fuel role for this loadout only and changes nothing else; anything else is 400. A bag whose gear cannot hold items is 409. Never changes ticked.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -348,6 +353,7 @@ func UpdateLoadoutItem(c *gin.Context) {
 			Quantity      *int64          `json:"quantity"`
 			Notes         *string         `json:"notes"`
 			PlaceID       json.RawMessage `json:"place_id"` // absent: nil; null: "null" (clearable)
+			Consumable    json.RawMessage `json:"consumable"`
 		}
 		if err := json.Unmarshal(data, &body); err != nil {
 			return badRequest(err.Error())
@@ -385,6 +391,13 @@ func UpdateLoadoutItem(c *gin.Context) {
 		}
 		if body.Notes != nil {
 			sets, args = append(sets, "notes = ?"), append(args, *body.Notes)
+		}
+		consumable, err := optionalBool(body.Consumable, "consumable")
+		if err != nil {
+			return err
+		}
+		if consumable != nil {
+			sets, args = append(sets, "consumable = ?"), append(args, *consumable)
 		}
 		if placeGiven {
 			sets, args = append(sets, "placeId = ?"), append(args, placeID)

@@ -35,7 +35,7 @@ func parseLoadoutIDParam(c *gin.Context, name string) (int64, bool) {
 // InsertLoadout creates a new loadout for the authenticated user.
 //
 //	@Summary		Insert loadout
-//	@Description	Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug.
+//	@Description	Create a new loadout for the authenticated user. The owner is always the caller; a different user_id in the body is refused with 400. A blank slug is stored as no slug. A new loadout is always in stage planning: stage may be left out, null or \"planning\", any other value is 400. It has no done_at. start_date and end_date (YYYY-MM-DD) and weight_goal (whole grams, at least 1) are optional; null is the same as absent. An invalid date or goal, or an end_date before the start_date, is 400.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -64,6 +64,7 @@ func InsertLoadout(c *gin.Context) {
 		Description string `json:"loadout_description"`
 		IsPublic    bool   `json:"loadout_is_public"`
 		Slug        string `json:"loadout_slug"`
+		loadoutTripBody
 	}
 	if err := json.Unmarshal(data, &body); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: err.Error()})
@@ -73,12 +74,22 @@ func InsertLoadout(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, models.Error{Error: "user_id does not match the authenticated user"})
 		return
 	}
+	trip, err := body.parse(false)
+	if err == nil {
+		err = trip.checkDateOrder(nil, nil)
+	}
+	if err != nil {
+		respondOpError(c, log, err)
+		return
+	}
 
 	var created *models.Loadout
 	err = inTx(c.Request.Context(), db, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(c.Request.Context(),
-			`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug) VALUES (?, ?, ?, ?, ?)`,
-			userID, body.Name, body.Description, body.IsPublic, nullableSlug(body.Slug))
+			`INSERT INTO loadouts (userId, loadoutName, loadoutDescription, loadoutIsPublic, loadoutSlug, startDate, endDate, weightGoal)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			userID, body.Name, body.Description, body.IsPublic, nullableSlug(body.Slug),
+			trip.start.sqlValue(), trip.end.sqlValue(), trip.goal.sqlValue())
 		if err != nil {
 			return err
 		}
@@ -215,7 +226,7 @@ func GetLoadoutFull(c *gin.Context) {
 // UpdateLoadout updates an existing loadout.
 //
 //	@Summary		Update loadout
-//	@Description	Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400.
+//	@Description	Update the loadout named in the path. Only fields present in the body change. A loadout_id or user_id in the body that differs from the path or the caller is refused with 400. stage (planning, packing or done) can change from any stage to any other; setting done when the loadout is not done stores the time as done_at, setting done again keeps it, and any other stage clears it. Nothing else ever changes the stage. start_date and end_date (YYYY-MM-DD) and weight_goal (whole grams, at least 1) can be set, changed, and removed with null; an invalid value, an unknown stage, or an end_date before the start_date (judged on the values after the update) is 400 and changes nothing. Being over the goal is never refused.
 //	@Security		BearerAuth
 //	@Tags			Loadouts
 //	@Accept			json
@@ -262,6 +273,7 @@ func UpdateLoadout(c *gin.Context) {
 			Description *string `json:"loadout_description"`
 			IsPublic    *bool   `json:"loadout_is_public"`
 			Slug        *string `json:"loadout_slug"`
+			loadoutTripBody
 		}
 		if err := json.Unmarshal(data, &body); err != nil {
 			return badRequest(err.Error())
@@ -271,6 +283,13 @@ func UpdateLoadout(c *gin.Context) {
 		}
 		if body.UserID != nil && *body.UserID != userID {
 			return badRequest("user_id does not match the authenticated user")
+		}
+		trip, err := body.parse(true)
+		if err != nil {
+			return err
+		}
+		if err := trip.checkDateOrder(owned.StartDate, owned.EndDate); err != nil {
+			return err
 		}
 
 		sets := []string{}
@@ -286,6 +305,26 @@ func UpdateLoadout(c *gin.Context) {
 		}
 		if body.Slug != nil {
 			sets, args = append(sets, "loadoutSlug = ?"), append(args, nullableSlug(*body.Slug))
+		}
+		if trip.stage != nil {
+			sets, args = append(sets, "stage = ?"), append(args, *trip.stage)
+			// BR-028 AC-3: the time is when it was last set to done. Done
+			// again keeps it; any other stage clears it.
+			switch {
+			case *trip.stage != "done":
+				sets = append(sets, "doneAt = NULL")
+			case owned.Stage != "done":
+				sets = append(sets, "doneAt = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')")
+			}
+		}
+		if trip.start.Given {
+			sets, args = append(sets, "startDate = ?"), append(args, trip.start.sqlValue())
+		}
+		if trip.end.Given {
+			sets, args = append(sets, "endDate = ?"), append(args, trip.end.sqlValue())
+		}
+		if trip.goal.Given {
+			sets, args = append(sets, "weightGoal = ?"), append(args, trip.goal.sqlValue())
 		}
 		if len(sets) == 0 {
 			return badRequest("no updatable fields supplied")

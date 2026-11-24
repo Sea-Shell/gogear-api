@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Sea-Shell/gogear-api/pkg/models"
 
@@ -30,6 +31,8 @@ type sqlRunner interface {
 // statement, so a list needs no per-loadout item read (BR-029 AC-4).
 // closed_places is a JSON array in the order of the place list (Worn, Last
 // minute, bags by position); json_group_array gives [] when none is closed.
+// doneAt is read only while the stage is done, so a loadout that is not done
+// never reports a time (BR-028 AC-3).
 const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, loadoutIsPublic, COALESCE(loadoutSlug, ''),
 	COALESCE((SELECT w.totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId), 0),
 	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId),
@@ -42,6 +45,7 @@ const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, load
 	 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = p.registrationId
 	 LEFT JOIN gear g ON g.gearId = r.gearId
 	 WHERE p.loadoutId = loadouts.loadoutId AND p.closed = 1),
+	stage, CASE WHEN stage = 'done' THEN doneAt END, startDate, endDate, weightGoal,
 	createdAt, updatedAt`
 
 type rowScanner interface{ Scan(dest ...any) error }
@@ -51,7 +55,8 @@ func scanLoadout(r rowScanner) (*models.Loadout, error) {
 	var closed string
 	if err := r.Scan(&l.LoadoutID, &l.UserID, &l.LoadoutName, &l.LoadoutDescription,
 		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.ItemCount, &l.TickedCount, &l.BagCount,
-		&closed, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		&closed, &l.Stage, &l.DoneAt, &l.StartDate, &l.EndDate, &l.WeightGoal,
+		&l.CreatedAt, &l.UpdatedAt); err != nil {
 		return nil, err
 	}
 	l.ClosedPlaces = []models.ClosedPlace{}
@@ -122,7 +127,8 @@ func LoadoutListByUser(db *sql.DB, userID int64) (*[]models.Loadout, error) {
 // deleted shows its snapshot name and no other live gear value. Weights come
 // from the loadout_item_weight view, the only definition of them. The
 // registration's own weight and count are live and null when the item has no
-// registration (the LEFT JOIN finds nothing).
+// registration (the LEFT JOIN finds nothing). consumable is the item's own
+// role in this loadout (BR-027).
 const itemSelect = `SELECT li.loadoutItemId, li.loadoutId,
 	COALESCE(r.gearId, li.detachedGearId),
 	li.quantity, li.notes, li.registrationId, li.registrationId IS NOT NULL, li.detachedReason,
@@ -133,7 +139,7 @@ const itemSelect = `SELECT li.loadoutItemId, li.loadoutId,
 	li.placeId, li.ticked,
 	CASE WHEN li.detachedReason = 'registration_deleted' THEN NULL WHEN g.gearWeight > 0 THEN g.gearWeight END,
 	iw.unitWeight, COALESCE(iw.weightSource, 'none'),
-	r.measuredWeight, r.measuredWeightSource, r.closetCount
+	r.measuredWeight, r.measuredWeightSource, r.closetCount, li.consumable
 FROM loadout_items li
 LEFT JOIN user_gear_registrations r ON r.userGearRegistrationId = li.registrationId
 LEFT JOIN gear g ON g.gearId = COALESCE(r.gearId, li.detachedGearId)
@@ -148,7 +154,7 @@ func scanLoadoutItem(r rowScanner) (*models.LoadoutItem, error) {
 		&it.UsergearRegistrationID, &it.RegistrationExists, &it.DetachedReason,
 		&it.GearName, &it.ManufactureName, &it.CategoryName, &it.TopCategoryName,
 		&it.PlaceID, &it.Ticked, &it.CatalogWeight, &it.UnitWeight, &it.WeightSource,
-		&it.MeasuredWeight, &it.MeasuredWeightSource, &it.ClosetCount); err != nil {
+		&it.MeasuredWeight, &it.MeasuredWeightSource, &it.ClosetCount, &it.Consumable); err != nil {
 		return nil, err
 	}
 	return &it, nil
@@ -220,6 +226,132 @@ func LoadoutItemsPublic(db *sql.DB, loadoutID int64) (*[]models.LoadoutItemPubli
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 	return &items, nil
+}
+
+// The stage, trip dates and weight goal of a loadout (BR-028). The request
+// body carries them as raw JSON so a write can tell "not named" from null and
+// refuse a wrong type with 400 instead of dropping the value.
+
+// optionalValue is a clearable field of a write: Given is false when the body
+// did not name it, and Value is nil when it named null (remove the value).
+type optionalValue[T any] struct {
+	Given bool
+	Value *T
+}
+
+// loadoutTripBody is embedded in the request bodies of loadout insert and
+// update; encoding/json reads its fields as if they were the body's own.
+type loadoutTripBody struct {
+	Stage      json.RawMessage `json:"stage"`
+	StartDate  json.RawMessage `json:"start_date"`
+	EndDate    json.RawMessage `json:"end_date"`
+	WeightGoal json.RawMessage `json:"weight_goal"`
+}
+
+// loadoutTrip is a validated loadoutTripBody.
+type loadoutTrip struct {
+	stage      *string // nil: the request does not change the stage
+	start, end optionalValue[string]
+	goal       optionalValue[int64]
+}
+
+// parse validates the fields. On update (update = true) null removes a date or
+// the goal. On insert null is the same as absent, and the only stage that may
+// be named is "planning", because a new loadout always starts there. A null
+// stage is never a change. Every failure is a 400 message naming the field.
+func (b loadoutTripBody) parse(update bool) (loadoutTrip, error) {
+	var t loadoutTrip
+	if b.Stage != nil && !isJSONNull(b.Stage) {
+		var stage string
+		if err := json.Unmarshal(b.Stage, &stage); err != nil || !validStage(stage) {
+			return t, badRequest(`stage must be "planning", "packing" or "done"`)
+		}
+		if !update && stage != "planning" {
+			return t, badRequest(`a new loadout starts in stage "planning"`)
+		}
+		t.stage = &stage
+	}
+	var err error
+	if t.start, err = parseDateField(b.StartDate, "start_date", update); err != nil {
+		return t, err
+	}
+	if t.end, err = parseDateField(b.EndDate, "end_date", update); err != nil {
+		return t, err
+	}
+	if b.WeightGoal != nil && (update || !isJSONNull(b.WeightGoal)) {
+		t.goal.Given = true
+		if !isJSONNull(b.WeightGoal) {
+			goal, ok := wholeGrams(b.WeightGoal)
+			if !ok {
+				return t, badRequest("weight_goal must be a whole number of grams, at least 1")
+			}
+			t.goal.Value = &goal
+		}
+	}
+	return t, nil
+}
+
+// sqlValue is the value to bind: the stored text or number, or NULL.
+func (v optionalValue[T]) sqlValue() any {
+	if v.Value == nil {
+		return nil
+	}
+	return *v.Value
+}
+
+func validStage(s string) bool { return s == "planning" || s == "packing" || s == "done" }
+
+// parseDateField reads a calendar date written YYYY-MM-DD, which the column
+// CHECK (SQLite's date() gives the text back unchanged) must also accept;
+// TestLoadoutDates_EdgeDatesAreStored covers the ends of the calendar.
+func parseDateField(raw json.RawMessage, field string, update bool) (optionalValue[string], error) {
+	var v optionalValue[string]
+	if raw == nil || (isJSONNull(raw) && !update) {
+		return v, nil
+	}
+	v.Given = true
+	if isJSONNull(raw) {
+		return v, nil
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return v, badRequest(field + " must be a calendar date written YYYY-MM-DD")
+	}
+	if d, err := time.Parse(time.DateOnly, s); err != nil || d.Format(time.DateOnly) != s {
+		return v, badRequest(field + " must be a calendar date written YYYY-MM-DD")
+	}
+	v.Value = &s
+	return v, nil
+}
+
+// checkDateOrder refuses an end date before the start date, judged on the
+// values after the write: what the request names, else what is stored now
+// (BR-028 AC-4, ARS-001 milestone B). YYYY-MM-DD text sorts as dates do.
+func (t loadoutTrip) checkDateOrder(storedStart, storedEnd *string) error {
+	start, end := storedStart, storedEnd
+	if t.start.Given {
+		start = t.start.Value
+	}
+	if t.end.Given {
+		end = t.end.Value
+	}
+	if start != nil && end != nil && *end < *start {
+		return badRequest("end_date is before start_date")
+	}
+	return nil
+}
+
+// optionalBool reads a boolean field that is not clearable: absent and null
+// both mean "not named", and anything but true or false is a 400.
+func optionalBool(raw json.RawMessage, field string) (*bool, error) {
+	if raw == nil || isJSONNull(raw) {
+		return nil, nil
+	}
+	var v bool
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return nil, badRequest(field + " must be true or false")
+	}
+	return &v, nil
 }
 
 // nullableSlug maps a blank slug to NULL so the UNIQUE index never sees "".
