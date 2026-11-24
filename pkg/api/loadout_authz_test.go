@@ -52,7 +52,7 @@ func (e *authzEnv) seedGearW(weight int64) int64 {
 
 // seedItem adds a legacy item (the kind the deployed frontend creates by
 // gear_id, ADR-004 D-2): no registration, gear read live. The loadout's total
-// comes from the loadout_on_back_weight view.
+// comes from the loadout_on_back_item_terms and loadout_on_back_bag_terms views.
 func (e *authzEnv) seedItem(loadoutID, gearID, qty int64) int64 {
 	e.T.Helper()
 	res, err := e.DB.Exec(`INSERT INTO loadout_items (loadoutId, detachedReason, detachedGearId, quantity, notes) VALUES (?, 'legacy', ?, ?, 'orig-notes')`, loadoutID, gearID, qty)
@@ -85,7 +85,7 @@ func (e *authzEnv) snapshot() string {
 	e.T.Helper()
 	var sb strings.Builder
 	for _, q := range []string{
-		`SELECT quote(loadoutId)||'|'||quote(userId)||'|'||quote(loadoutName)||'|'||quote(loadoutDescription)||'|'||quote(loadoutIsPublic)||'|'||quote(loadoutSlug)||'|'||quote((SELECT totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId))||'|'||quote(createdAt)||'|'||quote(updatedAt) FROM loadouts ORDER BY loadoutId`,
+		`SELECT quote(loadoutId)||'|'||quote(userId)||'|'||quote(loadoutName)||'|'||quote(loadoutDescription)||'|'||quote(loadoutIsPublic)||'|'||quote(loadoutSlug)||'|'||quote(COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = loadouts.loadoutId), 0) + COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = loadouts.loadoutId), 0))||'|'||quote(createdAt)||'|'||quote(updatedAt) FROM loadouts ORDER BY loadoutId`,
 		`SELECT quote(loadoutItemId)||'|'||quote(loadoutId)||'|'||quote(registrationId)||'|'||quote(placeId)||'|'||quote(detachedReason)||'|'||quote(detachedGearId)||'|'||quote(quantity)||'|'||quote(notes)||'|'||quote(ticked) FROM loadout_items ORDER BY loadoutItemId`,
 	} {
 		rows, err := e.DB.Query(q)
@@ -108,7 +108,7 @@ func (e *authzEnv) snapshot() string {
 func (e *authzEnv) weight(loadoutID int64) int64 {
 	e.T.Helper()
 	var w int64
-	if err := e.DB.QueryRow(`SELECT totalWeight FROM loadout_on_back_weight WHERE loadoutId = ?`, loadoutID).Scan(&w); err != nil {
+	if err := e.DB.QueryRow(`SELECT COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = ?), 0) + COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = ?), 0)`, loadoutID, loadoutID).Scan(&w); err != nil {
 		e.T.Fatal(err)
 	}
 	return w

@@ -285,6 +285,10 @@ definitions:
       ticked_count:
         type: integer
       total_weight:
+        description: |-
+          TotalWeight is the on-your-back weight in grams: an exact JSON integer
+          that can exceed 2^63-1, never quoted or fractional. JavaScript's
+          JSON.parse rounds an integer above 2^53.
         type: integer
       updated_at:
         type: string
@@ -528,6 +532,10 @@ definitions:
       loadout_slug:
         type: string
       total_weight:
+        description: |-
+          TotalWeight is the on-your-back weight in grams: an exact JSON integer
+          that can exceed 2^63-1, never quoted or fractional. JavaScript's
+          JSON.parse rounds an integer above 2^53.
         type: integer
       updated_at:
         type: string

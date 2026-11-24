@@ -3775,6 +3775,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total_weight": {
+                    "description": "TotalWeight is the on-your-back weight in grams: an exact JSON integer\nthat can exceed 2^63-1, never quoted or fractional. JavaScript's\nJSON.parse rounds an integer above 2^53.",
                     "type": "integer"
                 },
                 "updated_at": {
@@ -4126,6 +4127,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "total_weight": {
+                    "description": "TotalWeight is the on-your-back weight in grams: an exact JSON integer\nthat can exceed 2^63-1, never quoted or fractional. JavaScript's\nJSON.parse rounds an integer above 2^53.",
                     "type": "integer"
                 },
                 "updated_at": {

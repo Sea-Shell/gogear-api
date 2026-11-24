@@ -116,7 +116,7 @@ func (f *itemFixture) loadoutTotal(id int64, tok string) int64 {
 	expectStatus(f.env.T, w, http.StatusOK)
 	var l models.Loadout
 	decodeJSON(f.env.T, w, &l)
-	return l.TotalWeight
+	return totalOf(l.TotalWeight)
 }
 
 // ---- insert by registration -------------------------------------------------
@@ -518,8 +518,8 @@ func TestLoadoutTotal_OnBackWeightFollowsPlacesAndCatalog(t *testing.T) {
 	var list []models.Loadout
 	decodeJSON(t, w, &list)
 	for _, l := range list {
-		if *l.LoadoutID == f.lo && l.TotalWeight != 2350 {
-			t.Errorf("list total = %d, want 2350", l.TotalWeight)
+		if *l.LoadoutID == f.lo && totalOf(l.TotalWeight) != 2350 {
+			t.Errorf("list total = %d, want 2350", totalOf(l.TotalWeight))
 		}
 	}
 	if _, err := f.env.DB.Exec(`UPDATE gear SET gearWeight = 1100 WHERE gearId = ?`, f.tentGear); err != nil {
@@ -596,8 +596,8 @@ func TestPublicItems_GearNameAndCurrentGearFilter(t *testing.T) {
 	expectStatus(t, w, http.StatusOK)
 	var loadout models.LoadoutPublic
 	decodeJSON(t, w, &loadout)
-	if loadout.TotalWeight != 1000+10+250+77+100 {
-		t.Errorf("public total = %d, want 1437 (hidden items still count)", loadout.TotalWeight)
+	if totalOf(loadout.TotalWeight) != 1000+10+250+77+100 {
+		t.Errorf("public total = %d, want 1437 (hidden items still count)", totalOf(loadout.TotalWeight))
 	}
 
 	w = f.env.Do(http.MethodGet, "/api/v1/public/loadout/alice-lo/items", "", nil)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -25,16 +26,20 @@ type sqlRunner interface {
 }
 
 // Loadout column list. loadoutSlug is nullable (NULL means "no slug"), so it
-// is read through COALESCE and the API shows no slug as "". total_weight is
-// the on-your-back weight from the view (BR-029 AC-3); nothing stores it. The
-// counts and closed places come from the place and item tables in the same
-// statement, so a list needs no per-loadout item read (BR-029 AC-4).
+// is read through COALESCE and the API shows no slug as "". The on-your-back
+// weight (BR-029 AC-3) is not stored and SQLite cannot add it exactly, so the
+// statement returns its terms as two JSON arrays of [quantity, unitWeight] pairs
+// (items, then bags) from the loadout_on_back_*_terms views, and sumOnBackTerms
+// adds them. The terms, the counts and the closed places come from the same
+// statement, so one row is one snapshot, and a list needs no per-loadout item
+// read (BR-029 AC-4).
 // closed_places is a JSON array in the order of the place list (Worn, Last
 // minute, bags by position); json_group_array gives [] when none is closed.
 // doneAt is read only while the stage is done, so a loadout that is not done
 // never reports a time (BR-028 AC-3).
 const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, loadoutIsPublic, COALESCE(loadoutSlug, ''),
-	COALESCE((SELECT w.totalWeight FROM loadout_on_back_weight w WHERE w.loadoutId = loadouts.loadoutId), 0),
+	(SELECT json_group_array(json_array(t.quantity, t.unitWeight)) FROM loadout_on_back_item_terms t WHERE t.loadoutId = loadouts.loadoutId),
+	(SELECT json_group_array(json_array(t.quantity, t.unitWeight)) FROM loadout_on_back_bag_terms t WHERE t.loadoutId = loadouts.loadoutId),
 	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId),
 	(SELECT COUNT(*) FROM loadout_items li WHERE li.loadoutId = loadouts.loadoutId AND li.ticked = 1),
 	(SELECT COUNT(*) FROM loadout_places p WHERE p.loadoutId = loadouts.loadoutId AND p.placeKind = 'bag'),
@@ -50,13 +55,47 @@ const loadoutColumns = `loadoutId, userId, loadoutName, loadoutDescription, load
 
 type rowScanner interface{ Scan(dest ...any) error }
 
+// sumOnBackTerms adds quantity x unitWeight over the JSON arrays of pairs that
+// loadoutColumns returns (items, then bags), exactly: math/big has no overflow,
+// so nothing is capped, clamped or rounded. Every value must be an integer
+// literal; a fraction, exponent, string or null is an error, never rounded.
+func sumOnBackTerms(arrays ...string) (models.WeightTotal, error) {
+	sum, product := new(big.Int), new(big.Int)
+	for _, terms := range arrays {
+		dec := json.NewDecoder(strings.NewReader(terms))
+		dec.UseNumber() // numbers stay their literal text; they are never a float64
+		var pairs [][]any
+		if err := dec.Decode(&pairs); err != nil {
+			return models.WeightTotal{}, fmt.Errorf("decode on-back weight terms: %w", err)
+		}
+		for _, pair := range pairs {
+			if len(pair) != 2 {
+				return models.WeightTotal{}, fmt.Errorf("on-back weight term %v is not [quantity, unitWeight]", pair)
+			}
+			var factors [2]big.Int
+			for i, v := range pair {
+				lit, isNumber := v.(json.Number)
+				if _, ok := factors[i].SetString(string(lit), 10); !isNumber || !ok {
+					return models.WeightTotal{}, fmt.Errorf("on-back weight term value %v is not an integer", v)
+				}
+			}
+			sum.Add(sum, product.Mul(&factors[0], &factors[1]))
+		}
+	}
+	return models.NewWeightTotal(sum), nil
+}
+
 func scanLoadout(r rowScanner) (*models.Loadout, error) {
 	var l models.Loadout
-	var closed string
+	var itemTerms, bagTerms, closed string
 	if err := r.Scan(&l.LoadoutID, &l.UserID, &l.LoadoutName, &l.LoadoutDescription,
-		&l.LoadoutIsPublic, &l.LoadoutSlug, &l.TotalWeight, &l.ItemCount, &l.TickedCount, &l.BagCount,
+		&l.LoadoutIsPublic, &l.LoadoutSlug, &itemTerms, &bagTerms, &l.ItemCount, &l.TickedCount, &l.BagCount,
 		&closed, &l.Stage, &l.DoneAt, &l.StartDate, &l.EndDate, &l.WeightGoal,
 		&l.CreatedAt, &l.UpdatedAt); err != nil {
+		return nil, err
+	}
+	var err error
+	if l.TotalWeight, err = sumOnBackTerms(itemTerms, bagTerms); err != nil {
 		return nil, err
 	}
 	l.ClosedPlaces = []models.ClosedPlace{}

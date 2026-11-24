@@ -9,7 +9,8 @@ type ClosedPlace struct {
 }
 
 // Loadout represents a user gear grouping. TotalWeight is the on-your-back
-// weight in grams; the counts and closed places summarize the loadout without
+// weight in grams, an exact integer that can exceed 64 bits (see WeightTotal);
+// the counts and closed places summarize the loadout without
 // reading its items (BR-029 AC-4). ItemCount counts item rows, not quantities.
 type Loadout struct {
 	LoadoutID          *int64 `json:"loadout_id" db:"loadoutId"`
@@ -18,10 +19,13 @@ type Loadout struct {
 	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
 	LoadoutIsPublic    bool   `json:"loadout_is_public" db:"loadoutIsPublic"`
 	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
-	TotalWeight        int64  `json:"total_weight" db:"totalWeight"`
-	ItemCount          int64  `json:"item_count"`
-	TickedCount        int64  `json:"ticked_count"`
-	BagCount           int64  `json:"bag_count"`
+	// TotalWeight is the on-your-back weight in grams: an exact JSON integer
+	// that can exceed 2^63-1, never quoted or fractional. JavaScript's
+	// JSON.parse rounds an integer above 2^53.
+	TotalWeight WeightTotal `json:"total_weight" swaggertype:"integer"`
+	ItemCount   int64       `json:"item_count"`
+	TickedCount int64       `json:"ticked_count"`
+	BagCount    int64       `json:"bag_count"`
 	// ClosedPlaces is never nil: it encodes as [] when no place is closed.
 	ClosedPlaces []ClosedPlace `json:"closed_places"`
 	// Stage is "planning", "packing" or "done" (BR-028). DoneAt is when the
@@ -82,9 +86,12 @@ type LoadoutPublic struct {
 	LoadoutName        string `json:"loadout_name" db:"loadoutName"`
 	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
 	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
-	TotalWeight        int64  `json:"total_weight" db:"totalWeight"`
-	CreatedAt          string `json:"created_at" db:"createdAt"`
-	UpdatedAt          string `json:"updated_at" db:"updatedAt"`
+	// TotalWeight is the on-your-back weight in grams: an exact JSON integer
+	// that can exceed 2^63-1, never quoted or fractional. JavaScript's
+	// JSON.parse rounds an integer above 2^53.
+	TotalWeight WeightTotal `json:"total_weight" swaggertype:"integer"`
+	CreatedAt   string      `json:"created_at" db:"createdAt"`
+	UpdatedAt   string      `json:"updated_at" db:"updatedAt"`
 }
 
 // LoadoutItem represents a single item within a loadout (ARS-001 section 3,

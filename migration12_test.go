@@ -27,22 +27,28 @@ func loadoutV11DBWithBag(t *testing.T) *sql.DB {
 const (
 	registrationWeights = `SELECT registrationId, catalogWeight, unitWeight, weightSource FROM registration_effective_weight ORDER BY registrationId`
 	itemWeights         = `SELECT loadoutItemId, unitWeight, weightSource FROM loadout_item_weight ORDER BY loadoutItemId`
-	onBackWeights       = `SELECT loadoutId, totalWeight FROM loadout_on_back_weight ORDER BY loadoutId`
-	dependentObjects    = `SELECT name FROM sqlite_master WHERE name IN
-		('loadout_item_weight', 'loadout_on_back_weight', 'trg_registration_delete_detach', 'trg_registration_owner_fixed') ORDER BY name`
+	// The on-your-back weight of every loadout: the 000011 view before 000012
+	// and after its down, the sum of the two terms views after 000012 (small values
+	// only: the exact sum of any size is added in Go, see pkg/api).
+	onBackWeightsV11 = `SELECT loadoutId, totalWeight FROM loadout_on_back_weight ORDER BY loadoutId`
+	onBackWeightsV12 = `SELECT l.loadoutId, COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = l.loadoutId), 0)
+		+ COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = l.loadoutId), 0) FROM loadouts l ORDER BY l.loadoutId`
+	dependentObjects = `SELECT name FROM sqlite_master WHERE name IN
+		('loadout_item_weight', 'trg_registration_delete_detach', 'trg_registration_owner_fixed') ORDER BY name`
 )
 
 // The migration adds columns with defaults, gives every existing registration
 // closet count 1 (BR-036 AC-1), and replaces the view without recreating the
-// views and the delete trigger that name it. Nothing they report changes.
+// views and the delete trigger that name it. Nothing they report changes. The
+// 000011 on-back view gives way to its terms view, which sums to the same totals.
 func TestMigration12KeepsExistingDataAndDependentViews(t *testing.T) {
 	db := loadoutV11DBWithBag(t)
 	beforeRegs := table(t, db, registrationWeights)
 	beforeItems := table(t, db, itemWeights)
-	beforeTotals := table(t, db, onBackWeights)
+	beforeTotals := table(t, db, onBackWeightsV11)
 	beforeObjects := table(t, db, dependentObjects)
 	beforeFK := table(t, db, `PRAGMA foreign_key_check`) // the seed has a registration of missing gear 99
-	if len(beforeObjects) != 4 {
+	if len(beforeObjects) != 3 {
 		t.Fatalf("objects the migration must keep, before it runs: %v", beforeObjects)
 	}
 
@@ -76,8 +82,11 @@ func TestMigration12KeepsExistingDataAndDependentViews(t *testing.T) {
 	if got := table(t, db, itemWeights); !reflect.DeepEqual(got, beforeItems) {
 		t.Errorf("item weights changed:\n got %q\nwant %q", got, beforeItems)
 	}
-	if got := table(t, db, onBackWeights); !reflect.DeepEqual(got, beforeTotals) {
+	if got := table(t, db, onBackWeightsV12); !reflect.DeepEqual(got, beforeTotals) {
 		t.Errorf("on-back weights changed:\n got %q\nwant %q", got, beforeTotals)
+	}
+	if got := table(t, db, `SELECT name FROM sqlite_master WHERE name LIKE 'loadout_on_back_%' ORDER BY name`); !reflect.DeepEqual(got, []string{"loadout_on_back_bag_terms", "loadout_on_back_item_terms"}) {
+		t.Errorf("on-back views after migration = %v, want only the two terms views", got)
 	}
 	if got := table(t, db, dependentObjects); !reflect.DeepEqual(got, beforeObjects) {
 		t.Errorf("objects after migration = %v, want %v", got, beforeObjects)
@@ -174,7 +183,7 @@ func TestMigration12MeasuredWeightInViews(t *testing.T) {
 	db := loadoutV11DBWithBag(t)
 	migrateTo(t, db, 12)
 	onBack := func(loadout int) string {
-		return scalar[string](t, db, `SELECT CAST(totalWeight AS TEXT) FROM loadout_on_back_weight WHERE loadoutId = ?`, loadout)
+		return scalar[string](t, db, `SELECT CAST(COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = ?), 0) + COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = ?), 0) AS TEXT)`, loadout, loadout)
 	}
 	// Loadout 1: item 1 (reg 1, 100 g) x2 in the bag reg 3 (200 g), item 2 (reg 2, 200 g),
 	// legacy item 3 (300 g), item 5 x3 (no weight) = 200 + 200 + 200 + 300.
@@ -246,7 +255,7 @@ func TestMigration12RegistrationDeleteSnapshotsMeasuredWeight(t *testing.T) {
 	mustExec(t, db, `UPDATE user_gear_registrations SET measuredWeight = 33, measuredWeightSource = 'weighed' WHERE userGearRegistrationId = 5`) // gear with no catalog weight
 	mustExec(t, db, `INSERT INTO loadout_items (loadoutId, registrationId, quantity) VALUES (1, 5, 2)`)                                          // item 51
 	onBack := func() string {
-		return scalar[string](t, db, `SELECT CAST(totalWeight AS TEXT) FROM loadout_on_back_weight WHERE loadoutId = 1`)
+		return scalar[string](t, db, `SELECT CAST(COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = 1), 0) + COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = 1), 0) AS TEXT)`)
 	}
 	// 2 x 650 (item 1, in the 200 g bag) + 200 bag + 200 (item 2) + 300 (legacy) + 3 x 0 (item 5) + 2 x 33 (item 51).
 	const total = "2066"
@@ -307,8 +316,11 @@ func TestMigration12DownRestoresVersion11Shape(t *testing.T) {
 	if got := table(t, db, `SELECT catalogWeight, unitWeight, weightSource FROM registration_effective_weight WHERE registrationId = 1`); !reflect.DeepEqual(got, []string{"100|100|catalog"}) {
 		t.Errorf("registration 1 after down = %v", got)
 	}
-	if got := table(t, db, onBackWeights); !reflect.DeepEqual(got, []string{"1|900", "2|0", "3|200"}) {
+	if got := table(t, db, onBackWeightsV11); !reflect.DeepEqual(got, []string{"1|900", "2|0", "3|200"}) {
 		t.Errorf("on-back weights after down = %v", got)
+	}
+	if got := table(t, db, `SELECT name FROM sqlite_master WHERE name LIKE 'loadout_on_back_%' ORDER BY name`); !reflect.DeepEqual(got, []string{"loadout_on_back_weight"}) {
+		t.Errorf("on-back views after down = %v, want only the 000011 view", got)
 	}
 	mustExec(t, db, `DELETE FROM user_gear_registrations WHERE userGearRegistrationId = 1`)
 	if got := table(t, db, `SELECT detachedUnitWeight, detachedWeightSource FROM loadout_items WHERE loadoutItemId = 1`); !reflect.DeepEqual(got, []string{"100|catalog"}) {

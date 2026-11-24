@@ -135,8 +135,8 @@ func TestMeasuredWeight_SetChangeRemoveAndEveryLoadoutFollows(t *testing.T) {
 			it.MeasuredWeightSource == nil || *it.MeasuredWeightSource != "weighed" || it.ClosetCount == nil || *it.ClosetCount != 1 {
 			t.Errorf("loadout %d item = catalog %v measured %v %v count %v", c.lo, it.CatalogWeight, it.MeasuredWeight, it.MeasuredWeightSource, it.ClosetCount)
 		}
-		if f.Loadout.TotalWeight != 687*c.qty || b.summary(b.user, c.lo).TotalWeight != 687*c.qty {
-			t.Errorf("loadout %d total = %d, want %d", c.lo, f.Loadout.TotalWeight, 687*c.qty)
+		if totalOf(f.Loadout.TotalWeight) != 687*c.qty || totalOf(b.summary(b.user, c.lo).TotalWeight) != 687*c.qty {
+			t.Errorf("loadout %d total = %d, want %d", c.lo, totalOf(f.Loadout.TotalWeight), 687*c.qty)
 		}
 	}
 	// The catalog gear and B's registration of the same gear are unchanged (AC-3).
@@ -166,7 +166,7 @@ func TestMeasuredWeight_SetChangeRemoveAndEveryLoadoutFollows(t *testing.T) {
 			t.Errorf("loadout %d item still reports measured %v %v", c.lo, it.MeasuredWeight, it.MeasuredWeightSource)
 		}
 	}
-	if got := b.summary(b.user, l2).TotalWeight; got != 1400 {
+	if got := totalOf(b.summary(b.user, l2).TotalWeight); got != 1400 {
 		t.Errorf("L2 total after removing = %d, want 1400", got)
 	}
 	if got := b.catalogWeightInDB(gear); got != 700 {
@@ -441,14 +441,14 @@ func TestClosetCount_DefaultSetRefuseAndNeverMultiplies(t *testing.T) {
 			t.Errorf("item %d closet_count = %v, want 8", id, it.ClosetCount)
 		}
 	}
-	if f.Loadout.TotalWeight != 9*20 {
-		t.Errorf("total = %d, want %d: the count must not multiply a weight", f.Loadout.TotalWeight, 9*20)
+	if totalOf(f.Loadout.TotalWeight) != 9*20 {
+		t.Errorf("total = %d, want %d: the count must not multiply a weight", totalOf(f.Loadout.TotalWeight), 9*20)
 	}
 
 	// Lowering the count below the current use is accepted, and so is using more.
 	b.regUpdate(b.user, reg, map[string]any{"closet_count": 6}, http.StatusOK)
 	i3 := b.addItem(b.user, lo, reg, 10)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 19*20 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 19*20 {
 		t.Errorf("total = %d, want %d", got, 19*20)
 	}
 	b.call(http.MethodPost, itemPath(lo, i3, "update"), b.user, map[string]any{"quantity": 50}, http.StatusOK)
@@ -524,8 +524,8 @@ func TestWeights_AC3ExampleWithMeasuredWeights(t *testing.T) {
 	b.move(b.user, lo, iShell, worn)
 
 	f := b.full(b.user, lo)
-	if f.Loadout.TotalWeight != 1994 || b.summary(b.user, lo).TotalWeight != 1994 {
-		t.Fatalf("total = %d (list %d), want 1994", f.Loadout.TotalWeight, b.summary(b.user, lo).TotalWeight)
+	if totalOf(f.Loadout.TotalWeight) != 1994 || totalOf(b.summary(b.user, lo).TotalWeight) != 1994 {
+		t.Fatalf("total = %d (list %d), want 1994", totalOf(f.Loadout.TotalWeight), totalOf(b.summary(b.user, lo).TotalWeight))
 	}
 	// Every input of the weight model is on the board: both weights and the source.
 	it := itemOf(t, f, iGas)
@@ -544,10 +544,10 @@ func TestWeights_AC3ExampleWithMeasuredWeights(t *testing.T) {
 
 	// Reweigh the gas: the loadout total changes, the catalog does not.
 	b.measure(b.user, gas, 380, "weighed")
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+40 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+40 {
 		t.Errorf("total after reweighing the gas = %d, want %d", got, 1994+40)
 	}
-	if got := b.summary(b.user, lo).TotalWeight; got != 1994+40 {
+	if got := totalOf(b.summary(b.user, lo).TotalWeight); got != 1994+40 {
 		t.Errorf("list total after reweighing = %d, want %d", got, 1994+40)
 	}
 	if got := b.catalogWeightInDB(gGas); got != 400 {
@@ -555,23 +555,23 @@ func TestWeights_AC3ExampleWithMeasuredWeights(t *testing.T) {
 	}
 	// Reweigh the bag.
 	b.measure(b.user, exos, 1100, "guess")
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+40-80 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+40-80 {
 		t.Errorf("total after reweighing the bag = %d, want %d", got, 1994+40-80)
 	}
 	// An admin edits the stove's catalog weight: the next read shows it, and the
 	// measured gas and bag are unaffected by catalog edits to other gear.
 	b.setCatalogWeight(gStove, 100)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+40-80+17 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+40-80+17 {
 		t.Errorf("total after the catalog edit = %d, want %d", got, 1994+40-80+17)
 	}
 	// An admin edit of the gas's catalog weight does not reach the measured weight.
 	b.setCatalogWeight(gGas, 450)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+40-80+17 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+40-80+17 {
 		t.Errorf("total after a catalog edit of measured gear = %d, want %d", got, 1994+40-80+17)
 	}
 	// Removing the gas's measured weight returns the (new) catalog weight.
 	b.unmeasure(b.user, gas)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+40-80+17+2*(450-380) {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+40-80+17+2*(450-380) {
 		t.Errorf("total after removing the measured weight = %d, want %d", got, 1994+40-80+17+2*(450-380))
 	}
 }
@@ -607,7 +607,7 @@ func TestDeleteRegistration_SnapshotKeepsMeasuredWeight(t *testing.T) {
 	b.move(b.user, l2, s1, bagR)
 	b.move(b.user, l2, s2, bagR)
 
-	beforeL1 := b.full(b.user, l1).Loadout.TotalWeight // 1000 + 2 x 650
+	beforeL1 := totalOf(b.full(b.user, l1).Loadout.TotalWeight) // 1000 + 2 x 650
 	if beforeL1 != 2300 {
 		t.Fatalf("L1 total before = %d, want 2300", beforeL1)
 	}
@@ -623,8 +623,8 @@ func TestDeleteRegistration_SnapshotKeepsMeasuredWeight(t *testing.T) {
 	if it.CatalogWeight != nil || it.MeasuredWeight != nil || it.MeasuredWeightSource != nil || it.ClosetCount != nil {
 		t.Errorf("snapshot reports live values: catalog %v measured %v %v count %v", it.CatalogWeight, it.MeasuredWeight, it.MeasuredWeightSource, it.ClosetCount)
 	}
-	if f1.Loadout.TotalWeight != beforeL1 {
-		t.Errorf("L1 total after the delete = %d, want the kept %d", f1.Loadout.TotalWeight, beforeL1)
+	if totalOf(f1.Loadout.TotalWeight) != beforeL1 {
+		t.Errorf("L1 total after the delete = %d, want the kept %d", totalOf(f1.Loadout.TotalWeight), beforeL1)
 	}
 	b.setCatalogWeight(gR, 999)
 	it = itemOf(t, b.full(b.user, l1), item)

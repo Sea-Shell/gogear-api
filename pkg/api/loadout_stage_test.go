@@ -338,8 +338,8 @@ func TestLoadoutGoal_OverTheGoalIsNeverRefusedOrActedOn(t *testing.T) {
 
 	l := b.loadoutOf(b.user, lo)
 	wantTrip(t, "over goal", l, "packing", "", "", 1000)
-	if l.TotalWeight != 9000 {
-		t.Errorf("total = %d, want 9000", l.TotalWeight)
+	if totalOf(l.TotalWeight) != 9000 {
+		t.Errorf("total = %d, want 9000", totalOf(l.TotalWeight))
 	}
 }
 
@@ -628,7 +628,7 @@ func TestConsumable_InsertDefaultsAndRoleSurvivesOtherEdits(t *testing.T) {
 	}
 
 	// Role only: the update response is the item, and place, tick, quantity and totals do not move.
-	totalBefore := b.loadoutOf(b.user, lo).TotalWeight
+	totalBefore := totalOf(b.loadoutOf(b.user, lo).TotalWeight)
 	w := b.env.Do(http.MethodPost, itemPath(lo, id, "update"), b.user, map[string]any{"consumable": false})
 	expectStatus(t, w, http.StatusOK)
 	var resp models.LoadoutItem
@@ -636,7 +636,7 @@ func TestConsumable_InsertDefaultsAndRoleSurvivesOtherEdits(t *testing.T) {
 	if resp.Consumable || resp.PlaceID == nil || *resp.PlaceID != bag || !resp.Ticked || resp.Quantity != 4 {
 		t.Errorf("role-only update response = consumable %v place %v ticked %v quantity %d", resp.Consumable, resp.PlaceID, resp.Ticked, resp.Quantity)
 	}
-	if after := b.loadoutOf(b.user, lo).TotalWeight; after != totalBefore {
+	if after := totalOf(b.loadoutOf(b.user, lo).TotalWeight); after != totalBefore {
 		t.Errorf("total %d -> %d after a role change", totalBefore, after)
 	}
 	if p := placeOf(b.full(b.user, lo), bag); p == nil || p.Closed {
