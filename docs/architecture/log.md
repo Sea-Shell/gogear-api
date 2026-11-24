@@ -3,10 +3,14 @@ type: Log
 title: Architecture change log
 description: Chronological record of changes to the GoGear API architecture bundle.
 tags: [log]
-timestamp: 2026-11-23T00:00:00Z
+timestamp: 2026-11-24T00:00:00Z
 ---
 
 # Architecture change log
+
+## 2026-11-24
+
+- **Amendment (task B1, branch `loadout-loop-milestone-b`; implemented on the branch only, not merged and not deployed):** [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md) section 2.2 corrects the `measuredWeightSource` CHECK: the first draft evaluated to NULL, which SQLite accepts, for a measured weight with no source, against BR-026 AC-1. It also records that the dependent views and the delete trigger survive the view replacement (proven by a migration test on a version 11 database), the down-migration order, and that an item without a registration reports `null` for `measured_weight`, `measured_weight_source` and `closet_count` (the spec was silent). No requirement text changed. The implementation status lines of ARS-001, ARD-001 and the requirements are not changed here: they change when milestone B is integrated and merged (task B3).
 
 ## 2026-11-23
 

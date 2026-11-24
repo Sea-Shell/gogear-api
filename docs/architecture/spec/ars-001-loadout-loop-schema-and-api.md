@@ -3,7 +3,7 @@ type: Architecture Specification
 title: ARS-001 Loadout loop schema, migrations and API contract
 description: Exact database changes (migrations 000011 to 000014 and the cutover), the weight views, response shapes and every new or changed endpoint for the loadout planning and packing work (BR-023 to BR-037, OC-002), grouped by milestone A to E.
 tags: [architecture, api, schema, migration, sqlite, loadouts, catalog, loadout-planning]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-24T00:00:00Z
 ---
 
 # ARS-001 — Loadout loop schema, migrations and API contract
@@ -114,7 +114,7 @@ Runs in golang-migrate's transaction with foreign keys on. Statements in this or
 | Table | Column | Definition |
 |---|---|---|
 | `user_gear_registrations` | `measuredWeight` | `INTEGER CHECK (measuredWeight IS NULL OR (typeof(measuredWeight) = 'integer' AND measuredWeight >= 1))` |
-| `user_gear_registrations` | `measuredWeightSource` | `TEXT CHECK (measuredWeightSource IN ('weighed','guess') AND measuredWeight IS NOT NULL OR measuredWeightSource IS NULL AND measuredWeight IS NULL)` |
+| `user_gear_registrations` | `measuredWeightSource` | `TEXT CHECK ((measuredWeight IS NULL AND measuredWeightSource IS NULL) OR (measuredWeight IS NOT NULL AND measuredWeightSource IS NOT NULL AND measuredWeightSource IN ('weighed','guess')))` |
 | `user_gear_registrations` | `closetCount` | `INTEGER NOT NULL DEFAULT 1 CHECK (typeof(closetCount) = 'integer' AND closetCount >= 1)` (BR-036 AC-1: existing rows get 1) |
 | `loadout_items` | `consumable` | `INTEGER NOT NULL DEFAULT 0 CHECK (consumable IN (0,1))` |
 | `loadouts` | `stage` | `TEXT NOT NULL DEFAULT 'planning' CHECK (stage IN ('planning','packing','done'))` |
@@ -123,7 +123,9 @@ Runs in golang-migrate's transaction with foreign keys on. Statements in this or
 | `loadouts` | `endDate` | `TEXT CHECK (endDate IS NULL OR (date(endDate) IS endDate AND (startDate IS NULL OR endDate >= startDate)))` |
 | `loadouts` | `weightGoal` | `INTEGER CHECK (weightGoal IS NULL OR (typeof(weightGoal) = 'integer' AND weightGoal >= 1))` |
 
-Then replace `registration_effective_weight` with the measured-weight version (section 2.6) by `DROP VIEW` and `CREATE VIEW` in the same migration. The migration test must confirm that `loadout_item_weight`, `loadout_on_back_weight` and the delete trigger still work after the replacement (SQLite resolves view names when a statement runs; `[unverified]` for dependent views across a drop and create, so the test is load-bearing).
+The first draft of the `measuredWeightSource` CHECK (`src IN (...) AND weight IS NOT NULL OR src IS NULL AND weight IS NULL`) evaluates to NULL, which a CHECK accepts, when a weight has a NULL source, so it admitted a weight without a source (BR-026 AC-1 refuses it). The table shows the corrected form, which tests `IS NOT NULL` explicitly; migration test `TestMigration12ColumnRules` fails on the first draft. *(Amended 2026-11-24, found by coder B1.)*
+
+Then replace `registration_effective_weight` with the measured-weight version (section 2.6) by `DROP VIEW` and `CREATE VIEW` in the same migration. The migration test must confirm that `loadout_item_weight`, `loadout_on_back_weight` and the delete trigger still work after the replacement. They do, on a version 11 database with data: SQLite resolves view names when a statement runs, so the dependent views and the trigger are not recreated (`TestMigration12KeepsExistingDataAndDependentViews`). The down migration drops the new view and recreates the milestone A one before it drops the columns, because `DROP COLUMN` refuses a column a view still names, and drops `endDate` before `startDate` and `measuredWeightSource` before `measuredWeight` because their CHECKs read them.
 
 ### 2.3 Migration `000013_gear_catalog_states` (milestone D)
 
@@ -211,7 +213,7 @@ This makes `/loadout/list` the home summary of BR-029 AC-4.
 - `gear_name`, `manufacture_name`, `category_name`, `top_category_name`: for registration-backed and **legacy** items, live from the current gear (registration's gear, or `detachedGearId`); for registration-deleted items `gear_name` is the snapshot and the others are `null` (A);
 - `place_id` (`null` = no place), `ticked` (A);
 - `catalog_weight` (`null` = none), `unit_weight`, `weight_source` (A; from `loadout_item_weight`). `catalog_weight` follows the same source rule as the names: live from the current gear for registration-backed and legacy items, and **`null` for registration-deleted items**. A deleted-registration item reports only its snapshot (`unit_weight` and `weight_source` as they were at deletion, BR-030 AC-1); a live catalog value next to a frozen effective weight would invite clients to recompute a different weight. *(Amended 2026-11-22, spec gap raised by coder A2, Loom `3d2ff0d3`.)*
-- `measured_weight`, `measured_weight_source`, `closet_count`, `consumable` (B);
+- `measured_weight`, `measured_weight_source`, `closet_count`, `consumable` (B). The first three are the registration's own values, read live; they are `null` for an item without a registration (legacy or registration-deleted), which reports only the effective `unit_weight` and `weight_source`, like `catalog_weight` (same reasoning: a live value next to a frozen one invites a recomputed weight). `closet_count` is therefore `null` for those items too. *(Clarified 2026-11-24, decision of coder B1; the spec was silent.)*
 - `gear_catalog_state`, `gear_state_reason` (D; reason only when `not_approved`).
 
 **`LoadoutPlace`** (`full.places`, place writes): `place_id`, `loadout_id`, `place_kind` (`"worn"`, `"last_minute"`, `"bag"`), `closed`; for bags also `usergear_registration_id`, `gear_id`, `gear_name`, `gear_is_container`, `max_container_weight`, `catalog_weight`, `unit_weight`, `weight_source`, `parent_place_id`, `position` (A), `measured_weight`, `measured_weight_source` (B), `gear_catalog_state` (D). Non-bag places have these as `null`.
