@@ -9,7 +9,8 @@ type ClosedPlace struct {
 }
 
 // Loadout represents a user gear grouping. TotalWeight is the on-your-back
-// weight in grams; the counts and closed places summarize the loadout without
+// weight in grams, an exact integer that can exceed 64 bits (see WeightTotal);
+// the counts and closed places summarize the loadout without
 // reading its items (BR-029 AC-4). ItemCount counts item rows, not quantities.
 type Loadout struct {
 	LoadoutID          *int64 `json:"loadout_id" db:"loadoutId"`
@@ -18,14 +19,26 @@ type Loadout struct {
 	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
 	LoadoutIsPublic    bool   `json:"loadout_is_public" db:"loadoutIsPublic"`
 	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
-	TotalWeight        int64  `json:"total_weight" db:"totalWeight"`
-	ItemCount          int64  `json:"item_count"`
-	TickedCount        int64  `json:"ticked_count"`
-	BagCount           int64  `json:"bag_count"`
+	// TotalWeight is the on-your-back weight in grams: an exact JSON integer
+	// that can exceed 2^63-1, never quoted or fractional. JavaScript's
+	// JSON.parse rounds an integer above 2^53.
+	TotalWeight WeightTotal `json:"total_weight" swaggertype:"integer"`
+	ItemCount   int64       `json:"item_count"`
+	TickedCount int64       `json:"ticked_count"`
+	BagCount    int64       `json:"bag_count"`
 	// ClosedPlaces is never nil: it encodes as [] when no place is closed.
 	ClosedPlaces []ClosedPlace `json:"closed_places"`
-	CreatedAt    string        `json:"created_at" db:"createdAt"`
-	UpdatedAt    string        `json:"updated_at" db:"updatedAt"`
+	// Stage is "planning", "packing" or "done" (BR-028). DoneAt is when the
+	// loadout was last set to done, and null unless Stage is "done". StartDate
+	// and EndDate are calendar dates (YYYY-MM-DD) and WeightGoal is the target
+	// on-your-back weight in grams; each is null when not set.
+	Stage      string  `json:"stage" enums:"planning,packing,done"`
+	DoneAt     *string `json:"done_at"`
+	StartDate  *string `json:"start_date"`
+	EndDate    *string `json:"end_date"`
+	WeightGoal *int64  `json:"weight_goal"`
+	CreatedAt  string  `json:"created_at" db:"createdAt"`
+	UpdatedAt  string  `json:"updated_at" db:"updatedAt"`
 }
 
 // LoadoutFull is the whole board of one loadout, read from one transaction
@@ -37,22 +50,34 @@ type LoadoutFull struct {
 	Items   []LoadoutItem  `json:"items"`
 }
 
-// LoadoutNoID is used for creating new loadouts.
+// LoadoutNoID is used for creating new loadouts. A new loadout is always in
+// stage planning, so the body has no stage (one named "planning" is accepted,
+// any other is 400). The optional dates and goal follow BR-028 AC-4.
 type LoadoutNoID struct {
-	UserID             int64  `json:"user_id" db:"userId"`
-	LoadoutName        string `json:"loadout_name" db:"loadoutName"`
-	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
-	LoadoutIsPublic    bool   `json:"loadout_is_public" db:"loadoutIsPublic"`
-	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
+	UserID             int64   `json:"user_id" db:"userId"`
+	LoadoutName        string  `json:"loadout_name" db:"loadoutName"`
+	LoadoutDescription string  `json:"loadout_description" db:"loadoutDescription"`
+	LoadoutIsPublic    bool    `json:"loadout_is_public" db:"loadoutIsPublic"`
+	LoadoutSlug        string  `json:"loadout_slug" db:"loadoutSlug"`
+	StartDate          *string `json:"start_date,omitempty" format:"date"`
+	EndDate            *string `json:"end_date,omitempty" format:"date"`
+	WeightGoal         *int64  `json:"weight_goal,omitempty" minimum:"1"`
 }
 
-// LoadoutUpdate carries updatable fields with the ID for WHERE clause.
+// LoadoutUpdate carries updatable fields with the ID for WHERE clause. Absent
+// fields keep their value. start_date, end_date and weight_goal are clearable:
+// null removes the stored value. stage is one of planning, packing and done
+// and can change from any value to any other (BR-028 AC-2).
 type LoadoutUpdate struct {
-	LoadoutID          int64  `json:"loadout_id" db:"loadoutId"`
-	LoadoutName        string `json:"loadout_name" db:"loadoutName"`
-	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
-	LoadoutIsPublic    bool   `json:"loadout_is_public" db:"loadoutIsPublic"`
-	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
+	LoadoutID          int64   `json:"loadout_id" db:"loadoutId"`
+	LoadoutName        string  `json:"loadout_name" db:"loadoutName"`
+	LoadoutDescription string  `json:"loadout_description" db:"loadoutDescription"`
+	LoadoutIsPublic    bool    `json:"loadout_is_public" db:"loadoutIsPublic"`
+	LoadoutSlug        string  `json:"loadout_slug" db:"loadoutSlug"`
+	Stage              *string `json:"stage,omitempty" enums:"planning,packing,done"`
+	StartDate          *string `json:"start_date,omitempty" format:"date"`
+	EndDate            *string `json:"end_date,omitempty" format:"date"`
+	WeightGoal         *int64  `json:"weight_goal,omitempty" minimum:"1"`
 }
 
 // LoadoutPublic is the public-facing response (no userId).
@@ -61,9 +86,12 @@ type LoadoutPublic struct {
 	LoadoutName        string `json:"loadout_name" db:"loadoutName"`
 	LoadoutDescription string `json:"loadout_description" db:"loadoutDescription"`
 	LoadoutSlug        string `json:"loadout_slug" db:"loadoutSlug"`
-	TotalWeight        int64  `json:"total_weight" db:"totalWeight"`
-	CreatedAt          string `json:"created_at" db:"createdAt"`
-	UpdatedAt          string `json:"updated_at" db:"updatedAt"`
+	// TotalWeight is the on-your-back weight in grams: an exact JSON integer
+	// that can exceed 2^63-1, never quoted or fractional. JavaScript's
+	// JSON.parse rounds an integer above 2^53.
+	TotalWeight WeightTotal `json:"total_weight" swaggertype:"integer"`
+	CreatedAt   string      `json:"created_at" db:"createdAt"`
+	UpdatedAt   string      `json:"updated_at" db:"updatedAt"`
 }
 
 // LoadoutItem represents a single item within a loadout (ARS-001 section 3,
@@ -93,6 +121,16 @@ type LoadoutItem struct {
 	CatalogWeight   *int64  `json:"catalog_weight"`
 	UnitWeight      *int64  `json:"unit_weight"`
 	WeightSource    string  `json:"weight_source"`
+	// The registration's own weight and count, read live (BR-026, BR-036). All
+	// three are null for an item with no registration (legacy or deleted): it
+	// reports only unit_weight and weight_source, as they were or as the
+	// catalog has them.
+	MeasuredWeight       *int64  `json:"measured_weight"`
+	MeasuredWeightSource *string `json:"measured_weight_source"`
+	ClosetCount          *int64  `json:"closet_count"`
+	// Consumable is this item's role in this loadout (food, water or fuel,
+	// BR-027). It belongs to the item, not to its registration.
+	Consumable bool `json:"consumable" db:"consumable"`
 }
 
 // LoadoutItemNoID is used for adding an item to a loadout. Send
@@ -105,15 +143,18 @@ type LoadoutItemNoID struct {
 	Quantity               int64  `json:"quantity" db:"quantity"`
 	Notes                  string `json:"notes" db:"notes"`
 	PlaceID                *int64 `json:"place_id,omitempty"`
+	Consumable             *bool  `json:"consumable,omitempty"`
 }
 
 // LoadoutItemUpdate carries updatable fields with the ID for WHERE clause.
-// place_id is clearable: absent keeps the place, null removes it.
+// place_id is clearable: absent keeps the place, null removes it. consumable
+// is true or false; absent or null keeps it.
 type LoadoutItemUpdate struct {
 	LoadoutItemID int64  `json:"loadout_item_id" db:"loadoutItemId"`
 	Quantity      int64  `json:"quantity" db:"quantity"`
 	Notes         string `json:"notes" db:"notes"`
 	PlaceID       *int64 `json:"place_id,omitempty"`
+	Consumable    *bool  `json:"consumable,omitempty"`
 }
 
 // LoadoutItemTick is the body of the tick request.

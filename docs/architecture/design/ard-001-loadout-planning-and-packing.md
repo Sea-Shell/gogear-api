@@ -8,7 +8,7 @@ timestamp: 2026-11-22T00:00:00Z
 
 # ARD-001 — Loadout planning and packing: API realization
 
-**Status:** Accepted (architect, 2026-11-22). Milestone A implemented (2026-11-22; milestones B to E and the cutover are not). Decisions: [ADR-003](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md) (places, items, progress, weights), [ADR-004](/docs/architecture/decisions/adr-004-expand-contract-release-of-the-loadout-item-contract.md) (release and compatibility), [ADR-005](/docs/architecture/decisions/adr-005-gear-catalog-states-contributions-and-private-items.md) (contributions, private items, visibility, merge). Exact contract: [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md). An independent critique is recommended before milestone A is implemented. **Amended 2026-11-22:** reconciled with BR-037, the amended OC-002 and BR-033 AC-8 and AC-9, and the updated frontend design (F8 to F10); BR-030 confirmed in milestone A by the dispatcher; the plan note on BR-023's partial status added. No open markers remain. **Amended after the critic review (Loom qa `279ad7b0`):** binding one-merge rule per migration (F1); ID sequence kept in the 000011 rebuild (F2); gear used by detached items cannot be deleted (F3); legacy items read their gear live (F4); a closet default parent that lost capability is skipped (F5); owner-change guard, down-migration order, public filter in A and the `gear_weight` 0 → `null` note (advisories).
+**Status:** Accepted (architect, 2026-11-22). Milestone A implemented (2026-11-22). Milestone B implemented in code (2026-11-24, migration 000012). No release, deployment or acceptance is claimed here. Milestones C to E and the cutover are not. Decisions: [ADR-003](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md) (places, items, progress, weights), [ADR-004](/docs/architecture/decisions/adr-004-expand-contract-release-of-the-loadout-item-contract.md) (release and compatibility), [ADR-005](/docs/architecture/decisions/adr-005-gear-catalog-states-contributions-and-private-items.md) (contributions, private items, visibility, merge). Exact contract: [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md). An independent critique is recommended before milestone A is implemented. **Amended 2026-11-22:** reconciled with BR-037, the amended OC-002 and BR-033 AC-8 and AC-9, and the updated frontend design (F8 to F10); BR-030 confirmed in milestone A by the dispatcher; the plan note on BR-023's partial status added. No open markers remain. **Amended after the critic review (Loom qa `279ad7b0`):** binding one-merge rule per migration (F1); ID sequence kept in the 000011 rebuild (F2); gear used by detached items cannot be deleted (F3); legacy items read their gear live (F4); a closet default parent that lost capability is skipped (F5); owner-change guard, down-migration order, public filter in A and the `gear_weight` 0 → `null` note (advisories).
 
 ## In brief
 
@@ -120,7 +120,9 @@ users ─┬─ user_gear_registrations ──(gearId)── gear ── manufac
               └──< loadout_items ────────┘ placeId
                      registrationId (SET NULL) | detached snapshot, quantity, notes, ticked, consumable
 
-views: registration_effective_weight → loadout_item_weight → loadout_on_back_weight
+views: registration_effective_weight → loadout_item_weight → loadout_on_back_weight (A)
+       milestone B: loadout_on_back_item_terms + loadout_on_back_bag_terms replace it;
+       the API adds the terms exactly (math/big): total_weight is a bare JSON integer, any size
 ```
 
 **Board read:** `GET /loadout/{id}/full` reads loadout (with total and counts), places and items in one transaction.

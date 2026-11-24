@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,8 +22,35 @@ import (
 
 const appV = "v4.11.0"
 
+// latest is the version of the newest real migration. The tests start a
+// volume at schema 10 (the state before milestone A) and upgrade it to latest;
+// synthetic migrations take the versions after it. latestS and migratedLine
+// spell the same value as the backup file names and the startup line do.
+var (
+	latest       = latestRealMigration()
+	latestS      = strconv.Itoa(latest)
+	nextS        = strconv.Itoa(latest + 1)
+	migratedLine = fmt.Sprintf("gogear-api migrations: version=%d dirty=false", latest)
+)
+
+func latestRealMigration() int {
+	files, err := filepath.Glob(filepath.Join("..", "..", "migrations", "*.up.sql"))
+	if err != nil || len(files) == 0 {
+		panic(fmt.Sprintf("real migrations not found: %v", err))
+	}
+	n := 0
+	for _, f := range files {
+		v, err := strconv.Atoi(strings.SplitN(filepath.Base(f), "_", 2)[0])
+		if err != nil {
+			panic(fmt.Sprintf("migration file %s has no numeric version: %v", f, err))
+		}
+		n = max(n, v)
+	}
+	return n
+}
+
 // env is one database volume: a database file, its backup directory and a
-// migrations directory that starts as a copy of the real one (versions 1 to 11).
+// migrations directory that starts as a copy of the real one (every real version).
 type env struct {
 	t          *testing.T
 	dbFile     string
@@ -268,10 +296,10 @@ func TestBackupIsConsistentAndHoldsWALOnlyRows(t *testing.T) {
 	if got, want := markersOf(t, b.path), []string{"a", "b", "wal1", "wal2"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("backup rows = %v, want %v", got, want)
 	}
-	if s := e.schema(); !s.has || s.version != 11 || s.dirty {
-		t.Errorf("database schema = %+v, want 11 clean", s)
+	if s := e.schema(); !s.has || s.version != int64(latest) || s.dirty {
+		t.Errorf("database schema = %+v, want %d clean", s, latest)
 	}
-	mustContain(t, res.out, "gogear-api backup: created file="+b.path+" kind=premigration schema=10 app="+appV+" integrity=ok", "gogear-api migrations: version=11 dirty=false")
+	mustContain(t, res.out, "gogear-api backup: created file="+b.path+" kind=premigration schema=10 app="+appV+" integrity=ok", migratedLine)
 	if info, _ := os.Stat(b.path); info.Mode().Perm() != 0o600 {
 		t.Errorf("backup mode = %v, want the database's 0600", info.Mode().Perm())
 	}
@@ -321,7 +349,7 @@ func TestNoBackupWhenNothingIsPendingOrOnFirstStart(t *testing.T) {
 		if after := e.names(); !reflect.DeepEqual(before, after) {
 			t.Errorf("files changed from %v to %v", before, after)
 		}
-		mustContain(t, res.out, "gogear-api backup: skipped reason=no-pending", "gogear-api migrations: version=11 dirty=false")
+		mustContain(t, res.out, "gogear-api backup: skipped reason=no-pending", migratedLine)
 		mustNotContain(t, res.out, "created")
 	})
 	t.Run("empty volume", func(t *testing.T) {
@@ -333,7 +361,7 @@ func TestNoBackupWhenNothingIsPendingOrOnFirstStart(t *testing.T) {
 		if names := e.names(); len(names) != 0 {
 			t.Errorf("backup made on first start: %v", names)
 		}
-		mustContain(t, res.out, "gogear-api backup: skipped reason=first-start", "gogear-api migrations: version=11 dirty=false")
+		mustContain(t, res.out, "gogear-api backup: skipped reason=first-start", migratedLine)
 	})
 }
 
@@ -404,8 +432,8 @@ func TestBackupFailure(t *testing.T) {
 				t.Fatalf("after the fix: %v\n%s", res.err, res.out)
 			}
 			e.backupOf(kindPremigration, "10")
-			if s := e.schema(); s.version != 11 {
-				t.Errorf("schema = %d after the fix, want 11", s.version)
+			if s := e.schema(); s.version != int64(latest) {
+				t.Errorf("schema = %d after the fix, want %d", s.version, latest)
 			}
 		})
 		t.Run(c.name+"/MigrateWithoutBackup", func(t *testing.T) {
@@ -415,8 +443,8 @@ func TestBackupFailure(t *testing.T) {
 			if res.err != nil || !res.served {
 				t.Fatalf("must migrate: %v\n%s", res.err, res.out)
 			}
-			if s := e.schema(); s.version != 11 {
-				t.Errorf("schema = %d, want 11", s.version)
+			if s := e.schema(); s.version != int64(latest) {
+				t.Errorf("schema = %d, want %d", s.version, latest)
 			}
 			mustContain(t, res.out, "gogear-api backup: WARNING backup failed (reason=", "migrating without a backup")
 		})
@@ -438,8 +466,8 @@ func TestRetentionKeepsThreeAfterVerifying(t *testing.T) {
 	}
 
 	var last outcome
-	for n := 11; n <= 14; n++ {
-		if n > 11 {
+	for n := latest; n <= latest+3; n++ {
+		if n > latest {
 			e.addMigration(n, "synthetic", "CREATE TABLE synthetic"+pad6(n)+" (id INTEGER);")
 		}
 		last = e.run(DefaultPolicy(), "")
@@ -454,7 +482,7 @@ func TestRetentionKeepsThreeAfterVerifying(t *testing.T) {
 			schemas = append(schemas, f.schema)
 		}
 	}
-	if want := []string{"13", "12", "11"}; !reflect.DeepEqual(schemas, want) {
+	if want := []string{strconv.Itoa(latest + 2), strconv.Itoa(latest + 1), latestS}; !reflect.DeepEqual(schemas, want) {
 		t.Fatalf("pre-migration backups = %v, want %v", schemas, want)
 	}
 	created := strings.Index(last.out, "created file=")
@@ -471,8 +499,8 @@ func TestRetentionKeepsThreeAfterVerifying(t *testing.T) {
 	}
 }
 
-// upgraded returns a volume that went from 10 to 11 once, so it holds one
-// schema-10 backup, plus a row that exists only in the version-11 database.
+// upgraded returns a volume that went from 10 to the latest version once, so it
+// holds one schema-10 backup, plus a row that exists only in the upgraded database.
 func upgraded(t *testing.T) *env {
 	t.Helper()
 	e := newEnv(t, 10)
@@ -499,7 +527,7 @@ func TestRestore(t *testing.T) {
 			t.Errorf("%s left next to the restored database", side)
 		}
 	}
-	pre := e.backupOf(kindPrerestore, "11")
+	pre := e.backupOf(kindPrerestore, latestS)
 	if got := markersOf(t, pre.path); !reflect.DeepEqual(got, []string{"a", "b", "after-upgrade"}) {
 		t.Errorf("pre-restore backup rows = %v", got)
 	}
@@ -511,7 +539,7 @@ func TestRestore(t *testing.T) {
 	}
 	mustContain(t, res.out,
 		"gogear-api backup: restored file="+old.path+" schema=10 app="+appV+"; replaced database kept as file="+pre.path,
-		"gogear-api backup: restore mode schema=10 latest=11; not migrating and not serving")
+		"gogear-api backup: restore mode schema=10 latest="+latestS+"; not migrating and not serving")
 	mustNotContain(t, res.out, "gogear-api migrations:")
 
 	t.Run("same value again", func(t *testing.T) {
@@ -583,7 +611,7 @@ func TestRestoreToTheSameSchemaServes(t *testing.T) {
 	if res := e.run(DefaultPolicy(), e.backupOf(kindPremigration, "10").name); !res.hold {
 		t.Fatalf("setup: %+v", res)
 	}
-	undo := e.backupOf(kindPrerestore, "11")
+	undo := e.backupOf(kindPrerestore, latestS)
 
 	res := e.run(DefaultPolicy(), undo.name)
 	if res.err != nil || !res.served || res.hold {
@@ -592,7 +620,7 @@ func TestRestoreToTheSameSchemaServes(t *testing.T) {
 	if got := markersOf(t, e.dbFile); !reflect.DeepEqual(got, []string{"a", "b", "after-upgrade"}) {
 		t.Errorf("rows = %v", got)
 	}
-	mustContain(t, res.out, "gogear-api migrations: version=11 dirty=false")
+	mustContain(t, res.out, migratedLine)
 	mustNotContain(t, res.out, "restore mode")
 }
 
@@ -602,7 +630,7 @@ func failingEnv(t *testing.T, policy Policy) (*env, outcome) {
 	t.Helper()
 	e := upgraded(t)
 	e.addMarker("committed-before-attempt")
-	e.addMigration(12, "bad", failingMigration)
+	e.addMigration(latest+1, "bad", failingMigration)
 	res := e.run(policy, "")
 	if res.err == nil || res.served || res.hold {
 		t.Fatalf("the migration must fail: %+v", res)
@@ -613,8 +641,8 @@ func failingEnv(t *testing.T, policy Policy) (*env, outcome) {
 // 8. A failed migration under Keep.
 func TestFailedMigrationKeep(t *testing.T) {
 	e, res := failingEnv(t, Policy{OnBackupFailure: Refuse, OnMigrationFailure: Keep})
-	b := e.backupOf(kindPremigration, "11")
-	mustContain(t, res.out, "gogear-api backup: migration failed from=11 target=12; the state before the attempt is in file="+b.path)
+	b := e.backupOf(kindPremigration, latestS)
+	mustContain(t, res.out, "gogear-api backup: migration failed from="+latestS+" target="+nextS+"; the state before the attempt is in file="+b.path)
 	mustNotContain(t, res.out, "restored after failed migration")
 	if got := markersOf(t, b.path); !reflect.DeepEqual(got, []string{"a", "b", "after-upgrade", "committed-before-attempt"}) {
 		t.Errorf("backup rows = %v", got)
@@ -623,7 +651,7 @@ func TestFailedMigrationKeep(t *testing.T) {
 	if found, err := (&runner{dir: e.backupDir}).readState(migrationFailedFile, &state); err != nil || !found {
 		t.Fatalf("%s: found=%v err=%v", migrationFailedFile, found, err)
 	}
-	if state.AppVersion != appV || state.FromVersion != "11" || state.TargetVersion != "12" || state.Backup != b.name {
+	if state.AppVersion != appV || state.FromVersion != latestS || state.TargetVersion != nextS || state.Backup != b.name {
 		t.Errorf("state = %+v", state)
 	}
 	if s := e.schema(); !s.dirty {
@@ -635,7 +663,7 @@ func TestFailedMigrationKeep(t *testing.T) {
 	if res.err == nil || res.served {
 		t.Fatalf("a dirty database must not start: %+v", res)
 	}
-	mustContain(t, res.out, "gogear-api backup: dirty schema=12; a previous migration failed. Restore with: kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP="+b.name)
+	mustContain(t, res.out, "gogear-api backup: dirty schema="+nextS+"; a previous migration failed. Restore with: kubectl -n seashell set env deployment/gogear-api GOGEAR_RESTORE_BACKUP="+b.name)
 	if after := e.names(); !reflect.DeepEqual(before, after) {
 		t.Errorf("a dirty start changed the backup directory: %v -> %v", before, after)
 	}
@@ -645,20 +673,20 @@ func TestFailedMigrationKeep(t *testing.T) {
 	if res.err != nil || !res.hold {
 		t.Fatalf("restore of a dirty database: %+v\n%s", res, res.out)
 	}
-	if s := e.schema(); s.version != 11 || s.dirty {
-		t.Errorf("schema = %+v, want 11 clean", s)
+	if s := e.schema(); s.version != int64(latest) || s.dirty {
+		t.Errorf("schema = %+v, want %d clean", s, latest)
 	}
-	e.backupOf(kindPrerestore, "12")
+	e.backupOf(kindPrerestore, nextS)
 }
 
 // 9. A failed migration under Restore.
 func TestFailedMigrationRestore(t *testing.T) {
 	policy := Policy{OnBackupFailure: Refuse, OnMigrationFailure: Restore}
 	e, res := failingEnv(t, policy)
-	first := e.backupOf(kindPremigration, "11")
-	mustContain(t, res.out, "migration failed from=11 target=12", "gogear-api backup: restored after failed migration file="+first.path+" schema=11")
-	if s := e.schema(); s.version != 11 || s.dirty {
-		t.Fatalf("schema = %+v, want 11 clean", s)
+	first := e.backupOf(kindPremigration, latestS)
+	mustContain(t, res.out, "migration failed from="+latestS+" target="+nextS, "gogear-api backup: restored after failed migration file="+first.path+" schema="+latestS)
+	if s := e.schema(); s.version != int64(latest) || s.dirty {
+		t.Fatalf("schema = %+v, want %d clean", s, latest)
 	}
 	if got := markersOf(t, e.dbFile); !reflect.DeepEqual(got, []string{"a", "b", "after-upgrade", "committed-before-attempt"}) {
 		t.Errorf("rows after restore = %v", got)
@@ -674,14 +702,14 @@ func TestFailedMigrationRestore(t *testing.T) {
 		t.Fatalf("the same migration must fail again:\n%s", res.out)
 	}
 	mustContain(t, res.out, "gogear-api backup: removed file="+first.path+" reason=replaced-retry", "restored after failed migration")
-	var schema11 int
+	var schemaLatest int
 	for _, f := range e.backups() {
-		if f.kind == kindPremigration && f.schema == "11" {
-			schema11++
+		if f.kind == kindPremigration && f.schema == latestS {
+			schemaLatest++
 		}
 	}
-	if schema11 != 1 {
-		t.Errorf("%d schema-11 backups, the retry must replace the earlier one", schema11)
+	if schemaLatest != 1 {
+		t.Errorf("%d schema-%d backups, the retry must replace the earlier one", schemaLatest, latest)
 	}
 	if _, err := os.Stat(first.path); err == nil {
 		t.Errorf("the superseded backup is still there")
@@ -689,12 +717,12 @@ func TestFailedMigrationRestore(t *testing.T) {
 	if got, err := os.ReadFile(older.path); err != nil || !bytes.Equal(got, olderBytes) {
 		t.Errorf("the older backup changed: %v", err)
 	}
-	if s := e.schema(); s.version != 11 || s.dirty {
-		t.Errorf("schema = %+v after the retry, want 11 clean", s)
+	if s := e.schema(); s.version != int64(latest) || s.dirty {
+		t.Errorf("schema = %+v after the retry, want %d clean", s, latest)
 	}
 
 	// A fixed release (same app version here) migrates, and the record goes.
-	e.addMigration(12, "bad", "CREATE TABLE fixed (id INTEGER);")
+	e.addMigration(latest+1, "bad", "CREATE TABLE fixed (id INTEGER);")
 	res = e.run(policy, "")
 	if res.err != nil || !res.served {
 		t.Fatalf("fixed migration: %v\n%s", res.err, res.out)
@@ -727,7 +755,7 @@ func TestResolveBackupDir(t *testing.T) {
 }
 
 func TestPartialFilesAreCleanedAndForeignOnesKept(t *testing.T) {
-	e := newEnv(t, 11)
+	e := newEnv(t, uint(latest))
 	if err := os.MkdirAll(e.backupDir, 0o700); err != nil {
 		t.Fatal(err)
 	}

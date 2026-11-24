@@ -35,19 +35,42 @@ type UserGear struct {
 	CategoryID            int64  `json:"category_id" db:"gear_category.categoryId"`
 	CategoryName          string `json:"category_name" db:"gear_category.categoryName"`
 	CategoryTopCategoryID int64  `json:"category_top_category_id" db:"gear_category.categoryTopCategoryId"`
+
+	// The owner's own weight with its source ("weighed" or "guess"), both null
+	// when none (BR-026). UnitWeight and WeightSource are the effective values
+	// every loadout uses: the measured weight, else the catalog weight with
+	// source "catalog", else null with source "none". ClosetCount is how many
+	// identical items the registration stands for (BR-036); it never multiplies
+	// a weight.
+	MeasuredWeight       *int64  `json:"measured_weight"`
+	MeasuredWeightSource *string `json:"measured_weight_source"`
+	UnitWeight           *int64  `json:"unit_weight"`
+	WeightSource         string  `json:"weight_source"`
+	ClosetCount          int64   `json:"closet_count"`
 }
 
-// UserGearLink represents the link between a user and their gear.
+// UserGearLink represents the link between a user and their gear. On update
+// every field but the two IDs is optional. max_container_weight, and
+// measured_weight with measured_weight_source (together), are clearable: absent
+// keeps the stored value, null removes it. closet_count is never cleared.
 type UserGearLink struct {
-	UserGearRegistrationID *int64 `json:"usergear_registration_id" db:"userGearRegistrationId"`
-	UserGearGearID         int64  `json:"usergear_gear_id" db:"gearId"`
-	UserGearUserID         int64  `json:"usergear_user_id" db:"userId"`
-	MaxContainerWeight     *int32 `json:"max_container_weight" db:"maxContainerWeight"`
+	UserGearRegistrationID *int64  `json:"usergear_registration_id" db:"userGearRegistrationId"`
+	UserGearGearID         int64   `json:"usergear_gear_id" db:"gearId"`
+	UserGearUserID         int64   `json:"usergear_user_id" db:"userId"`
+	MaxContainerWeight     *int32  `json:"max_container_weight" db:"maxContainerWeight"`
+	MeasuredWeight         *int64  `json:"measured_weight,omitempty" db:"measuredWeight"`
+	MeasuredWeightSource   *string `json:"measured_weight_source,omitempty" db:"measuredWeightSource" enums:"weighed,guess"`
+	ClosetCount            *int64  `json:"closet_count,omitempty" db:"closetCount"`
 }
 
-// UserGearLinkNoID represents the link between a user and their gear without an ID.
+// UserGearLinkNoID represents the link between a user and their gear without an
+// ID. closet_count defaults to 1; measured_weight and measured_weight_source
+// are given together or not at all.
 type UserGearLinkNoID struct {
-	UserGearGearID     int64  `json:"usergear_gear_id" db:"gearId"`
-	UserGearUserID     int64  `json:"usergear_user_id" db:"userId"`
-	MaxContainerWeight *int32 `json:"max_container_weight" db:"maxContainerWeight"`
+	UserGearGearID       int64   `json:"usergear_gear_id" db:"gearId"`
+	UserGearUserID       int64   `json:"usergear_user_id" db:"userId"`
+	MaxContainerWeight   *int32  `json:"max_container_weight" db:"maxContainerWeight"`
+	MeasuredWeight       *int64  `json:"measured_weight,omitempty" db:"measuredWeight"`
+	MeasuredWeightSource *string `json:"measured_weight_source,omitempty" db:"measuredWeightSource" enums:"weighed,guess"`
+	ClosetCount          *int64  `json:"closet_count,omitempty" db:"closetCount"`
 }

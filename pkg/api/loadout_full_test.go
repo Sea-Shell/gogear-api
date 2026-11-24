@@ -289,7 +289,7 @@ func TestFull_PlaceAndItemOrderAndShape(t *testing.T) {
 		t.Errorf("cap item (no place, no weight) = %+v", it)
 	}
 	// Loadout part: the same summary as the list.
-	if f.Loadout.TotalWeight != 1180+90+40+22 || f.Loadout.ItemCount != 2 || f.Loadout.BagCount != 3 {
+	if totalOf(f.Loadout.TotalWeight) != 1180+90+40+22 || f.Loadout.ItemCount != 2 || f.Loadout.BagCount != 3 {
 		t.Errorf("loadout part = %+v", f.Loadout)
 	}
 }
@@ -386,10 +386,10 @@ func TestWeights_AC3Example1994AndRecomputeAfterCatalogEdit(t *testing.T) {
 	b.move(b.user, lo, iShell, worn)
 
 	f := b.full(b.user, lo)
-	if f.Loadout.TotalWeight != 1994 {
-		t.Fatalf("full total_weight = %d, want 1994", f.Loadout.TotalWeight)
+	if totalOf(f.Loadout.TotalWeight) != 1994 {
+		t.Fatalf("full total_weight = %d, want 1994", totalOf(f.Loadout.TotalWeight))
 	}
-	if got := b.summary(b.user, lo).TotalWeight; got != 1994 {
+	if got := totalOf(b.summary(b.user, lo).TotalWeight); got != 1994 {
 		t.Errorf("list total_weight = %d, want 1994", got)
 	}
 	// Every weight the board needs is present for each item and bag (AC-1).
@@ -409,15 +409,15 @@ func TestWeights_AC3Example1994AndRecomputeAfterCatalogEdit(t *testing.T) {
 	// AC-2: an admin changes the stove's catalog weight; the next read of the
 	// loadout and of the summary shows the new total with no other request.
 	b.setCatalogWeight(gStove, 100)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+17 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+17 {
 		t.Errorf("full total after catalog edit = %d, want %d", got, 1994+17)
 	}
-	if got := b.summary(b.user, lo).TotalWeight; got != 1994+17 {
+	if got := totalOf(b.summary(b.user, lo).TotalWeight); got != 1994+17 {
 		t.Errorf("list total after catalog edit = %d, want %d", got, 1994+17)
 	}
 	// Moving the shell out of Worn adds its weight (it is on the back again).
 	b.move(b.user, lo, iShell, bag)
-	if got := b.full(b.user, lo).Loadout.TotalWeight; got != 1994+17+395 {
+	if got := totalOf(b.full(b.user, lo).Loadout.TotalWeight); got != 1994+17+395 {
 		t.Errorf("total with the shell out of Worn = %d, want %d", got, 1994+17+395)
 	}
 }
@@ -460,8 +460,8 @@ func TestList_SummaryCountsAndClosedPlaces(t *testing.T) {
 	if fmt.Sprint(s.ClosedPlaces) != fmt.Sprint(want) {
 		t.Errorf("closed_places = %v, want %v", s.ClosedPlaces, want)
 	}
-	if s.TotalWeight != 1180+90+3*11+30 {
-		t.Errorf("total_weight = %d, want %d", s.TotalWeight, 1180+90+3*11+30)
+	if totalOf(s.TotalWeight) != 1180+90+3*11+30 {
+		t.Errorf("total_weight = %d, want %d", totalOf(s.TotalWeight), 1180+90+3*11+30)
 	}
 
 	// The same summary is on get and in /full; opening a place and unticking
@@ -637,11 +637,11 @@ func TestNormalExample_SortTickCloseAndReadOnAnotherDevice(t *testing.T) {
 	if !placeOf(f, bagLid).Closed || placeOf(f, bagExos).Closed || placeOf(f, last).Closed || placeOf(f, worn).Closed {
 		t.Error("only Lid must be closed")
 	}
-	if f.Loadout.TotalWeight != onBack {
-		t.Errorf("total_weight = %d, want %d (bags once, Worn left out)", f.Loadout.TotalWeight, onBack)
+	if totalOf(f.Loadout.TotalWeight) != onBack {
+		t.Errorf("total_weight = %d, want %d (bags once, Worn left out)", totalOf(f.Loadout.TotalWeight), onBack)
 	}
 	s := b.summary(laptop, lo)
-	if s.ItemCount != n || s.TickedCount != 5 || s.BagCount != 2 || s.TotalWeight != onBack || len(s.ClosedPlaces) != 1 || s.ClosedPlaces[0].PlaceID != bagLid {
+	if s.ItemCount != n || s.TickedCount != 5 || s.BagCount != 2 || totalOf(s.TotalWeight) != onBack || len(s.ClosedPlaces) != 1 || s.ClosedPlaces[0].PlaceID != bagLid {
 		t.Errorf("home summary = %+v", s)
 	}
 	// A tick sent later for an item removed meanwhile is refused for that item only.
@@ -690,8 +690,8 @@ func TestDeleteRegistration_KeepsItemsAndUndoesBagsTogether(t *testing.T) {
 	catalogBefore := b.env.catalogSnapshot()
 
 	beforeL1, beforeL2 := b.full(b.user, l1), b.full(b.user, l2)
-	if beforeL2.Loadout.TotalWeight != 1180+90+83+2*40 {
-		t.Fatalf("setup total L2 = %d, want %d", beforeL2.Loadout.TotalWeight, 1180+90+83+2*40)
+	if totalOf(beforeL2.Loadout.TotalWeight) != 1180+90+83+2*40 {
+		t.Fatalf("setup total L2 = %d, want %d", totalOf(beforeL2.Loadout.TotalWeight), 1180+90+83+2*40)
 	}
 	storedBefore := b.stored()
 
@@ -726,8 +726,8 @@ func TestDeleteRegistration_KeepsItemsAndUndoesBagsTogether(t *testing.T) {
 		it.Quantity != 2 || it.Notes != "borrowed" || !it.Ticked || it.PlaceID == nil || *it.PlaceID != bagDuffel {
 		t.Errorf("L1 snapshot item = %+v", it)
 	}
-	if f1.Loadout.TotalWeight != beforeL1.Loadout.TotalWeight || f1.Loadout.TotalWeight != 500+2*1180 {
-		t.Errorf("L1 total = %d, want %d unchanged", f1.Loadout.TotalWeight, beforeL1.Loadout.TotalWeight)
+	if totalOf(f1.Loadout.TotalWeight) != totalOf(beforeL1.Loadout.TotalWeight) || totalOf(f1.Loadout.TotalWeight) != 500+2*1180 {
+		t.Errorf("L1 total = %d, want %d unchanged", totalOf(f1.Loadout.TotalWeight), totalOf(beforeL1.Loadout.TotalWeight))
 	}
 
 	// AC-3: in L2 Exos 58 is no longer a bag; its item has no place, the nested
@@ -750,8 +750,8 @@ func TestDeleteRegistration_KeepsItemsAndUndoesBagsTogether(t *testing.T) {
 	}
 	// L2 keeps its total apart from the deleted bag's own weight and the stove's
 	// place no longer matters (it was not in Worn).
-	if f2.Loadout.TotalWeight != 90+83+2*40 {
-		t.Errorf("L2 total = %d, want %d (Exos 58 is no longer a bag)", f2.Loadout.TotalWeight, 90+83+2*40)
+	if totalOf(f2.Loadout.TotalWeight) != 90+83+2*40 {
+		t.Errorf("L2 total = %d, want %d (Exos 58 is no longer a bag)", totalOf(f2.Loadout.TotalWeight), 90+83+2*40)
 	}
 
 	// AC-5: nothing of Bob's and nothing in the catalog changed.

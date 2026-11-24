@@ -3,12 +3,12 @@ type: Architecture Specification
 title: ARS-001 Loadout loop schema, migrations and API contract
 description: Exact database changes (migrations 000011 to 000014 and the cutover), the weight views, response shapes and every new or changed endpoint for the loadout planning and packing work (BR-023 to BR-037, OC-002), grouped by milestone A to E.
 tags: [architecture, api, schema, migration, sqlite, loadouts, catalog, loadout-planning]
-timestamp: 2026-11-22T00:00:00Z
+timestamp: 2026-11-24T00:00:00Z
 ---
 
 # ARS-001 — Loadout loop schema, migrations and API contract
 
-**Status:** Accepted (architect, 2026-11-22). **Milestone A implemented** (2026-11-22, branch `loadout-loop-support` at `2d236d2`): migration 000011 and every milestone A endpoint and response field of section 4, including the legacy `gear_id` insert path; Swagger regenerated. **Not implemented:** milestones B to E (migrations 000012 to 000014 and their endpoints) and the cutover (section 2.5), so BR-023 AC-1 and AC-7 are still pending. Realizes [ADR-003](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md), [ADR-004](/docs/architecture/decisions/adr-004-expand-contract-release-of-the-loadout-item-contract.md) and [ADR-005](/docs/architecture/decisions/adr-005-gear-catalog-states-contributions-and-private-items.md) within [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md). **Amended 2026-11-22:** reconciled with [BR-037](/docs/requirements/requirements/br-037-private-items.md) (private items), the amended OC-002, BR-033 AC-8 and AC-9, and the updated frontend design (F8 to F10, N9, N11, N12): no replace for private items, contribution list without private items, own-code conflict response names the other registration. No open markers remain. **Amended after the critic review (Loom qa `279ad7b0`):** 000011 keeps the `loadout_items` ID sequence (F2), `detachedGearId` has no `ON DELETE` action (F3), legacy items have no snapshot and read their gear live (F4), the closet default parent is skipped when it lost capability (F5), new trigger `trg_registration_owner_fixed`, down-migration drop order, and the public-items filter in milestone A. Each migration merges to `main` together with the code that depends on it (ARD-001 merge rule).
+**Status:** Accepted (architect, 2026-11-22). **Milestone A implemented** (2026-11-22, branch `loadout-loop-support` at `2d236d2`): migration 000011 and every milestone A endpoint and response field of section 4, including the legacy `gear_id` insert path; Swagger regenerated. **Milestone B implemented in code** (2026-11-24, written against `main` at `c1cf137`): migration 000012 and every milestone B endpoint and response field of section 4; Swagger regenerated; `total_weight` is the exact on-your-back total (section 2.6). This status line states what the code does; no release, deployment or acceptance is claimed here. Milestone B and migration 000012 ship only together, in a single merge (ARD-001 merge rule). **Not implemented:** milestones C to E (migrations 000013 and 000014 and their endpoints) and the cutover (section 2.5), so BR-023 AC-1 and AC-7 are still pending. Realizes [ADR-003](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md), [ADR-004](/docs/architecture/decisions/adr-004-expand-contract-release-of-the-loadout-item-contract.md) and [ADR-005](/docs/architecture/decisions/adr-005-gear-catalog-states-contributions-and-private-items.md) within [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md). **Amended 2026-11-22:** reconciled with [BR-037](/docs/requirements/requirements/br-037-private-items.md) (private items), the amended OC-002, BR-033 AC-8 and AC-9, and the updated frontend design (F8 to F10, N9, N11, N12): no replace for private items, contribution list without private items, own-code conflict response names the other registration. No open markers remain. **Amended after the critic review (Loom qa `279ad7b0`):** 000011 keeps the `loadout_items` ID sequence (F2), `detachedGearId` has no `ON DELETE` action (F3), legacy items have no snapshot and read their gear live (F4), the closet default parent is skipped when it lost capability (F5), new trigger `trg_registration_owner_fixed`, down-migration drop order, and the public-items filter in milestone A. Each migration merges to `main` together with the code that depends on it (ARD-001 merge rule).
 
 ## In brief
 
@@ -114,7 +114,7 @@ Runs in golang-migrate's transaction with foreign keys on. Statements in this or
 | Table | Column | Definition |
 |---|---|---|
 | `user_gear_registrations` | `measuredWeight` | `INTEGER CHECK (measuredWeight IS NULL OR (typeof(measuredWeight) = 'integer' AND measuredWeight >= 1))` |
-| `user_gear_registrations` | `measuredWeightSource` | `TEXT CHECK (measuredWeightSource IN ('weighed','guess') AND measuredWeight IS NOT NULL OR measuredWeightSource IS NULL AND measuredWeight IS NULL)` |
+| `user_gear_registrations` | `measuredWeightSource` | `TEXT CHECK ((measuredWeight IS NULL AND measuredWeightSource IS NULL) OR (measuredWeight IS NOT NULL AND measuredWeightSource IS NOT NULL AND measuredWeightSource IN ('weighed','guess')))` |
 | `user_gear_registrations` | `closetCount` | `INTEGER NOT NULL DEFAULT 1 CHECK (typeof(closetCount) = 'integer' AND closetCount >= 1)` (BR-036 AC-1: existing rows get 1) |
 | `loadout_items` | `consumable` | `INTEGER NOT NULL DEFAULT 0 CHECK (consumable IN (0,1))` |
 | `loadouts` | `stage` | `TEXT NOT NULL DEFAULT 'planning' CHECK (stage IN ('planning','packing','done'))` |
@@ -123,7 +123,9 @@ Runs in golang-migrate's transaction with foreign keys on. Statements in this or
 | `loadouts` | `endDate` | `TEXT CHECK (endDate IS NULL OR (date(endDate) IS endDate AND (startDate IS NULL OR endDate >= startDate)))` |
 | `loadouts` | `weightGoal` | `INTEGER CHECK (weightGoal IS NULL OR (typeof(weightGoal) = 'integer' AND weightGoal >= 1))` |
 
-Then replace `registration_effective_weight` with the measured-weight version (section 2.6) by `DROP VIEW` and `CREATE VIEW` in the same migration. The migration test must confirm that `loadout_item_weight`, `loadout_on_back_weight` and the delete trigger still work after the replacement (SQLite resolves view names when a statement runs; `[unverified]` for dependent views across a drop and create, so the test is load-bearing).
+The first draft of the `measuredWeightSource` CHECK (`src IN (...) AND weight IS NOT NULL OR src IS NULL AND weight IS NULL`) evaluates to NULL, which a CHECK accepts, when a weight has a NULL source, so it admitted a weight without a source (BR-026 AC-1 refuses it). The table shows the corrected form, which tests `IS NOT NULL` explicitly; migration test `TestMigration12ColumnRules` fails on the first draft. *(Amended 2026-11-24, found by coder B1.)*
+
+Then replace `registration_effective_weight` with the measured-weight version (section 2.6) by `DROP VIEW` and `CREATE VIEW` in the same migration. The migration test must confirm that `loadout_item_weight` and the delete trigger still work after the replacement. They do, on a version 11 database with data: SQLite resolves view names when a statement runs, so the dependent views and the trigger are not recreated (`TestMigration12KeepsExistingDataAndDependentViews`). The same migration replaces `loadout_on_back_weight` by two views that list the terms of the on-your-back total (section 2.6), so the total is added exactly in Go (BR-029 AC-3; Loom concern `826e995e`, architect result `5b06e7a0`). The down migration drops the new views and recreates the milestone A ones before it drops the columns, because `DROP COLUMN` refuses a column a view still names, and drops `endDate` before `startDate` and `measuredWeightSource` before `measuredWeight` because their CHECKs read them.
 
 ### 2.3 Migration `000013_gear_catalog_states` (milestone D)
 
@@ -194,14 +196,34 @@ SELECT l.loadoutId,
 FROM loadouts l;
 ```
 
+<a id="exact-total"></a>
+**Milestone B replaces `loadout_on_back_weight` (exact total, BR-029 AC-3).** Every quantity and weight the API accepts is kept (BR-026 AC-1 sets no upper bound, the quantity has none, and no cap was approved), so a product or a sum can pass 2^63-1. SQLite cannot add such values exactly: an integer product past 2^63-1 becomes a REAL, `SUM` past it raises an error and `TOTAL` returns a float. So migration 000012 drops `loadout_on_back_weight` and creates two views that only list the terms, each an exact integer. The API adds them with `math/big`. The two views are the only definition of what counts, and replace the view above:
+
+```sql
+CREATE VIEW loadout_on_back_item_terms AS      -- an item that is not in Worn, no place counts
+SELECT li.loadoutId AS loadoutId, li.quantity AS quantity, iw.unitWeight AS unitWeight
+FROM loadout_items li
+JOIN loadout_item_weight iw ON iw.loadoutItemId = li.loadoutItemId
+LEFT JOIN loadout_places p  ON p.placeId = li.placeId
+WHERE iw.unitWeight IS NOT NULL AND (p.placeKind IS NULL OR p.placeKind <> 'worn');
+
+CREATE VIEW loadout_on_back_bag_terms AS       -- a bag's own weight, once
+SELECT p.loadoutId AS loadoutId, 1 AS quantity, w.unitWeight AS unitWeight
+FROM loadout_places p
+JOIN registration_effective_weight w ON w.registrationId = p.registrationId
+WHERE p.placeKind = 'bag' AND w.unitWeight IS NOT NULL;
+```
+
+The loadout read (`loadoutColumns`) returns both term lists as JSON arrays of `[quantity, unitWeight]` in the same statement as the rest of the loadout row, so the total, the counts and the closed places come from one snapshot, and the list needs no extra statement per loadout. `sumOnBackTerms` parses every value as an integer literal (anything else is an error, never rounded) and adds `quantity × unitWeight` exactly. It is one statement per loadout row for the list, get, insert response, `full.loadout` and the public loadout, and `full` already reads in one transaction. Two views, not one `UNION ALL` view: SQLite does not push the loadout filter into a compound view, which made each list scan every item of every loadout; each view alone uses `idx_loadout_items_loadout` and `idx_loadout_places_bag` as the milestone A view did (checked with `EXPLAIN QUERY PLAN`). The down migration drops the two views and recreates the milestone A view above, unchanged.
+
 ## 3. Response shapes
 
 Fields added by a later milestone are marked (B), (D), (E). Every field listed exists from its milestone on. `weight_source` is one of `"weighed"`, `"guess"`, `"catalog"`, `"none"`.
 
-**`Loadout`** (list, get, insert and update responses, `full.loadout`): today's fields (`loadout_id`, `user_id`, `loadout_name`, `loadout_description`, `loadout_is_public`, `loadout_slug`, `total_weight`, `created_at`, `updated_at`) plus:
-- `total_weight`: on-your-back grams from `loadout_on_back_weight` (A);
+**`Loadout`** (list, get and insert responses, `full.loadout`; update answers `{"status":"success"}`): today's fields (`loadout_id`, `user_id`, `loadout_name`, `loadout_description`, `loadout_is_public`, `loadout_slug`, `total_weight`, `created_at`, `updated_at`) plus:
+- `total_weight`: on-your-back grams, the sum of quantity × effective unit weight of the items not in Worn plus each bag's own weight once (A). **From milestone B it is the exact total and a bare JSON integer** (`18446744073709551614`), never quoted, fractional or written with an exponent, on the owner routes and on the public loadout. It can be larger than 2^63-1: Swagger declares it `integer` with no `int64` format, and a typed client must not use a 64-bit integer for it. There is no cap, clamp or float anywhere. **Client limit, not an API guarantee:** a JSON parser that reads numbers as float64, such as JavaScript's `JSON.parse`, rounds an integer above 2^53 (9007199254740991) on reading it, as it already does for `measured_weight` and `unit_weight` up to 2^63-1 (BR-026 AC-1). The wire value is exact; what a client shows for a total that large is the client's decision (no frontend change is made here);
 - `item_count`, `ticked_count`, `bag_count` (A). `item_count` and `ticked_count` count **item rows**, not quantities: a spork with quantity 3 is 1 item. This matches the frontend's Pack header "N of M items in", where each item row (card) has one tick, and BR-025, where a tick belongs to an item, not to each unit. Detached items (legacy or registration-deleted) are rows of the loadout and are counted. `bag_count` counts bag places only (not Worn or Last minute). *(Amended 2026-11-22, gap raised by coder A4, Loom `d6b0bf93`.)* `closed_places`: `[{place_id, place_kind, name}]` (A; `name` is the bag's gear name, `"Worn"` or `"Last minute"`);
-- `stage`, `done_at` (`null` unless `stage = "done"`), `start_date`, `end_date` (`YYYY-MM-DD` or `null`), `weight_goal` (grams or `null`) (B).
+- `stage`, `done_at` (`null` unless `stage = "done"`), `start_date`, `end_date` (`YYYY-MM-DD` or `null`), `weight_goal` (grams or `null`) (B). `done_at` is reported only while `stage = "done"`, whatever is stored. The public loadout (`GET /public/loadout/:slug`) carries none of these five fields (BR-028 AC-6). *(Clarified 2026-11-24, architect's confirmation recorded in the B2 handoff, Loom `86df3f20`.)*
 
 This makes `/loadout/list` the home summary of BR-029 AC-4.
 
@@ -211,14 +233,14 @@ This makes `/loadout/list` the home summary of BR-029 AC-4.
 - `gear_name`, `manufacture_name`, `category_name`, `top_category_name`: for registration-backed and **legacy** items, live from the current gear (registration's gear, or `detachedGearId`); for registration-deleted items `gear_name` is the snapshot and the others are `null` (A);
 - `place_id` (`null` = no place), `ticked` (A);
 - `catalog_weight` (`null` = none), `unit_weight`, `weight_source` (A; from `loadout_item_weight`). `catalog_weight` follows the same source rule as the names: live from the current gear for registration-backed and legacy items, and **`null` for registration-deleted items**. A deleted-registration item reports only its snapshot (`unit_weight` and `weight_source` as they were at deletion, BR-030 AC-1); a live catalog value next to a frozen effective weight would invite clients to recompute a different weight. *(Amended 2026-11-22, spec gap raised by coder A2, Loom `3d2ff0d3`.)*
-- `measured_weight`, `measured_weight_source`, `closet_count`, `consumable` (B);
+- `measured_weight`, `measured_weight_source`, `closet_count`, `consumable` (B). The first three are the registration's own values, read live; they are `null` for an item without a registration (legacy or registration-deleted), which reports only the effective `unit_weight` and `weight_source`, like `catalog_weight` (same reasoning: a live value next to a frozen one invites a recomputed weight). `closet_count` is therefore `null` for those items too. *(Clarified 2026-11-24, decision of coder B1; the spec was silent.)*
 - `gear_catalog_state`, `gear_state_reason` (D; reason only when `not_approved`).
 
 **`LoadoutPlace`** (`full.places`, place writes): `place_id`, `loadout_id`, `place_kind` (`"worn"`, `"last_minute"`, `"bag"`), `closed`; for bags also `usergear_registration_id`, `gear_id`, `gear_name`, `gear_is_container`, `max_container_weight`, `catalog_weight`, `unit_weight`, `weight_source`, `parent_place_id`, `position` (A), `measured_weight`, `measured_weight_source` (B), `gear_catalog_state` (D). Non-bag places have these as `null`.
 
 **`LoadoutFull`**: `{ "loadout": Loadout, "places": [LoadoutPlace], "items": [LoadoutItem] }`, places ordered Worn, Last minute, then bags by `position, place_id`; items by `loadout_item_id`.
 
-**`UserGear`** (registration list, get, writes): today's fields plus `gear_weight` reported as `null` when none (A), `measured_weight`, `measured_weight_source`, `unit_weight`, `weight_source`, `closet_count` (B), `gear_catalog_state`, `gear_state_reason` (D), `own_code`, `gear_product_code` (E).
+**`UserGear`** (registration list and get; `PUT /usergear/insert` and `POST /usergear/registration/:usergear/update` keep answering `{"status":"success"}`; a write returns a `UserGear` only where section 4 says so, as `PUT /usergear/new-gear` does in D) *(Clarified 2026-11-24, from the architect's follow-up, Loom `d36b916f`, applied in the B2 handoff `86df3f20`.)*: today's fields plus `gear_weight` reported as `null` when none (A), `measured_weight`, `measured_weight_source`, `unit_weight`, `weight_source`, `closet_count` (B), `gear_catalog_state`, `gear_state_reason` (D), `own_code`, `gear_product_code` (E).
 
 **`GearListItem`** (catalog list and search): today's fields plus `gear_weight` (`null` when none) (A, BR-029 AC-5), `gear_catalog_state` (D; always `"approved"` for other users' gear), `gear_product_code` (E). `Gear` and `FullGear` single reads: `gear_weight` becomes `null` when none (A), plus the same D and E fields.
 
@@ -267,7 +289,7 @@ Rules inside milestone A operations:
 | `PUT /usergear/insert` | changed | `closet_count` (optional, default 1); `measured_weight` and `measured_weight_source` (optional, both or neither) | 400 count not an integer ≥ 1; 400 measured rules (BR-026 AC-1) |
 | `POST /usergear/registration/:usergear/update` | changed | `measured_weight` and `measured_weight_source` (*clearable* together: both `null` removes the measured weight; one without the other is 400); `closet_count` | 404; 400 as above. Use above the count is never refused (BR-036 AC-3) |
 | `PUT /loadout/:loadout/item/insert`, `…/item/:item/update` | changed | `consumable` (bool, default false) | 400 non-bool |
-| `PUT /loadout/insert` | changed | `start_date`, `end_date`, `weight_goal` (optional); `stage` is not accepted on insert (always `planning`) | 400 dates not `YYYY-MM-DD`, end before start, goal not an integer ≥ 1 |
+| `PUT /loadout/insert` | changed | `start_date`, `end_date`, `weight_goal` (optional); `stage` is accepted only as absent, `null` or `"planning"` (a new loadout is always `planning`); any other `stage` value is 400 | 400 dates not `YYYY-MM-DD`, end before start, goal not an integer ≥ 1 |
 | `POST /loadout/:loadout/update` | changed | `stage` (`planning`, `packing`, `done`); `start_date`, `end_date`, `weight_goal` (*clearable*) | 400 as above or unknown stage |
 
 Stage rule: setting `stage` to `done` when it was not `done` sets `doneAt` to now; setting it to `done` when already `done` keeps `doneAt`; setting another stage clears `doneAt`. Nothing else ever changes `stage` (BR-028 AC-2). The end-before-start check uses the values after the update.

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	migrate "github.com/golang-migrate/migrate/v4"
@@ -25,6 +27,26 @@ func migrationsPath(t *testing.T) string {
 		t.Fatalf("migrations directory not found at %s", path)
 	}
 	return path
+}
+
+// latestMigration is the version of the newest migration in migrations/, so a
+// test that means "fully migrated" does not name a number a later milestone
+// changes.
+func latestMigration(t *testing.T) int {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(migrationsPath(t), "*.up.sql"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no migrations found: %v", err)
+	}
+	latest := 0
+	for _, f := range files {
+		n, err := strconv.Atoi(strings.SplitN(filepath.Base(f), "_", 2)[0])
+		if err != nil {
+			t.Fatalf("migration file %s has no numeric version: %v", f, err)
+		}
+		latest = max(latest, n)
+	}
+	return latest
 }
 
 func tempDB(t *testing.T) *sql.DB {
@@ -120,8 +142,8 @@ func TestMigrationsUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 11 {
-		t.Errorf("expected version 11, got %d", version)
+	if want := latestMigration(t); version != want {
+		t.Errorf("expected version %d, got %d", want, version)
 	}
 	if dirty {
 		t.Error("expected clean migration")
@@ -179,14 +201,14 @@ func TestMigrationsIdempotentUp(t *testing.T) {
 	runMigrate(t, db, path)
 	runMigrate(t, db, path)
 
-	// Should still be at version 11
+	// Should still be at the latest version
 	var version int
 	err := db.QueryRow("SELECT version FROM schema_migrations").Scan(&version)
 	if err != nil {
 		t.Fatalf("read schema_migrations: %v", err)
 	}
-	if version != 11 {
-		t.Errorf("expected version 11 after second up, got %d", version)
+	if want := latestMigration(t); version != want {
+		t.Errorf("expected version %d after second up, got %d", want, version)
 	}
 }
 

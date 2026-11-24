@@ -47,7 +47,7 @@ func newIntFixture(t *testing.T) *intFixture {
 	f.regThing = env.SeedRegistration(f.alice, f.gear)
 	f.loadoutWeightRaw = func() int {
 		var w int
-		if err := env.DB.QueryRow(`SELECT totalWeight FROM loadout_on_back_weight WHERE loadoutId = ?`, f.loadout).Scan(&w); err != nil {
+		if err := env.DB.QueryRow(`SELECT COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_item_terms WHERE loadoutId = ?), 0) + COALESCE((SELECT SUM(quantity * unitWeight) FROM loadout_on_back_bag_terms WHERE loadoutId = ?), 0)`, f.loadout, f.loadout).Scan(&w); err != nil {
 			t.Fatal(err)
 		}
 		return w

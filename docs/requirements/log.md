@@ -3,10 +3,16 @@ type: Log
 title: Requirements change log
 description: Chronological record of changes to the GoGear API requirements bundle.
 tags: [log]
-timestamp: 2026-11-23T00:00:00Z
+timestamp: 2026-11-24T00:00:00Z
 ---
 
 # Requirements change log
+
+## 2026-11-24
+
+- **Implementation wording made durable; BR-018 note (milestone B review fix):** the implementation lines and index rows of BR-012, BR-025 to BR-029 and BR-036 no longer name a branch or say "not merged"; they say what the code does and that no release, deployment or acceptance is claimed. Earlier entries below that say "branch" or "local only" are dated history. [BR-018](/docs/requirements/requirements/br-018-denial-outcomes.md) gets an implementation note: the registration update decides ownership before it reads the body (404 for a foreign or unknown registration whatever the body). No requirement text changed.
+- **Implementation note (exact on-your-back total, BR-029 AC-3, branch `loadout-loop-milestone-b`; local only, not merged, not released, not deployed, not accepted):** [BR-029](/docs/requirements/requirements/br-029-loadout-weights-and-summary-reported.md) gets an implementation line: `total_weight` is the exact total with no cap, clamp or float and can exceed 2^63-1 (a bare JSON integer). This closes the QA finding `da943b45` and the overflow concern `826e995e` as far as the on-your-back total goes, **without** deciding P-25 or any limit on quantity or weight: the accepted writes stay accepted. No requirement text changed.
+- **Implementation status (milestone B, task B3 preparation, branch `loadout-loop-milestone-b`; local only: not merged to `main`, not released, not deployed, not accepted):** [BR-026](/docs/requirements/requirements/br-026-measured-weight-on-a-registration.md) (AC-1 to AC-4), [BR-027](/docs/requirements/requirements/br-027-consumable-role-per-loadout-item.md) (all but AC-4, which waits for milestone C), [BR-028](/docs/requirements/requirements/br-028-loadout-stage-dates-and-goal.md), [BR-036](/docs/requirements/requirements/br-036-closet-count-of-a-registration.md), the milestone B parts of [BR-029](/docs/requirements/requirements/br-029-loadout-weights-and-summary-reported.md) and the stage part of [BR-025](/docs/requirements/requirements/br-025-packing-progress-saved-per-loadout.md) AC-8 now have implementation lines and index rows that say so; [BR-012](/docs/requirements/requirements/br-012-inventory-registrations-owner-scoped.md) notes the measured weight and count. **Correction:** BR-036's milestone header said milestone A; its closet count is in migration 000012, so it now says milestone B, as the architecture does. No requirement text changed: acceptance criteria, provisional defaults (P-25 included) and open questions are as before. The index and the BR lines must be reworded when the milestone is merged.
 
 ## 2026-11-23
 
