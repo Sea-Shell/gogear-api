@@ -80,6 +80,35 @@ type LoadoutUpdate struct {
 	WeightGoal         *int64  `json:"weight_goal,omitempty" minimum:"1"`
 }
 
+// LoadoutCopyRequest is the body of the copy request (BR-031). All three
+// fields are required: the caller states each option, and an absent or null
+// one is refused with 400. The name follows the same rules as loadout insert.
+type LoadoutCopyRequest struct {
+	LoadoutName string `json:"loadout_name" validate:"required"`
+	// CopyPlaces copies Last minute, the bags with their nesting and order, and
+	// each item's place. Off: the copy has no bags, no Last minute and no item
+	// has a place.
+	CopyPlaces bool `json:"copy_places" validate:"required"`
+	// CopyNotesAndGoal copies the loadout description, the weight goal and each
+	// item's notes. Off: none of them.
+	CopyNotesAndGoal bool `json:"copy_notes_and_goal" validate:"required"`
+}
+
+// LoadoutLeftOutItem names a source item the copy did not take because its
+// registration no longer exists (BR-031 AC-2).
+type LoadoutLeftOutItem struct {
+	LoadoutItemID int64  `json:"loadout_item_id"`
+	GearName      string `json:"gear_name"`
+}
+
+// LoadoutCopyResult is the response of a successful copy: the new loadout and
+// the source items it left out. LeftOut is never nil: it encodes as [] when
+// nothing was left out.
+type LoadoutCopyResult struct {
+	Loadout Loadout              `json:"loadout"`
+	LeftOut []LoadoutLeftOutItem `json:"left_out"`
+}
+
 // LoadoutPublic is the public-facing response (no userId).
 type LoadoutPublic struct {
 	LoadoutID          int64  `json:"loadout_id" db:"loadoutId"`

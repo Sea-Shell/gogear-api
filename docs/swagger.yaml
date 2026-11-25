@@ -297,6 +297,35 @@ definitions:
       weight_goal:
         type: integer
     type: object
+  models.LoadoutCopyRequest:
+    properties:
+      copy_notes_and_goal:
+        description: |-
+          CopyNotesAndGoal copies the loadout description, the weight goal and each
+          item's notes. Off: none of them.
+        type: boolean
+      copy_places:
+        description: |-
+          CopyPlaces copies Last minute, the bags with their nesting and order, and
+          each item's place. Off: the copy has no bags, no Last minute and no item
+          has a place.
+        type: boolean
+      loadout_name:
+        type: string
+    required:
+    - copy_notes_and_goal
+    - copy_places
+    - loadout_name
+    type: object
+  models.LoadoutCopyResult:
+    properties:
+      left_out:
+        items:
+          $ref: '#/definitions/models.LoadoutLeftOutItem'
+        type: array
+      loadout:
+        $ref: '#/definitions/models.Loadout'
+    type: object
   models.LoadoutFull:
     properties:
       items:
@@ -425,6 +454,13 @@ definitions:
       place_id:
         type: integer
       quantity:
+        type: integer
+    type: object
+  models.LoadoutLeftOutItem:
+    properties:
+      gear_name:
+        type: string
+      loadout_item_id:
         type: integer
     type: object
   models.LoadoutNoID:
@@ -1296,6 +1332,65 @@ paths:
       summary: Search for gear
       tags:
       - Gear
+  /api/v1/loadout/{loadout}/copy:
+    post:
+      consumes:
+      - application/json
+      description: 'Copy a loadout of the caller into a new private loadout of the
+        caller, all or nothing, in one transaction. The request states every option:
+        loadout_name (any string, as for insert), copy_places and copy_notes_and_goal;
+        a missing, null or wrongly typed one is 400 and nothing is created. Always
+        copied: every item whose registration still exists, with its registration,
+        quantity and consumable role, as a new item (several items of one registration
+        stay several items). With copy_places the copy has Last minute if the source
+        has one, the same bags with the same nesting and order, and each item in the
+        same place, Worn included (capability is not checked again); without it the
+        copy has no bags and no Last minute and no item has a place, not even one
+        that was in Worn. With copy_notes_and_goal the copy has the loadout description,
+        the weight goal and each item''s notes; without it none of them. Never copied:
+        ticks, closed places, stage (the copy is in planning), done_at, trip dates,
+        the public flag (the copy is private) and the slug (the copy has none). Items
+        whose registration no longer exists are not copied and are named in left_out
+        by gear_name. The source is only read and is unchanged; a change to it made
+        at the same time is either fully in the copy or not in it. An unknown loadout,
+        another user''s loadout (public or not) is 404 and nothing is created. A loadout_id
+        or user_id in the body that differs from the path or the caller is 400.'
+      parameters:
+      - description: ID of the loadout to copy
+        in: path
+        name: loadout
+        required: true
+        type: integer
+      - description: Name and copy options
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoadoutCopyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoadoutCopyResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+      security:
+      - BearerAuth: []
+      summary: Copy loadout
+      tags:
+      - Loadouts
   /api/v1/loadout/{loadout}/delete:
     delete:
       consumes:
