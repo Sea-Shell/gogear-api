@@ -3,10 +3,14 @@ type: Log
 title: Requirements change log
 description: Chronological record of changes to the GoGear API requirements bundle.
 tags: [log]
-timestamp: 2026-11-24T00:00:00Z
+timestamp: 2026-11-25T00:00:00Z
 ---
 
 # Requirements change log
+
+## 2026-11-25
+
+- **Implementation status (milestone C, task C1, branch `loadout-loop-milestone-c`; local only: not pushed, not merged to `main`, not released, not deployed, not accepted):** [BR-031](/docs/requirements/requirements/br-031-copy-a-loadout.md) (AC-1 to AC-8), [BR-027](/docs/requirements/requirements/br-027-consumable-role-per-loadout-item.md) AC-4, the copy part of [BR-014](/docs/requirements/requirements/br-014-loadouts-owner-scoped.md) and of [BR-028](/docs/requirements/requirements/br-028-loadout-stage-dates-and-goal.md) AC-1 now have implementation lines and index rows that say so. No requirement text changed: acceptance criteria, provisional defaults (P-28 included) and open questions are as before. **Divergence found, not decided here:** BR-031 AC-3 says that with the places option off every copied item has no place, while the ARS-001 first draft kept Worn items in the new Worn. The code follows the requirement; the architect or the owner is asked to confirm (Loom question `223df704`). The index and the BR lines must be reworded when the milestone is merged.
 
 ## 2026-11-24
 

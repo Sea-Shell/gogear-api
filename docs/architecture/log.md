@@ -3,10 +3,14 @@ type: Log
 title: Architecture change log
 description: Chronological record of changes to the GoGear API architecture bundle.
 tags: [log]
-timestamp: 2026-11-24T00:00:00Z
+timestamp: 2026-11-25T00:00:00Z
 ---
 
 # Architecture change log
+
+## 2026-11-25
+
+- **Status and clarifications (milestone C, task C1, branch `loadout-loop-milestone-c`; local only: not pushed, not merged, not released, not deployed, not accepted):** the status lines of [ARS-001](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md), [ARD-001](/docs/architecture/design/ard-001-loadout-planning-and-packing.md), [ADR-003](/docs/architecture/decisions/adr-003-loadout-places-registration-items-and-computed-weight.md) and this bundle's index say milestone C (copy, no migration) is implemented in code. Swagger is regenerated. ARS-001 milestone C gets four clarifications from the coder: the request rules, the response and its `left_out` order, the failure behavior, and one **divergence**: step 3 mapped Worn to the new Worn always, but BR-031 AC-3 says that with `copy_places` off every copied item has no place, so the code follows the requirement and the step now says so. This is awaiting the architect's or the owner's confirmation (Loom question `223df704`). No decision (ADR) changed.
 
 ## 2026-11-24
 

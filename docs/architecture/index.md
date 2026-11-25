@@ -14,11 +14,11 @@ Technical realization decisions for accepted requirements. Requirements live in 
 
 ## Designs
 
-- [ARD-001 Loadout planning and packing: API realization](/docs/architecture/design/ard-001-loadout-planning-and-packing.md): how ADR-003 to ADR-005 compose, the requirement map, invariants, milestones A to E plus the cutover, and the migration sequence. Accepted; milestone A implemented, milestone B implemented in code (milestone B), milestones C to E and the cutover not.
+- [ARD-001 Loadout planning and packing: API realization](/docs/architecture/design/ard-001-loadout-planning-and-packing.md): how ADR-003 to ADR-005 compose, the requirement map, invariants, milestones A to E plus the cutover, and the migration sequence. Accepted; milestone A implemented, milestone B implemented in code (milestone B), milestone C implemented in code (copy, no migration), milestones D and E and the cutover not.
 
 ## Specifications
 
-- [ARS-001 Loadout loop schema, migrations and API contract](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md): migrations 000011 to 000014 and the cutover, the weight views, response shapes and every new or changed endpoint by milestone. Accepted; milestone A implemented, milestone B implemented in code (milestone B), milestones C to E and the cutover not.
+- [ARS-001 Loadout loop schema, migrations and API contract](/docs/architecture/spec/ars-001-loadout-loop-schema-and-api.md): migrations 000011 to 000014 and the cutover, the weight views, response shapes and every new or changed endpoint by milestone. Accepted; milestone A implemented, milestone B implemented in code (milestone B), milestone C implemented in code (copy, no migration), milestones D and E and the cutover not.
 - [ARS-002 Pre-migration backup and restore: startup sequence, names, messages and tests](/docs/architecture/spec/ars-002-pre-migration-backup-and-restore.md): startup order, `database.backup-dir`, `GOGEAR_RESTORE_BACKUP`, file names and state files, stdout lines, build and workflow changes, required tests and task A6b (BR-038). Accepted; not implemented.
 
 ## Bundle files
